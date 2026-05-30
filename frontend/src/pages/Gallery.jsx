@@ -72,10 +72,11 @@ const Gallery = () => {
       <section className="py-16">
         <div className="max-w-6xl mx-auto px-5 lg:px-8 grid grid-cols-1 md:grid-cols-2 gap-8">
           {filtered.map(g => (
-            <div key={g.id} className="bg-[#0f0f0f] border border-[#1c1c1c] rounded-2xl overflow-hidden">
+            <div key={g.id} className={`bg-[#0f0f0f] border ${g.featured ? 'border-green-500/40 shadow-xl shadow-green-500/10' : 'border-[#1c1c1c]'} rounded-2xl overflow-hidden`}>
               <BeforeAfter before={g.before} after={g.after} alt={g.title}/>
               <div className="p-6">
-                <div className="flex items-center gap-3 text-xs text-neutral-500">
+                <div className="flex items-center gap-3 text-xs text-neutral-500 flex-wrap">
+                  {g.featured && <span className="chip px-2 py-0.5 rounded-full text-green-400 font-semibold">★ Featured Project</span>}
                   <span className="chip px-2 py-0.5 rounded-full">{g.category}</span>
                   <span className="flex items-center gap-1"><MapPin size={11}/> {g.location}</span>
                 </div>

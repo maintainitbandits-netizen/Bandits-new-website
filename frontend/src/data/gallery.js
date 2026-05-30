@@ -2,6 +2,16 @@
 
 export const GALLERY = [
   {
+    id: 0,
+    title: 'Round Rock Lawn Restoration',
+    category: 'Lawn Mowing',
+    location: 'Round Rock, TX',
+    featured: true,
+    before: 'https://customer-assets.emergentagent.com/job_bandits-replica/artifacts/egbdiogf_PXL_20260529_160224380.jpg',
+    after: 'https://customer-assets.emergentagent.com/job_bandits-replica/artifacts/92x2c2l7_PXL_20260529_160844732.jpg',
+    description: 'Full lawn restoration including mowing, edging, weed treatment, and cleanup. Transformed a weed-overrun yard into a crisp, well-maintained property.',
+  },
+  {
     id: 1,
     title: 'South Austin Backyard Refresh',
     category: 'Landscaping',
