@@ -59,8 +59,17 @@ const Footer = () => {
           </ul>
         </div>
       </div>
-      <div className="border-t border-[#161616] py-6 text-center text-neutral-500 text-xs">
-        © {new Date().getFullYear()} {COMPANY.name}. All rights reserved.
+      <div className="border-t border-[#161616] py-6">
+        <div className="max-w-7xl mx-auto px-5 lg:px-8 flex flex-col md:flex-row justify-between items-center gap-3 text-xs text-neutral-500">
+          <div>© {new Date().getFullYear()} {COMPANY.name}. All rights reserved.</div>
+          <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
+            <span>License: {COMPANY.licenseNumber}</span>
+            <span className="hidden md:inline">•</span>
+            <span>{COMPANY.insurance}</span>
+            <span className="hidden md:inline">•</span>
+            <span className="text-green-400/80">{COMPANY.guarantee}</span>
+          </div>
+        </div>
       </div>
     </footer>
   );

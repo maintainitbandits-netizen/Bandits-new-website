@@ -6,6 +6,7 @@ import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import StickyCallButton from './components/StickyCallButton';
 import ExitIntent from './components/ExitIntent';
+import PromoBanner from './components/PromoBanner';
 import Home from './pages/Home';
 import ServicesPage from './pages/ServicesPage';
 import ServiceDetail from './pages/ServiceDetail';
@@ -35,6 +36,7 @@ function App() {
       <div className="App">
         <BrowserRouter>
           <ScrollToTop />
+          <PromoBanner />
           <Navbar />
           <Routes>
             <Route path="/" element={<Home />} />

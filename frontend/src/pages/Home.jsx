@@ -6,6 +6,11 @@ import { SOCIAL, REVIEW_STATS } from '../config/social';
 import SEO from '../components/SEO';
 import TrustBar from '../components/TrustBar';
 import QuoteCalculator from '../components/QuoteCalculator';
+import HowItWorks from '../components/HowItWorks';
+import ZipChecker from '../components/ZipChecker';
+import ComparisonTable from '../components/ComparisonTable';
+import LeadMagnet from '../components/LeadMagnet';
+import CredibilityStats from '../components/CredibilityStats';
 
 const Badge = ({ children, icon: Icon }) => (
   <span className="chip inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs tracking-widest font-medium uppercase">
@@ -94,6 +99,9 @@ const Home = () => {
       {/* TRUST BAR */}
       <TrustBar />
 
+      {/* CREDIBILITY STATS */}
+      <CredibilityStats />
+
       {/* SERVICES */}
       <section className="py-24 bg-[#0a0a0a]">
         <div className="max-w-6xl mx-auto px-5 lg:px-8">
@@ -135,6 +143,19 @@ const Home = () => {
           <QuoteCalculator />
         </div>
       </section>
+
+      {/* HOW IT WORKS */}
+      <HowItWorks />
+
+      {/* ZIP CHECKER */}
+      <section className="py-24 bg-[#0a0a0a]">
+        <div className="max-w-4xl mx-auto px-5 lg:px-8">
+          <ZipChecker />
+        </div>
+      </section>
+
+      {/* COMPARISON TABLE */}
+      <ComparisonTable />
 
 
       {/* WHY CHOOSE US */}
@@ -191,11 +212,14 @@ const Home = () => {
         </div>
       </section>
 
+
+      {/* LEAD MAGNET */}
+      <LeadMagnet />
+
       {/* SERVICE AREAS */}
       <section className="py-24 bg-[#080808]">
         <div className="max-w-6xl mx-auto px-5 lg:px-8 text-center">
-          <Badge icon={MapPin}>Service Areas</Badge>
-          <h2 className="font-serif text-4xl md:text-5xl text-white mt-5">Serving Greater Austin TX</h2>
+          <Badge icon={MapPin}>Service Areas</Badge>          <h2 className="font-serif text-4xl md:text-5xl text-white mt-5">Serving Greater Austin TX</h2>
           <p className="text-neutral-400 max-w-2xl mx-auto mt-5">
             Maintain It Bandits LLC provides lawn care, landscaping, cleaning, and home services throughout the Austin metro area.
           </p>

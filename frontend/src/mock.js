@@ -23,6 +23,12 @@ export const COMPANY = {
   city: 'Austin',
   region: 'TX',
   country: 'US',
+  // Credibility & trust info \u2014 update with your actual numbers
+  founded: 2020,
+  jobsCompleted: '2,500+',
+  licenseNumber: 'TX-LLC-2020', // Update with your real LLC / license number
+  insurance: 'General Liability & Workers\u2019 Comp',
+  guarantee: '100% Satisfaction Guaranteed',
 };
 
 export const NAV_LINKS = [
