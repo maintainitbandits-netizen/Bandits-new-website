@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Phone, Mail, MapPin, Clock, Check, Send, Loader2, Zap, FileText } from 'lucide-react';
 import { COMPANY, SERVICES } from '../mock';
+import { MAP_QUERY } from '../config/social';
 import { useToast } from '../hooks/use-toast';
 import SEO from '../components/SEO';
 import Breadcrumbs from '../components/Breadcrumbs';
@@ -143,6 +144,27 @@ const Contact = () => {
             </div>
           </div>
         </div>
+
+      {/* GOOGLE MAP */}
+      <section className="pb-20">
+        <div className="max-w-6xl mx-auto px-5 lg:px-8">
+          <div className="bg-[#0f0f0f] border border-[#1c1c1c] rounded-2xl overflow-hidden">
+            <div className="aspect-[16/7]">
+              <iframe
+                title="Maintain It Bandits Service Area Map"
+                src={`https://maps.google.com/maps?q=${MAP_QUERY}&z=10&output=embed`}
+                width="100%"
+                height="100%"
+                style={{ border: 0, filter: 'invert(0.92) hue-rotate(180deg) contrast(0.85)' }}
+                allowFullScreen=""
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+              />
+            </div>
+          </div>
+        </div>
+      </section>
+
       </section>
     </div>
   );

@@ -2,6 +2,8 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { Phone, Mail, MapPin, Clock } from 'lucide-react';
 import { COMPANY, SERVICES, SERVICE_AREAS } from '../mock';
+import SocialIcons from './SocialIcons';
+import NewsletterSignup from './NewsletterSignup';
 
 const Footer = () => {
   return (
@@ -22,6 +24,8 @@ const Footer = () => {
             <li className="flex items-start gap-2 text-neutral-400"><MapPin size={16} className="text-green-400 mt-0.5" /> {COMPANY.area}</li>
             <li className="flex items-start gap-2 text-neutral-400"><Clock size={16} className="text-green-400 mt-0.5" /> {COMPANY.hours}</li>
           </ul>
+          <SocialIcons className="mt-5"/>
+          <div className="mt-6"><NewsletterSignup /></div>
         </div>
 
         <div>
@@ -47,6 +51,7 @@ const Footer = () => {
           <ul className="space-y-2 text-sm">
             <li><Link to="/about" className="text-neutral-400 hover:text-green-400">About Us</Link></li>
             <li><Link to="/gallery" className="text-neutral-400 hover:text-green-400">Photo Gallery</Link></li>
+            <li><Link to="/reviews" className="text-neutral-400 hover:text-green-400">Reviews</Link></li>
             <li><Link to="/blog" className="text-neutral-400 hover:text-green-400">Blog</Link></li>
             <li><Link to="/pricing" className="text-neutral-400 hover:text-green-400">Pricing</Link></li>
             <li><Link to="/faq" className="text-neutral-400 hover:text-green-400">FAQ</Link></li>

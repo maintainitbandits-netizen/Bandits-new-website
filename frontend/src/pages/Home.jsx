@@ -2,8 +2,10 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { Phone, ArrowRight, Link as LinkIcon, ShieldCheck, Clock, Star, DollarSign, Check, Quote, MapPin } from 'lucide-react';
 import { HERO_IMAGE, AUSTIN_SKYLINE, SERVICES, TESTIMONIALS, SERVICE_AREAS, WHY_CHOOSE, COMPANY } from '../mock';
+import { SOCIAL, REVIEW_STATS } from '../config/social';
 import SEO from '../components/SEO';
 import TrustBar from '../components/TrustBar';
+import QuoteCalculator from '../components/QuoteCalculator';
 
 const Badge = ({ children, icon: Icon }) => (
   <span className="chip inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs tracking-widest font-medium uppercase">
@@ -22,7 +24,8 @@ const Home = () => {
     'priceRange': '$$',
     'address': { '@type': 'PostalAddress', 'addressLocality': 'Austin', 'addressRegion': 'TX', 'addressCountry': 'US' },
     'areaServed': SERVICE_AREAS.map(a => a.name),
-    'aggregateRating': { '@type': 'AggregateRating', 'ratingValue': '5', 'reviewCount': '500' },
+    'aggregateRating': { '@type': 'AggregateRating', 'ratingValue': REVIEW_STATS.rating.toString(), 'reviewCount': REVIEW_STATS.count.toString(), 'bestRating': '5' },
+    'sameAs': [SOCIAL.googleBusinessProfile, SOCIAL.facebook, SOCIAL.instagram, SOCIAL.yelp, SOCIAL.nextdoor].filter(Boolean),
   };
   return (
     <div>
@@ -112,6 +115,19 @@ const Home = () => {
           </div>
         </div>
       </section>
+
+      {/* QUOTE CALCULATOR */}
+      <section className="py-24 bg-[#080808]">
+        <div className="max-w-4xl mx-auto px-5 lg:px-8">
+          <div className="text-center mb-10">
+            <Badge>Instant Estimate</Badge>
+            <h2 className="font-serif text-4xl md:text-5xl text-white mt-5">Ballpark Your Project in Seconds</h2>
+            <p className="text-neutral-400 mt-4 max-w-2xl mx-auto">No phone calls, no email forms — just pick your service and lot size to get an instant price range.</p>
+          </div>
+          <QuoteCalculator />
+        </div>
+      </section>
+
 
       {/* WHY CHOOSE US */}
       <section className="py-24 bg-[#080808]">
