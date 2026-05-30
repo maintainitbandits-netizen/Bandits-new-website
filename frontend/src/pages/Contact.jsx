@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Phone, Mail, MapPin, Clock, Check, Send } from 'lucide-react';
 import { COMPANY, SERVICES } from '../mock';
 import { useToast } from '../hooks/use-toast';
+import SEO from '../components/SEO';
 
 const Contact = () => {
   const { toast } = useToast();
@@ -18,6 +19,12 @@ const Contact = () => {
 
   return (
     <div>
+      <SEO
+        title="Contact Maintain It Bandits LLC | Free Estimate Austin TX"
+        description="Contact Maintain It Bandits LLC for a free, no-obligation estimate on lawn care, landscaping, cleaning, and home services in Austin TX. Call (512) 518-1558."
+        keywords="contact lawn care Austin TX, free estimate lawn care Austin, Maintain It Bandits contact"
+        path="/contact"
+      />
       <section className="py-20 bg-[#0a0a0a] border-b border-[#161616]">
         <div className="max-w-5xl mx-auto px-5 lg:px-8 text-center">
           <span className="chip inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs tracking-widest font-medium uppercase">Contact</span>

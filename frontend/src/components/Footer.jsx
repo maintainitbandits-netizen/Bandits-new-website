@@ -31,7 +31,7 @@ const Footer = () => {
           <h4 className="text-white font-semibold mb-4">Service Areas</h4>
           <ul className="space-y-2 text-sm">
             {SERVICE_AREAS.slice(0, 8).map(a => (
-              <li key={a.slug}><Link to="/service-areas" className="text-neutral-400 hover:text-green-400">{a.name}</Link></li>
+              <li key={a.slug}><Link to={`/service-areas/${a.slug}`} className="text-neutral-400 hover:text-green-400">{a.name}</Link></li>
             ))}
           </ul>
         </div>

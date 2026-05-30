@@ -12,8 +12,8 @@ export const COMPANY = {
 
 export const NAV_LINKS = [
   { label: 'Home', path: '/' },
-  { label: 'Services', path: '/services', hasDropdown: true },
-  { label: 'Service Areas', path: '/service-areas' },
+  { label: 'Services', path: '/services', hasDropdown: 'services' },
+  { label: 'Service Areas', path: '/service-areas', hasDropdown: 'areas' },
   { label: 'About', path: '/about' },
   { label: 'Contact', path: '/contact' },
 ];

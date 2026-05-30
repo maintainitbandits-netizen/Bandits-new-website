@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
 import { Link, NavLink, useLocation } from 'react-router-dom';
 import { Phone, Menu, X, ChevronDown } from 'lucide-react';
-import { COMPANY, NAV_LINKS, SERVICES } from '../mock';
+import { COMPANY, NAV_LINKS, SERVICES, SERVICE_AREAS } from '../mock';
 
 const Navbar = () => {
   const [open, setOpen] = useState(false);
   const [svcOpen, setSvcOpen] = useState(false);
+  const [areaOpen, setAreaOpen] = useState(false);
   const location = useLocation();
 
-  React.useEffect(() => { setOpen(false); setSvcOpen(false); }, [location.pathname]);
+  React.useEffect(() => { setOpen(false); setSvcOpen(false); setAreaOpen(false); }, [location.pathname]);
 
   return (
     <header className="sticky top-0 z-50 bg-[#0a0a0a]/90 backdrop-blur-md border-b border-[#1a1a1a]">
@@ -25,7 +26,7 @@ const Navbar = () => {
 
         <nav className="hidden lg:flex items-center gap-1">
           {NAV_LINKS.map((l) => (
-            l.hasDropdown ? (
+            l.hasDropdown === 'services' ? (
               <div key={l.path} className="relative" onMouseEnter={() => setSvcOpen(true)} onMouseLeave={() => setSvcOpen(false)}>
                 <NavLink to={l.path} className={({ isActive }) => `px-4 py-2 rounded-full text-sm flex items-center gap-1 ${isActive ? 'bg-[#161616] text-white' : 'text-neutral-300 hover:text-white'}`}>
                   {l.label} <ChevronDown size={14} />
@@ -35,6 +36,21 @@ const Navbar = () => {
                     <div className="bg-[#0f0f0f] border border-[#222] rounded-xl shadow-2xl overflow-hidden">
                       {SERVICES.map(s => (
                         <Link key={s.slug} to={`/services/${s.slug}`} className="block px-4 py-3 text-sm text-neutral-300 hover:bg-[#171717] hover:text-green-400 border-b border-[#1a1a1a] last:border-0">{s.title}</Link>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : l.hasDropdown === 'areas' ? (
+              <div key={l.path} className="relative" onMouseEnter={() => setAreaOpen(true)} onMouseLeave={() => setAreaOpen(false)}>
+                <NavLink to={l.path} className={({ isActive }) => `px-4 py-2 rounded-full text-sm flex items-center gap-1 ${isActive ? 'bg-[#161616] text-white' : 'text-neutral-300 hover:text-white'}`}>
+                  {l.label} <ChevronDown size={14} />
+                </NavLink>
+                {areaOpen && (
+                  <div className="absolute top-full left-0 pt-2 w-64">
+                    <div className="bg-[#0f0f0f] border border-[#222] rounded-xl shadow-2xl overflow-hidden max-h-96 overflow-y-auto">
+                      {SERVICE_AREAS.map(a => (
+                        <Link key={a.slug} to={`/service-areas/${a.slug}`} className="block px-4 py-3 text-sm text-neutral-300 hover:bg-[#171717] hover:text-green-400 border-b border-[#1a1a1a] last:border-0">{a.name}</Link>
                       ))}
                     </div>
                   </div>

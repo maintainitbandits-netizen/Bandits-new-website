@@ -1,6 +1,7 @@
 import React from 'react';
 import { Heart, Award, Users, Sprout, Recycle, Zap } from 'lucide-react';
 import { VALUES, STATS, TEAM_IMAGE } from '../mock';
+import SEO from '../components/SEO';
 import CTASection from '../components/CTASection';
 
 const VALUE_ICONS = {
@@ -14,6 +15,12 @@ const VALUE_ICONS = {
 
 const About = () => (
   <div>
+    <SEO
+      title="About Maintain It Bandits LLC | Austin TX Lawn Care & Home Services"
+      description="Learn about Maintain It Bandits LLC \u2013 Austin\u2019s trusted lawn care and home services company. Licensed, insured, locally owned. 500+ happy customers."
+      keywords="about Maintain It Bandits, Austin lawn care company, lawn care Austin TX, home services company Austin"
+      path="/about"
+    />
     <section className="py-20 bg-[#0a0a0a] border-b border-[#161616]">
       <div className="max-w-5xl mx-auto px-5 lg:px-8 text-center">
         <span className="chip inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs tracking-widest font-medium uppercase">About Us</span>

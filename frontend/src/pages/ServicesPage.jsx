@@ -2,10 +2,17 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Phone } from 'lucide-react';
 import { SERVICES, COMPANY } from '../mock';
+import SEO from '../components/SEO';
 import CTASection from '../components/CTASection';
 
 const ServicesPage = () => (
   <div>
+    <SEO
+      title="Our Services | Lawn Care, Landscaping & Cleaning Austin TX | Maintain It Bandits LLC"
+      description="Complete home services in Austin TX: lawn mowing, landscaping, fertilization, sod installation, property maintenance, and cleaning. Licensed & insured."
+      keywords="Austin lawn care services, landscaping services Austin, home services Austin TX, lawn maintenance Austin"
+      path="/services"
+    />
     <section className="py-20 bg-[#0a0a0a] border-b border-[#161616]">
       <div className="max-w-5xl mx-auto px-5 lg:px-8 text-center">
         <span className="chip inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs tracking-widest font-medium uppercase">Our Services</span>

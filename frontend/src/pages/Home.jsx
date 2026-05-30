@@ -2,6 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { Phone, ArrowRight, Link as LinkIcon, ShieldCheck, Clock, Star, DollarSign, Check, Quote, MapPin } from 'lucide-react';
 import { HERO_IMAGE, AUSTIN_SKYLINE, SERVICES, TESTIMONIALS, SERVICE_AREAS, WHY_CHOOSE, COMPANY } from '../mock';
+import SEO from '../components/SEO';
 
 const Badge = ({ children, icon: Icon }) => (
   <span className="chip inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs tracking-widest font-medium uppercase">
@@ -10,8 +11,28 @@ const Badge = ({ children, icon: Icon }) => (
 );
 
 const Home = () => {
+  const homeSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'LocalBusiness',
+    'name': COMPANY.name,
+    'image': 'https://maintainitbandits.com/images/hero-bg.jpg',
+    'telephone': COMPANY.phone,
+    'email': COMPANY.email,
+    'priceRange': '$$',
+    'address': { '@type': 'PostalAddress', 'addressLocality': 'Austin', 'addressRegion': 'TX', 'addressCountry': 'US' },
+    'areaServed': SERVICE_AREAS.map(a => a.name),
+    'aggregateRating': { '@type': 'AggregateRating', 'ratingValue': '5', 'reviewCount': '500' },
+  };
   return (
     <div>
+      <SEO
+        title="Lawn Care, Landscaping & Home Services Austin TX | Maintain It Bandits LLC"
+        description="Austin TX's one-stop shop for lawn care, landscaping, cleaning, and home services. Licensed & insured. Free estimates. Serving Austin, Round Rock, Cedar Park & surrounding areas."
+        keywords="lawn care Austin TX, landscaping Austin, home services Austin, lawn mowing Austin, Austin landscaper"
+        path="/"
+        image="https://maintainitbandits.com/images/hero-bg.jpg"
+        schema={homeSchema}
+      />
       {/* HERO */}
       <section className="relative overflow-hidden hero-gradient">
         <div className="absolute inset-0">
@@ -152,7 +173,7 @@ const Home = () => {
           </p>
           <div className="flex flex-wrap justify-center gap-3 mt-9">
             {SERVICE_AREAS.map(a => (
-              <Link key={a.slug} to="/service-areas" className="px-5 py-2.5 rounded-full bg-[#0f0f0f] border border-[#1f1f1f] text-neutral-300 hover:text-green-400 hover:border-green-500/40 transition-colors text-sm">{a.name}</Link>
+              <Link key={a.slug} to={`/service-areas/${a.slug}`} className="px-5 py-2.5 rounded-full bg-[#0f0f0f] border border-[#1f1f1f] text-neutral-300 hover:text-green-400 hover:border-green-500/40 transition-colors text-sm">{a.name}</Link>
             ))}
           </div>
         </div>
