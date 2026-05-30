@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Phone, ArrowRight, Link as LinkIcon, ShieldCheck, Clock, Star, DollarSign, Check, Quote, MapPin } from 'lucide-react';
 import { HERO_IMAGE, AUSTIN_SKYLINE, SERVICES, TESTIMONIALS, SERVICE_AREAS, WHY_CHOOSE, COMPANY } from '../mock';
 import SEO from '../components/SEO';
+import TrustBar from '../components/TrustBar';
 
 const Badge = ({ children, icon: Icon }) => (
   <span className="chip inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs tracking-widest font-medium uppercase">
@@ -78,6 +79,9 @@ const Home = () => {
           </div>
         </div>
       </section>
+
+      {/* TRUST BAR */}
+      <TrustBar />
 
       {/* SERVICES */}
       <section className="py-24 bg-[#0a0a0a]">

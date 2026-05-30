@@ -1,13 +1,16 @@
 import React, { useState } from 'react';
-import { Phone, Mail, MapPin, Clock, Check, Send, Loader2 } from 'lucide-react';
+import { Phone, Mail, MapPin, Clock, Check, Send, Loader2, Zap, FileText } from 'lucide-react';
 import { COMPANY, SERVICES } from '../mock';
 import { useToast } from '../hooks/use-toast';
 import SEO from '../components/SEO';
+import Breadcrumbs from '../components/Breadcrumbs';
+import MultiStepQuote from '../components/MultiStepQuote';
 
 const FORMSPREE_ENDPOINT = 'https://formspree.io/f/maqkbaql';
 
 const Contact = () => {
   const { toast } = useToast();
+  const [mode, setMode] = useState('quick');
   const [form, setForm] = useState({ name: '', email: '', phone: '', service: '', message: '' });
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -59,17 +62,29 @@ const Contact = () => {
         keywords="contact lawn care Austin TX, free estimate lawn care Austin, Maintain It Bandits contact"
         path="/contact"
       />
-      <section className="py-20 bg-[#0a0a0a] border-b border-[#161616]">
+      <Breadcrumbs items={[{ name: 'Contact', path: '/contact' }]}/>
+      <section className="py-16 bg-[#0a0a0a] border-b border-[#161616]">
         <div className="max-w-5xl mx-auto px-5 lg:px-8 text-center">
           <span className="chip inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs tracking-widest font-medium uppercase">Contact</span>
           <h1 className="font-serif text-5xl md:text-6xl text-white mt-5">Get Your Free Estimate</h1>
-          <p className="text-neutral-400 mt-6 max-w-2xl mx-auto leading-relaxed">Ready to transform your Austin TX property? Contact Maintain It Bandits LLC today for a free, no-obligation estimate.</p>
+          <p className="text-neutral-400 mt-6 max-w-2xl mx-auto leading-relaxed">Ready to transform your Austin TX property? Get an instant quote in 60 seconds or send us a detailed message.</p>
         </div>
       </section>
 
-      <section className="py-20">
+      <section className="py-16">
         <div className="max-w-6xl mx-auto px-5 lg:px-8 grid grid-cols-1 lg:grid-cols-3 gap-10">
           <div className="lg:col-span-2">
+            {/* Tab switcher */}
+            <div className="bg-[#0a0a0a] border border-[#1c1c1c] rounded-full p-1 inline-flex gap-1 mb-6">
+              <button onClick={() => setMode('quick')} className={`px-5 py-2 rounded-full text-sm font-medium inline-flex items-center gap-2 transition-colors ${mode === 'quick' ? 'btn-green' : 'text-neutral-400 hover:text-white'}`}>
+                <Zap size={14}/> 60-Second Quote
+              </button>
+              <button onClick={() => setMode('detailed')} className={`px-5 py-2 rounded-full text-sm font-medium inline-flex items-center gap-2 transition-colors ${mode === 'detailed' ? 'btn-green' : 'text-neutral-400 hover:text-white'}`}>
+                <FileText size={14}/> Detailed Message
+              </button>
+            </div>
+
+            {mode === 'quick' ? <MultiStepQuote /> : (
             <form onSubmit={handleSubmit} className="bg-[#0f0f0f] border border-[#1c1c1c] rounded-2xl p-8 space-y-5">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div>
@@ -105,6 +120,7 @@ const Contact = () => {
               {submitted && <p className="text-green-400 text-sm flex items-center gap-2"><Check size={16}/> Your request was received. We&apos;ll be in touch within 24 hours!</p>}
               {error && <p className="text-red-400 text-sm">{error}</p>}
             </form>
+            )}
           </div>
 
           <div className="space-y-6">

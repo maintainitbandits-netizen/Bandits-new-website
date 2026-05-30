@@ -1,0 +1,60 @@
+// Photo gallery \u2014 placeholder images. Replace with real customer photos via mock.js or upload.
+
+export const GALLERY = [
+  {
+    id: 1,
+    title: 'South Austin Backyard Refresh',
+    category: 'Landscaping',
+    location: 'South Austin, TX',
+    before: 'https://images.unsplash.com/photo-1592859600972-1b0834d83747?w=1200&q=80',
+    after: 'https://images.unsplash.com/photo-1620301598061-cef47f5a3711?w=1200&q=80',
+    description: 'Removed dead turf, installed new St. Augustine sod, added native plant beds with mulch.',
+  },
+  {
+    id: 2,
+    title: 'Round Rock Front Yard',
+    category: 'Lawn Mowing',
+    location: 'Round Rock, TX',
+    before: 'https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=1200&q=80',
+    after: 'https://images.unsplash.com/photo-1458245201577-fc8a130b8829?w=1200&q=80',
+    description: 'Weekly mowing service: overgrown front yard transformed into a clean, edged showpiece.',
+  },
+  {
+    id: 3,
+    title: 'Cedar Park Sod Installation',
+    category: 'Sod Installation',
+    location: 'Cedar Park, TX',
+    before: 'https://images.unsplash.com/photo-1466692476868-aef1dfb1e735?w=1200&q=80',
+    after: 'https://images.unsplash.com/photo-1733842210636-5a4cd75a06e5?w=1200&q=80',
+    description: 'Bare soil to lush green Bermuda sod \u2014 install completed in a single day.',
+  },
+  {
+    id: 4,
+    title: 'West Lake Hills Estate Maintenance',
+    category: 'Property Maintenance',
+    location: 'West Lake Hills, TX',
+    before: 'https://images.unsplash.com/photo-1689728222087-6984f72460c4?w=1200&q=80',
+    after: 'https://images.pexels.com/photos/28463539/pexels-photo-28463539.jpeg?w=1200&q=80',
+    description: 'Ongoing weekly property maintenance \u2014 mowing, edging, bed maintenance, trim.',
+  },
+  {
+    id: 5,
+    title: 'Georgetown Mulch Refresh',
+    category: 'Landscaping',
+    location: 'Georgetown, TX',
+    before: 'https://images.unsplash.com/photo-1622383563227-04401ab4e5ea?w=1200&q=80',
+    after: 'https://images.unsplash.com/photo-1738193830098-2d92352a1856?w=1200&q=80',
+    description: 'Fresh hardwood mulch and crisp edging on all front yard beds.',
+  },
+  {
+    id: 6,
+    title: 'Pflugerville Move-Out Clean',
+    category: 'Cleaning',
+    location: 'Pflugerville, TX',
+    before: 'https://images.pexels.com/photos/6197116/pexels-photo-6197116.jpeg?w=1200&q=80',
+    after: 'https://images.pexels.com/photos/6647052/pexels-photo-6647052.jpeg?w=1200&q=80',
+    description: 'Full move-out deep clean \u2014 inside cabinets, appliances, baseboards, floors.',
+  },
+];
+
+export const GALLERY_CATEGORIES = ['All', 'Lawn Mowing', 'Landscaping', 'Sod Installation', 'Property Maintenance', 'Cleaning'];

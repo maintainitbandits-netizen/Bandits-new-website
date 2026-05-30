@@ -2,13 +2,23 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url><loc>https://maintainitbandits.com/</loc><priority>1.0</priority></url>
   <url><loc>https://maintainitbandits.com/services</loc><priority>0.9</priority></url>
+  <url><loc>https://maintainitbandits.com/service-areas</loc><priority>0.9</priority></url>
+  <url><loc>https://maintainitbandits.com/gallery</loc><priority>0.8</priority></url>
+  <url><loc>https://maintainitbandits.com/blog</loc><priority>0.8</priority></url>
+  <url><loc>https://maintainitbandits.com/pricing</loc><priority>0.8</priority></url>
+  <url><loc>https://maintainitbandits.com/faq</loc><priority>0.7</priority></url>
+  <url><loc>https://maintainitbandits.com/about</loc><priority>0.7</priority></url>
+  <url><loc>https://maintainitbandits.com/contact</loc><priority>0.9</priority></url>
+
+  <!-- Service pages -->
   <url><loc>https://maintainitbandits.com/services/lawn-mowing</loc><priority>0.8</priority></url>
   <url><loc>https://maintainitbandits.com/services/landscaping</loc><priority>0.8</priority></url>
   <url><loc>https://maintainitbandits.com/services/fertilization</loc><priority>0.8</priority></url>
   <url><loc>https://maintainitbandits.com/services/sod-installation</loc><priority>0.8</priority></url>
   <url><loc>https://maintainitbandits.com/services/property-maintenance</loc><priority>0.8</priority></url>
   <url><loc>https://maintainitbandits.com/services/cleaning</loc><priority>0.8</priority></url>
-  <url><loc>https://maintainitbandits.com/service-areas</loc><priority>0.9</priority></url>
+
+  <!-- Service Areas -->
   <url><loc>https://maintainitbandits.com/service-areas/austin</loc><priority>0.8</priority></url>
   <url><loc>https://maintainitbandits.com/service-areas/round-rock</loc><priority>0.8</priority></url>
   <url><loc>https://maintainitbandits.com/service-areas/cedar-park</loc><priority>0.8</priority></url>
@@ -19,6 +29,78 @@
   <url><loc>https://maintainitbandits.com/service-areas/west-lake-hills</loc><priority>0.8</priority></url>
   <url><loc>https://maintainitbandits.com/service-areas/lakeway</loc><priority>0.8</priority></url>
   <url><loc>https://maintainitbandits.com/service-areas/dripping-springs</loc><priority>0.8</priority></url>
-  <url><loc>https://maintainitbandits.com/about</loc><priority>0.7</priority></url>
-  <url><loc>https://maintainitbandits.com/contact</loc><priority>0.9</priority></url>
+
+  <!-- Service x City combination pages (60 total) -->
+  <url><loc>https://maintainitbandits.com/services/lawn-mowing/austin</loc></url>
+  <url><loc>https://maintainitbandits.com/services/lawn-mowing/round-rock</loc></url>
+  <url><loc>https://maintainitbandits.com/services/lawn-mowing/cedar-park</loc></url>
+  <url><loc>https://maintainitbandits.com/services/lawn-mowing/georgetown</loc></url>
+  <url><loc>https://maintainitbandits.com/services/lawn-mowing/pflugerville</loc></url>
+  <url><loc>https://maintainitbandits.com/services/lawn-mowing/leander</loc></url>
+  <url><loc>https://maintainitbandits.com/services/lawn-mowing/bee-cave</loc></url>
+  <url><loc>https://maintainitbandits.com/services/lawn-mowing/west-lake-hills</loc></url>
+  <url><loc>https://maintainitbandits.com/services/lawn-mowing/lakeway</loc></url>
+  <url><loc>https://maintainitbandits.com/services/lawn-mowing/dripping-springs</loc></url>
+
+  <url><loc>https://maintainitbandits.com/services/landscaping/austin</loc></url>
+  <url><loc>https://maintainitbandits.com/services/landscaping/round-rock</loc></url>
+  <url><loc>https://maintainitbandits.com/services/landscaping/cedar-park</loc></url>
+  <url><loc>https://maintainitbandits.com/services/landscaping/georgetown</loc></url>
+  <url><loc>https://maintainitbandits.com/services/landscaping/pflugerville</loc></url>
+  <url><loc>https://maintainitbandits.com/services/landscaping/leander</loc></url>
+  <url><loc>https://maintainitbandits.com/services/landscaping/bee-cave</loc></url>
+  <url><loc>https://maintainitbandits.com/services/landscaping/west-lake-hills</loc></url>
+  <url><loc>https://maintainitbandits.com/services/landscaping/lakeway</loc></url>
+  <url><loc>https://maintainitbandits.com/services/landscaping/dripping-springs</loc></url>
+
+  <url><loc>https://maintainitbandits.com/services/fertilization/austin</loc></url>
+  <url><loc>https://maintainitbandits.com/services/fertilization/round-rock</loc></url>
+  <url><loc>https://maintainitbandits.com/services/fertilization/cedar-park</loc></url>
+  <url><loc>https://maintainitbandits.com/services/fertilization/georgetown</loc></url>
+  <url><loc>https://maintainitbandits.com/services/fertilization/pflugerville</loc></url>
+  <url><loc>https://maintainitbandits.com/services/fertilization/leander</loc></url>
+  <url><loc>https://maintainitbandits.com/services/fertilization/bee-cave</loc></url>
+  <url><loc>https://maintainitbandits.com/services/fertilization/west-lake-hills</loc></url>
+  <url><loc>https://maintainitbandits.com/services/fertilization/lakeway</loc></url>
+  <url><loc>https://maintainitbandits.com/services/fertilization/dripping-springs</loc></url>
+
+  <url><loc>https://maintainitbandits.com/services/sod-installation/austin</loc></url>
+  <url><loc>https://maintainitbandits.com/services/sod-installation/round-rock</loc></url>
+  <url><loc>https://maintainitbandits.com/services/sod-installation/cedar-park</loc></url>
+  <url><loc>https://maintainitbandits.com/services/sod-installation/georgetown</loc></url>
+  <url><loc>https://maintainitbandits.com/services/sod-installation/pflugerville</loc></url>
+  <url><loc>https://maintainitbandits.com/services/sod-installation/leander</loc></url>
+  <url><loc>https://maintainitbandits.com/services/sod-installation/bee-cave</loc></url>
+  <url><loc>https://maintainitbandits.com/services/sod-installation/west-lake-hills</loc></url>
+  <url><loc>https://maintainitbandits.com/services/sod-installation/lakeway</loc></url>
+  <url><loc>https://maintainitbandits.com/services/sod-installation/dripping-springs</loc></url>
+
+  <url><loc>https://maintainitbandits.com/services/property-maintenance/austin</loc></url>
+  <url><loc>https://maintainitbandits.com/services/property-maintenance/round-rock</loc></url>
+  <url><loc>https://maintainitbandits.com/services/property-maintenance/cedar-park</loc></url>
+  <url><loc>https://maintainitbandits.com/services/property-maintenance/georgetown</loc></url>
+  <url><loc>https://maintainitbandits.com/services/property-maintenance/pflugerville</loc></url>
+  <url><loc>https://maintainitbandits.com/services/property-maintenance/leander</loc></url>
+  <url><loc>https://maintainitbandits.com/services/property-maintenance/bee-cave</loc></url>
+  <url><loc>https://maintainitbandits.com/services/property-maintenance/west-lake-hills</loc></url>
+  <url><loc>https://maintainitbandits.com/services/property-maintenance/lakeway</loc></url>
+  <url><loc>https://maintainitbandits.com/services/property-maintenance/dripping-springs</loc></url>
+
+  <url><loc>https://maintainitbandits.com/services/cleaning/austin</loc></url>
+  <url><loc>https://maintainitbandits.com/services/cleaning/round-rock</loc></url>
+  <url><loc>https://maintainitbandits.com/services/cleaning/cedar-park</loc></url>
+  <url><loc>https://maintainitbandits.com/services/cleaning/georgetown</loc></url>
+  <url><loc>https://maintainitbandits.com/services/cleaning/pflugerville</loc></url>
+  <url><loc>https://maintainitbandits.com/services/cleaning/leander</loc></url>
+  <url><loc>https://maintainitbandits.com/services/cleaning/bee-cave</loc></url>
+  <url><loc>https://maintainitbandits.com/services/cleaning/west-lake-hills</loc></url>
+  <url><loc>https://maintainitbandits.com/services/cleaning/lakeway</loc></url>
+  <url><loc>https://maintainitbandits.com/services/cleaning/dripping-springs</loc></url>
+
+  <!-- Blog Posts -->
+  <url><loc>https://maintainitbandits.com/blog/when-to-plant-st-augustine-grass-austin</loc></url>
+  <url><loc>https://maintainitbandits.com/blog/austin-lawn-watering-schedule-monthly-guide</loc></url>
+  <url><loc>https://maintainitbandits.com/blog/best-native-texas-plants-low-maintenance-landscape</loc></url>
+  <url><loc>https://maintainitbandits.com/blog/bermuda-vs-st-augustine-vs-zoysia-austin</loc></url>
+  <url><loc>https://maintainitbandits.com/blog/fall-lawn-care-checklist-central-texas</loc></url>
 </urlset>
