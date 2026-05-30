@@ -1,20 +1,54 @@
 import React, { useState } from 'react';
-import { Phone, Mail, MapPin, Clock, Check, Send } from 'lucide-react';
+import { Phone, Mail, MapPin, Clock, Check, Send, Loader2 } from 'lucide-react';
 import { COMPANY, SERVICES } from '../mock';
 import { useToast } from '../hooks/use-toast';
 import SEO from '../components/SEO';
+
+const FORMSPREE_ENDPOINT = 'https://formspree.io/f/maqkbaql';
 
 const Contact = () => {
   const { toast } = useToast();
   const [form, setForm] = useState({ name: '', email: '', phone: '', service: '', message: '' });
   const [submitted, setSubmitted] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
-  const handleSubmit = (e) => {
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    setSubmitted(true);
-    toast({ title: 'Estimate Request Sent!', description: 'We\u2019ll get back to you within 24 hours.' });
-    setForm({ name: '', email: '', phone: '', service: '', message: '' });
+    setLoading(true);
+    setError('');
+    try {
+      const res = await fetch(FORMSPREE_ENDPOINT, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify({
+          name: form.name,
+          email: form.email,
+          phone: form.phone,
+          service: form.service,
+          message: form.message,
+          _subject: `New Estimate Request from ${form.name || 'Website'} \u2014 ${form.service || 'General'}`,
+        }),
+      });
+      if (res.ok) {
+        setSubmitted(true);
+        toast({ title: 'Estimate Request Sent!', description: 'We\u2019ll get back to you within 24 hours.' });
+        setForm({ name: '', email: '', phone: '', service: '', message: '' });
+      } else {
+        const data = await res.json().catch(() => ({}));
+        const msg = data?.errors?.map(er => er.message).join(', ') || 'Something went wrong. Please try again or call us directly.';
+        setError(msg);
+        toast({ title: 'Submission failed', description: msg, variant: 'destructive' });
+      }
+    } catch (err) {
+      const msg = 'Network error. Please check your connection and try again.';
+      setError(msg);
+      toast({ title: 'Submission failed', description: msg, variant: 'destructive' });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -65,8 +99,11 @@ const Contact = () => {
                 <label className="block text-sm text-neutral-300 mb-2">Message</label>
                 <textarea name="message" rows={5} value={form.message} onChange={handleChange} className="w-full bg-[#0a0a0a] border border-[#222] rounded-lg px-4 py-3 text-white focus:outline-none focus:border-green-500/60" placeholder="Tell us about your project..."/>
               </div>
-              <button type="submit" className="btn-green inline-flex items-center gap-2 px-7 py-3.5 rounded-full font-semibold">Request Free Estimate <Send size={16}/></button>
-              {submitted && <p className="text-green-400 text-sm flex items-center gap-2"><Check size={16}/> Your request was received. We&apos;ll be in touch soon!</p>}
+              <button type="submit" disabled={loading} className="btn-green inline-flex items-center gap-2 px-7 py-3.5 rounded-full font-semibold disabled:opacity-70 disabled:cursor-not-allowed">
+                {loading ? (<>Sending... <Loader2 size={16} className="animate-spin"/></>) : (<>Request Free Estimate <Send size={16}/></>)}
+              </button>
+              {submitted && <p className="text-green-400 text-sm flex items-center gap-2"><Check size={16}/> Your request was received. We&apos;ll be in touch within 24 hours!</p>}
+              {error && <p className="text-red-400 text-sm">{error}</p>}
             </form>
           </div>
 
