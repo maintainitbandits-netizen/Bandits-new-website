@@ -5,9 +5,9 @@ export const COMPANY = {
   tagline: 'CLEAN SPACES \u00b7 HEALTHY PLACES',
   category: 'Lawn Care Service',
   logo: 'https://customer-assets.emergentagent.com/job_bandits-replica/artifacts/46mb1ori_1B8C2EE3-.png',
-  // NAP \u2014 matches Google Business Profile for local SEO consistency
-  phone: '(904) 624-2706',
-  phoneRaw: '9046242706',
+  // NAP \u2014 (512) 518-1558 is primary. Update Google Business Profile to match.
+  phone: '(512) 518-1558',
+  phoneRaw: '5125181558',
   email: 'info@maintainitbandits.com',
   hours: 'Mon\u2013Fri: 7:00 AM \u2013 5:00 PM \u00b7 Sat: 9:00 AM \u2013 5:00 PM',
   hoursStructured: [
