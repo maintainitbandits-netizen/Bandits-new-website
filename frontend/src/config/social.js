@@ -3,11 +3,11 @@
 // and the "Read all reviews" / map links across the site.
 
 export const SOCIAL = {
-  // \u2b50 Your Google Business Profile link \u2014 paste from
-  //     https://business.google.com  (Share \u2192 Short link)
-  googleBusinessProfile: 'https://g.page/r/maintainitbandits',
-  // Direct \u201cWrite a review\u201d link from your GBP
-  googleReviewLink: 'https://g.page/r/maintainitbandits/review',
+  // ⭐ Your Google Business Profile link — paste from
+  //     https://business.google.com  (Share → Short link)
+  googleBusinessProfile: 'https://g.page/r/CZxM_wQ9Ku6XEBI',
+  // Direct "Write a review" link from your GBP
+  googleReviewLink: 'https://g.page/r/CZxM_wQ9Ku6XEBI/review',
   // Facebook page URL
   facebook: 'https://facebook.com/maintainitbandits',
   // Instagram
