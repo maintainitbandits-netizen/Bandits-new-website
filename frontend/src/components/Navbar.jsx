@@ -15,12 +15,10 @@ const Navbar = () => {
     <header className="sticky top-0 z-50 bg-[#0a0a0a]/90 backdrop-blur-md border-b border-[#1a1a1a]">
       <div className="max-w-7xl mx-auto px-5 lg:px-8 h-20 flex items-center justify-between">
         <Link to="/" className="flex items-center gap-3">
-          <div className="h-11 w-11 rounded-full bg-gradient-to-br from-green-500 to-green-700 grid place-items-center text-[#0a0a0a] font-bold ring-2 ring-green-500/30">
-            MB
-          </div>
+          <img src={COMPANY.logo} alt={COMPANY.name} className="h-14 w-14 rounded-full bg-white p-0.5 ring-2 ring-green-500/30 object-contain" />
           <div className="leading-tight">
             <div className="text-green-400 font-bold text-base md:text-lg">{COMPANY.name}</div>
-            <div className="text-[10px] tracking-[0.25em] text-neutral-400">{COMPANY.tagline}</div>
+            <div className="text-[10px] tracking-[0.25em] text-orange-400/90 font-semibold">{COMPANY.tagline}</div>
           </div>
         </Link>
 

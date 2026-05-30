@@ -9,10 +9,10 @@ const Footer = () => {
       <div className="max-w-7xl mx-auto px-5 lg:px-8 py-16 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10">
         <div>
           <div className="flex items-center gap-3 mb-4">
-            <div className="h-11 w-11 rounded-full bg-gradient-to-br from-green-500 to-green-700 grid place-items-center text-[#0a0a0a] font-bold ring-2 ring-green-500/30">MB</div>
+            <img src={COMPANY.logo} alt={COMPANY.name} className="h-14 w-14 rounded-full bg-white p-0.5 ring-2 ring-green-500/30 object-contain" />
             <div>
               <div className="text-green-400 font-bold">{COMPANY.name}</div>
-              <div className="text-[10px] tracking-[0.25em] text-neutral-400">{COMPANY.tagline}</div>
+              <div className="text-[10px] tracking-[0.25em] text-orange-400/90 font-semibold">{COMPANY.tagline}</div>
             </div>
           </div>
           <p className="text-neutral-400 text-sm leading-relaxed">Austin TX&apos;s one-stop shop for lawn care, landscaping, cleaning, and home services. Licensed &amp; insured.</p>

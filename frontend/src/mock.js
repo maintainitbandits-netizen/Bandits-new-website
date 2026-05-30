@@ -2,7 +2,8 @@
 
 export const COMPANY = {
   name: 'Maintain It Bandits LLC',
-  tagline: 'AUSTIN TX',
+  tagline: 'CLEAN SPACES \u00b7 HEALTHY PLACES',
+  logo: 'https://customer-assets.emergentagent.com/job_bandits-replica/artifacts/46mb1ori_1B8C2EE3-.png',
   phone: '(512) 518-1558',
   phoneRaw: '5125181558',
   email: 'info@maintainitbandits.com',
