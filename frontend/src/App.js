@@ -22,6 +22,8 @@ import Pricing from './pages/Pricing';
 import FAQ from './pages/FAQ';
 import NotFound from './pages/NotFound';
 import Reviews from './pages/Reviews';
+import Bundles from './pages/Bundles';
+import BundleDetail from './pages/BundleDetail';
 import { Toaster } from './components/ui/toaster';
 
 function ScrollToTop() {
@@ -51,6 +53,8 @@ function App() {
             <Route path="/pricing" element={<Pricing />} />
             <Route path="/faq" element={<FAQ />} />
             <Route path="/reviews" element={<Reviews />} />
+            <Route path="/bundles" element={<Bundles />} />
+            <Route path="/bundles/:slug" element={<BundleDetail />} />
             <Route path="/about" element={<About />} />
             <Route path="/contact" element={<Contact />} />
             <Route path="*" element={<NotFound />} />
