@@ -17,13 +17,21 @@ const Home = () => {
   const homeSchema = {
     '@context': 'https://schema.org',
     '@type': 'LocalBusiness',
+    '@id': 'https://maintainitbandits.com/#business',
     'name': COMPANY.name,
     'image': 'https://maintainitbandits.com/images/hero-bg.jpg',
+    'url': 'https://maintainitbandits.com',
     'telephone': COMPANY.phone,
     'email': COMPANY.email,
     'priceRange': '$$',
-    'address': { '@type': 'PostalAddress', 'addressLocality': 'Austin', 'addressRegion': 'TX', 'addressCountry': 'US' },
+    'address': { '@type': 'PostalAddress', 'addressLocality': COMPANY.city, 'addressRegion': COMPANY.region, 'addressCountry': COMPANY.country },
     'areaServed': SERVICE_AREAS.map(a => a.name),
+    'openingHoursSpecification': COMPANY.hoursStructured.filter(h => h.open).map(h => ({
+      '@type': 'OpeningHoursSpecification',
+      'dayOfWeek': h.day,
+      'opens': h.open,
+      'closes': h.close,
+    })),
     'aggregateRating': { '@type': 'AggregateRating', 'ratingValue': REVIEW_STATS.rating.toString(), 'reviewCount': REVIEW_STATS.count.toString(), 'bestRating': '5' },
     'sameAs': [SOCIAL.googleBusinessProfile, SOCIAL.facebook, SOCIAL.instagram, SOCIAL.yelp, SOCIAL.nextdoor].filter(Boolean),
   };

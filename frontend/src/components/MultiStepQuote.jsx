@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { ArrowRight, ArrowLeft, Check, Send, Loader2 } from 'lucide-react';
-import { SERVICES, SERVICE_AREAS } from '../mock';
+import { SERVICES, SERVICE_AREAS, COMPANY } from '../mock';
 import { useToast } from '../hooks/use-toast';
 
 const FORMSPREE_ENDPOINT = 'https://formspree.io/f/maqkbaql';
@@ -56,7 +56,7 @@ const MultiStepQuote = () => {
         <div className="h-16 w-16 rounded-full bg-green-500/15 border border-green-500/40 grid place-items-center mx-auto"><Check size={32} className="text-green-400"/></div>
         <h3 className="font-serif text-3xl text-white mt-5">Thanks, {form.name.split(' ')[0]}!</h3>
         <p className="text-neutral-300 mt-3">Your quote request was received. We&apos;ll be in touch within 24 hours — usually much sooner.</p>
-        <p className="text-neutral-500 text-sm mt-4">Need it immediately? Call <a href="tel:5125181558" className="text-green-400 hover:underline">(512) 518-1558</a></p>
+        <p className="text-neutral-500 text-sm mt-4">Need it immediately? Call <a href={`tel:${COMPANY.phoneRaw}`} className="text-green-400 hover:underline">{COMPANY.phone}</a></p>
       </div>
     );
   }
