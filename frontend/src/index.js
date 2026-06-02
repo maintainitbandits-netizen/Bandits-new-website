@@ -1,3 +1,4 @@
+import { inject } from "@vercel/analytics";
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -12,6 +13,8 @@ const queryClient = new QueryClient({
     },
   },
 });
+
+inject();
 
 const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(
