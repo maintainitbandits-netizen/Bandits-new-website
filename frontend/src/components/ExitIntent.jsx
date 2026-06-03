@@ -24,7 +24,7 @@ const ExitIntent = () => {
         triggered = true;
         setOpen(true);
       }
-    }, 25000);
+    }, 45000);
     document.addEventListener('mouseout', handler);
     return () => {
       document.removeEventListener('mouseout', handler);
