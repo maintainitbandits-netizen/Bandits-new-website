@@ -4,8 +4,8 @@ export const SERVICE_AREAS_DETAIL = {
   'austin': {
     name: 'Austin',
     fullName: 'Austin, TX',
-    intro: 'Austin is our home base. From Downtown to the suburbs of Northwest Hills, South Austin, East Austin, and everywhere in between, Maintain It Bandits LLC delivers professional lawn care, landscaping, and home services to homeowners across the entire city.',
-    landmarks: 'Whether your property is near Zilker Park, Lake Travis, the Domain, Mueller, or any neighborhood in 78701-78759, we know the soil, climate, and grass types unique to the Austin area.',
+    intro: 'Austin is our home base and where we do the most work. From the clay-heavy soils of South Austin and East Austin to the Hill Country limestone lots of Northwest Hills and Bee Cave Road, we know the unique challenges Austin lawns face. Maintain It Bandits LLC serves every zip code and neighborhood across the city with lawn mowing, landscaping, cleaning, and property maintenance.',
+    landmarks: 'Whether your yard is in Zilker, Circle C, Mueller, Hyde Park, or anywhere in between - we know your soil type, your grass variety, and what it takes to keep an Austin lawn looking great through 100-degree summers and unpredictable spring weather. We have been servicing Austin properties for 6+ years and have completed 2,500+ jobs across the city.',
     zips: [
       '78701','78702','78703','78704','78705','78712','78717','78719','78721','78722',
       '78723','78724','78725','78726','78727','78728','78729','78730','78731','78732',
