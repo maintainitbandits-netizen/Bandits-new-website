@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Phone, ArrowRight, Link as LinkIcon, ShieldCheck, Clock, Star, DollarSign, Check, Quote, MapPin } from 'lucide-react';
-import { HERO_IMAGE, AUSTIN_SKYLINE, SERVICES, TESTIMONIALS, SERVICE_AREAS, WHY_CHOOSE, COMPANY } from '../mock';
+import { HERO_IMAGE, SERVICES, TESTIMONIALS, SERVICE_AREAS, WHY_CHOOSE, COMPANY } from '../mock';
 import { SOCIAL, REVIEW_STATS } from '../config/social';
 import SEO from '../components/SEO';
 import TrustBar from '../components/TrustBar';
@@ -178,7 +178,7 @@ const Home = () => {
           </div>
           <div className="relative">
             <div className="absolute -inset-3 bg-green-500/10 rounded-3xl blur-xl" />
-            <img src={AUSTIN_SKYLINE} alt="Austin Texas skyline" className="relative w-full rounded-2xl border border-[#1a1a1a]" />
+            <img src="/gallery/mower-action.jpg" alt="Maintain It Bandits crew mowing a lawn in Austin TX" className="relative w-full rounded-2xl border border-[#1a1a1a]" />
             <div className="absolute -bottom-6 -right-6 bg-[#0c0c0c] border border-green-500/30 rounded-2xl px-6 py-4 shadow-xl">
               <div className="text-green-400 font-bold text-3xl">500+</div>
               <div className="text-neutral-400 text-xs uppercase tracking-wider">Happy Customers</div>
