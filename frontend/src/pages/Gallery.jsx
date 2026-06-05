@@ -37,11 +37,11 @@ const BeforeAfter = ({ before, after, alt }) => {
 };
 
 const Showcase = ({ image, alt }) => (
-  <div className="relative aspect-[4/3] overflow-hidden rounded-xl">
+  <div className="relative aspect-[4/5] overflow-hidden rounded-xl bg-[#0a0a0a]">
     <img
       src={image}
       alt={alt}
-      className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 hover:scale-105"
+      className="absolute inset-0 w-full h-full object-contain transition-transform duration-700 hover:scale-105"
       loading="lazy"
     />
     <span className="absolute top-3 right-3 bg-green-500 text-[#0a0a0a] text-[10px] px-2 py-1 rounded-full tracking-widest uppercase font-bold z-10">
