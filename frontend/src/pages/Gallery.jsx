@@ -36,6 +36,20 @@ const BeforeAfter = ({ before, after, alt }) => {
   );
 };
 
+const Showcase = ({ image, alt }) => (
+  <div className="relative aspect-[4/3] overflow-hidden rounded-xl">
+    <img
+      src={image}
+      alt={alt}
+      className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 hover:scale-105"
+      loading="lazy"
+    />
+    <span className="absolute top-3 right-3 bg-green-500 text-[#0a0a0a] text-[10px] px-2 py-1 rounded-full tracking-widest uppercase font-bold z-10">
+      Recent Job
+    </span>
+  </div>
+);
+
 const Gallery = () => {
   const [filter, setFilter] = useState('All');
   const filtered = filter === 'All' ? GALLERY : GALLERY.filter(g => g.category === filter);
@@ -54,7 +68,7 @@ const Gallery = () => {
         <div className="max-w-5xl mx-auto px-5 lg:px-8 text-center">
           <span className="chip inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs tracking-widest font-medium uppercase"><Camera size={14}/> Project Gallery</span>
           <h1 className="font-serif text-5xl md:text-6xl text-white mt-5">Real Results in <span className="text-green-400 italic">Austin TX</span></h1>
-          <p className="text-neutral-400 mt-6 max-w-2xl mx-auto leading-relaxed">Drag the slider on each photo to see the transformation. Real customers. Real properties. Real before &amp; after results from across the Austin metro.</p>
+          <p className="text-neutral-400 mt-6 max-w-2xl mx-auto leading-relaxed">Real customer properties, real results. Drag the slider on before/after photos to see the transformation, or browse recent jobs from across the Austin metro.</p>
         </div>
       </section>
 
@@ -73,7 +87,11 @@ const Gallery = () => {
         <div className="max-w-6xl mx-auto px-5 lg:px-8 grid grid-cols-1 md:grid-cols-2 gap-8">
           {filtered.map(g => (
             <div key={g.id} className={`bg-[#0f0f0f] border ${g.featured ? 'border-green-500/40 shadow-xl shadow-green-500/10' : 'border-[#1c1c1c]'} rounded-2xl overflow-hidden`}>
-              <BeforeAfter before={g.before} after={g.after} alt={g.title}/>
+              {g.type === 'showcase' ? (
+                <Showcase image={g.image} alt={g.title} />
+              ) : (
+                <BeforeAfter before={g.before} after={g.after} alt={g.title}/>
+              )}
               <div className="p-6">
                 <div className="flex items-center gap-3 text-xs text-neutral-500 flex-wrap">
                   {g.featured && <span className="chip px-2 py-0.5 rounded-full text-green-400 font-semibold">★ Featured Project</span>}
