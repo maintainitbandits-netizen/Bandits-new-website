@@ -87,6 +87,22 @@ export const SERVICE_AREAS_DETAIL = {
     zips: ['78620'],
     neighborhoods: ['Belterra','Caliterra','Howard Ranch','Headwaters','Sunset Canyon','Big Sky Ranch'],
   },
+  'hutto': {
+    name: 'Hutto',
+    fullName: 'Hutto, TX',
+    intro: 'Hutto is one of the fastest-growing cities in Williamson County and Maintain It Bandits LLC is proud to serve its growing community of homeowners. From the newer subdivisions off Limmer Loop to established neighborhoods near downtown Hutto, we provide professional lawn care, landscaping, junk haul-off, pressure washing, and property maintenance throughout the city.',
+    landmarks: 'We service properties throughout Hutto near the Hutto Community Park, Star Ranch Golf Club, and the rapidly expanding neighborhoods along SH-130. Hutto\'s newer developments often have freshly established lawns that need the right fertilization and mowing programs to thrive in Williamson County soil.',
+    zips: ['78634'],
+    neighborhoods: ['Star Ranch','Legends of Hutto','Riverwalk','Hutto Highlands','Carmel Creek','Enclave at Hutto'],
+  },
+  'taylor': {
+    name: 'Taylor',
+    fullName: 'Taylor, TX',
+    intro: 'Taylor is experiencing a massive growth surge thanks to the Samsung semiconductor plant and surrounding development, and Maintain It Bandits LLC is ready to serve the wave of new homeowners moving into the area. We provide lawn mowing, landscaping, sod installation, pressure washing, gutter cleaning, and junk haul-off throughout Taylor TX.',
+    landmarks: 'We serve properties across Taylor near the historic downtown square, Murphy Park, and the new residential developments being built throughout the city. Taylor\'s rapid growth means many new lawns need establishment programs - sod installation, fertilization, and proper mowing schedules from the start.',
+    zips: ['76574'],
+    neighborhoods: ['Taylor Ranch','Mallard Park','Heritage Oaks','Legends of Taylor','Downtown Taylor','Mustang Creek Estates'],
+  },
 };
 
 export const SERVICE_SEO = {
@@ -109,7 +125,7 @@ export const SERVICE_SEO = {
       },
       {
         heading: 'Service Areas for Lawn Mowing',
-        body: 'We provide weekly and bi-weekly lawn mowing throughout the Austin metro area including Austin (78701\u201378759), Round Rock, Cedar Park, Georgetown, Pflugerville, Leander, Bee Cave, West Lake Hills, Lakeway, and Dripping Springs.',
+        body: 'We provide weekly and bi-weekly lawn mowing throughout the Austin metro area including Austin (78701\u201378759), Round Rock, Cedar Park, Georgetown, Pflugerville, Leander, Bee Cave, West Lake Hills, Lakeway, Dripping Springs, Hutto, and Taylor.',
       },
     ],
     faqs: [
@@ -400,6 +416,64 @@ export const SERVICE_SEO = {
       { q: 'How is haul-off priced?', a: 'Pricing is based on the volume of material and number of truck loads required. Most residential haul-off jobs run between $150 and $400. We give you an exact quote before we start.' },
       { q: 'Do you do storm debris cleanup?', a: 'Yes. We offer same-week storm cleanup and haul-off throughout Austin, Round Rock, Cedar Park, and surrounding areas.' },
       { q: 'Can you clear a whole lot or overgrown property?', a: 'Yes. Full lot clearing and heavily overgrown property cleanups are jobs we handle regularly. Contact us for a custom quote.' },
+    ],
+  },
+  'pressure-washing': {
+    metaTitle: 'Pressure Washing Austin TX | Driveways, Patios & More | Maintain It Bandits LLC',
+    metaDesc: 'Professional pressure washing in Austin TX. We remove dirt, mold & grime from driveways, patios, fences & siding. Same-week service. Free estimates. Call (512) 518-1558.',
+    keywords: 'pressure washing Austin TX, power washing Austin, driveway cleaning Austin TX, patio cleaning Austin, soft wash Austin TX',
+    longContent: [
+      {
+        heading: 'Austin Homes Need Pressure Washing More Than You Think',
+        body: 'Austin\'s combination of heat, humidity, oak pollen, and limestone dust means surfaces get dirty fast. Driveways develop dark oil stains and green algae. Patios grow slippery mold. Fences accumulate years of grime. A professional pressure wash once or twice a year keeps all of it under control and dramatically improves your home\'s curb appeal.',
+      },
+      {
+        heading: 'Pressure Washing vs Soft Washing',
+        body: 'Not every surface should be blasted with high pressure. Concrete driveways and stone patios can handle full pressure. Painted wood siding, stucco, and roof shingles require soft washing - lower pressure combined with a cleaning solution that kills mold and algae at the root. We assess every surface before we start and use the right method every time.',
+      },
+      {
+        heading: 'What We Pressure Wash in Austin',
+        body: 'We wash concrete driveways, sidewalks, patios, pool decks, garage floors, brick and stone walls, wood and vinyl fencing, and exterior siding. We also offer driveway degreasing for oil stains and algae treatment for persistently slippery surfaces.',
+      },
+      {
+        heading: 'How Often Should You Pressure Wash in Austin?',
+        body: 'For most Austin homes, once a year in spring is the sweet spot - right before outdoor entertaining season. Driveways and patios under heavy tree cover or facing north may need cleaning twice a year due to faster algae and mold growth.',
+      },
+    ],
+    faqs: [
+      { q: 'Will pressure washing damage my concrete?', a: 'No - when done correctly with the right pressure settings. We adjust PSI based on the surface. Concrete can handle high pressure while painted surfaces and wood need lower settings.' },
+      { q: 'How long does pressure washing take?', a: 'A standard driveway takes 45-90 minutes. Full exterior house washing takes 2-4 hours depending on size. We give you a time estimate when we quote.' },
+      { q: 'Do I need to be home during pressure washing?', a: 'No. As long as we have access to the areas being washed and a water spigot, we can complete the job without you present.' },
+      { q: 'How soon can I walk on the surface after washing?', a: 'Concrete and stone surfaces are safe to walk on once dry, typically 30-60 minutes. We let you know before we leave.' },
+    ],
+  },
+  'gutter-cleaning': {
+    metaTitle: 'Gutter Cleaning Austin TX | Clog Removal & Downspout Flush | Maintain It Bandits LLC',
+    metaDesc: 'Professional gutter cleaning in Austin TX. We clear clogs, flush downspouts & protect your home from water damage. Licensed & insured. Free estimates. Call (512) 518-1558.',
+    keywords: 'gutter cleaning Austin TX, gutter cleaning service Austin, clogged gutters Austin, gutter cleaning Round Rock Cedar Park, downspout cleaning Austin',
+    longContent: [
+      {
+        heading: 'Why Gutter Cleaning Matters in Austin',
+        body: 'Austin\'s oak trees drop massive amounts of leaves, pollen, and debris into gutters throughout the year. Add in pecan trees, cedar elm, and the occasional heavy storm and gutters clog fast. When gutters back up, water overflows directly against your foundation - the number one cause of foundation damage in Central Texas. A $150 gutter cleaning can prevent a $10,000 foundation repair.',
+      },
+      {
+        heading: 'What We Do During a Gutter Cleaning',
+        body: 'We remove all debris from gutters by hand, then flush the entire system with water to verify flow. We check every downspout for blockages and clear them completely. We inspect for loose hangers, leaking joints, and improper slope that causes pooling. All debris is bagged and removed from your property.',
+      },
+      {
+        heading: 'How Often Should Austin Homeowners Clean Gutters?',
+        body: 'Twice a year is the minimum for most Austin homes. We recommend once in late spring after cedar and oak pollen season, and once in late fall after leaf drop. Homes with large oak or pecan trees directly overhead may need three cleanings per year. After major storms we also offer one-time cleanup visits.',
+      },
+      {
+        heading: 'Signs Your Gutters Need Cleaning Right Now',
+        body: 'Water spilling over the sides during rain, plants growing from your gutters, staining or streaks on siding below the gutters, sagging gutter sections, or birds and pests congregating near your roofline are all signs your gutters are overdue for a cleaning.',
+      },
+    ],
+    faqs: [
+      { q: 'How much does gutter cleaning cost in Austin?', a: 'Most single-story homes run $99-$149. Two-story homes are $149-$199. Final price depends on linear footage and debris level. We quote before we start.' },
+      { q: 'Do you clean gutters on two-story homes?', a: 'Yes. We have the ladders and equipment to safely access two-story gutters throughout the Austin area.' },
+      { q: 'How long does gutter cleaning take?', a: 'Most single-story homes take 45-75 minutes. Two-story homes take 1-2 hours depending on size and debris level.' },
+      { q: 'Can you install gutter guards after cleaning?', a: 'We can recommend gutter guard options but focus on cleaning and maintenance. Ask us during your estimate visit.' },
     ],
   },
 };
