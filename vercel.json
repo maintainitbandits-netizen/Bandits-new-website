@@ -92,4 +92,37 @@
     { "src": "/leander-mulching", "dest": "/services/mulching/leander", "status": 301 },
     { "src": "/leander-yard-cleanup", "dest": "/services/seasonal-cleanup/leander", "status": 301 },
     { "src": "/leander-shrub-trimming", "dest": "/services/shrub-trimming/leander", "status": 301 },
-    { 
+    { "src": "/leander-yard-work", "dest": "/services/yard-work/leander", "status": 301 },
+    { "src": "/leander-house-cleaning", "dest": "/services/cleaning/leander", "status": 301 },
+
+    { "src": "/hutto-lawn-care", "dest": "/services/lawn-mowing/hutto", "status": 301 },
+    { "src": "/hutto-landscaping", "dest": "/services/landscaping/hutto", "status": 301 },
+    { "src": "/hutto-sod-installation", "dest": "/services/sod-installation/hutto", "status": 301 },
+    { "src": "/hutto-weed-control", "dest": "/services/fertilization/hutto", "status": 301 },
+    { "src": "/hutto-pressure-washing", "dest": "/services/pressure-washing/hutto", "status": 301 },
+    { "src": "/hutto-gutter-cleaning", "dest": "/services/gutter-cleaning/hutto", "status": 301 },
+    { "src": "/hutto-junk-removal", "dest": "/services/junk-haul-off/hutto", "status": 301 },
+    { "src": "/hutto-mulching", "dest": "/services/mulching/hutto", "status": 301 },
+    { "src": "/hutto-yard-cleanup", "dest": "/services/seasonal-cleanup/hutto", "status": 301 },
+    { "src": "/hutto-shrub-trimming", "dest": "/services/shrub-trimming/hutto", "status": 301 },
+    { "src": "/hutto-yard-work", "dest": "/services/yard-work/hutto", "status": 301 },
+    { "src": "/hutto-house-cleaning", "dest": "/services/cleaning/hutto", "status": 301 },
+
+    { "src": "/taylor-lawn-care", "dest": "/services/lawn-mowing/taylor", "status": 301 },
+    { "src": "/taylor-landscaping", "dest": "/services/landscaping/taylor", "status": 301 },
+    { "src": "/taylor-sod-installation", "dest": "/services/sod-installation/taylor", "status": 301 },
+    { "src": "/taylor-weed-control", "dest": "/services/fertilization/taylor", "status": 301 },
+    { "src": "/taylor-pressure-washing", "dest": "/services/pressure-washing/taylor", "status": 301 },
+    { "src": "/taylor-gutter-cleaning", "dest": "/services/gutter-cleaning/taylor", "status": 301 },
+    { "src": "/taylor-junk-removal", "dest": "/services/junk-haul-off/taylor", "status": 301 },
+    { "src": "/taylor-mulching", "dest": "/services/mulching/taylor", "status": 301 },
+    { "src": "/taylor-yard-cleanup", "dest": "/services/seasonal-cleanup/taylor", "status": 301 },
+    { "src": "/taylor-shrub-trimming", "dest": "/services/shrub-trimming/taylor", "status": 301 },
+    { "src": "/taylor-yard-work", "dest": "/services/yard-work/taylor", "status": 301 },
+    { "src": "/taylor-house-cleaning", "dest": "/services/cleaning/taylor", "status": 301 },
+
+    { "handle": "filesystem" },
+
+    { "src": "/(.*)", "dest": "/index.html" }
+  ]
+}
