@@ -1,8 +1,20 @@
-// Photo gallery — real customer/job photos plus existing before/after slider entries.
+// Photo gallery — real customer/job photos plus before/after slider entries.
 // "type: 'showcase'" entries render a single image card (no slider).
 // Entries without "type" default to the before/after slider.
 
 export const GALLERY = [
+  // ===== REAL BEFORE / AFTER SLIDER (Mulch refresh) =====
+  {
+    id: 200,
+    title: 'Austin Mulch Bed Refresh',
+    category: 'Landscaping',
+    location: 'Austin, TX',
+    featured: true,
+    before: '/gallery/mulch-before.jpg',
+    after: '/gallery/mulch-after.jpg',
+    description: 'Transformed a tired, weedy front bed into a clean, dark hardwood mulch refresh with sharp edging. Drag the slider to see the transformation.',
+  },
+
   // ===== REAL JOB PHOTOS (showcase cards) =====
   {
     id: 100,
@@ -69,70 +81,50 @@ export const GALLERY = [
     image: '/gallery/side-yard-before.jpg',
     description: 'Narrow side-yard mow and trim — proving no space is too tight for a clean cut and crisp edge.',
   },
-
-  // ===== EXISTING BEFORE / AFTER SLIDER ENTRIES =====
   {
-    id: 0,
-    title: 'Round Rock Lawn Restoration',
-    category: 'Lawn Mowing',
-    location: 'Round Rock, TX',
-    before: 'https://customer-assets.emergentagent.com/job_bandits-replica/artifacts/egbdiogf_PXL_20260529_160224380.jpg',
-    after: 'https://customer-assets.emergentagent.com/job_bandits-replica/artifacts/92x2c2l7_PXL_20260529_160844732.jpg',
-    description: 'Full lawn restoration including mowing, edging, weed treatment, and cleanup. Transformed a weed-overrun yard into a crisp, well-maintained property.',
-  },
-  {
-    id: 1,
-    title: 'South Austin Backyard Refresh',
+    id: 107,
+    type: 'showcase',
+    title: 'Hedge Trimming & Shaping',
     category: 'Landscaping',
-    location: 'South Austin, TX',
-    before: 'https://images.unsplash.com/photo-1592859600972-1b0834d83747?w=1200&q=80',
-    after: 'https://images.unsplash.com/photo-1620301598061-cef47f5a3711?w=1200&q=80',
-    description: 'Removed dead turf, installed new St. Augustine sod, added native plant beds with mulch.',
-  },
-  {
-    id: 2,
-    title: 'Round Rock Front Yard',
-    category: 'Lawn Mowing',
     location: 'Round Rock, TX',
-    before: 'https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=1200&q=80',
-    after: 'https://images.unsplash.com/photo-1458245201577-fc8a130b8829?w=1200&q=80',
-    description: 'Weekly mowing service: overgrown front yard transformed into a clean, edged showpiece.',
+    image: '/gallery/service-shrub-trimming.jpg',
+    description: 'Precision hedge trimming with commercial-grade equipment. Clean, level cuts on the top and sides for a polished finished look.',
   },
   {
-    id: 3,
-    title: 'Cedar Park Sod Installation',
-    category: 'Sod Installation',
+    id: 108,
+    type: 'showcase',
+    title: 'Finished Hedge Row',
+    category: 'Landscaping',
     location: 'Cedar Park, TX',
-    before: 'https://images.unsplash.com/photo-1466692476868-aef1dfb1e735?w=1200&q=80',
-    after: 'https://images.unsplash.com/photo-1733842210636-5a4cd75a06e5?w=1200&q=80',
-    description: 'Bare soil to lush green Bermuda sod — install completed in a single day.',
+    image: '/gallery/hedge-row-finished.jpg',
+    description: 'Long hedge row trimmed and shaped down the property line — paired with shaped boxwoods and trees for a manicured estate look.',
   },
   {
-    id: 4,
-    title: 'West Lake Hills Estate Maintenance',
+    id: 109,
+    type: 'showcase',
+    title: 'Sod Installation In Progress',
+    category: 'Sod Installation',
+    location: 'Austin Metro, TX',
+    image: '/gallery/service-sod-installation.jpg',
+    description: 'Fresh sod being laid in rows over prepared soil. Full backyard converted from bare dirt to instant lawn in a single day.',
+  },
+  {
+    id: 110,
+    type: 'showcase',
+    title: 'Brush & Storm Debris Haul-Off',
     category: 'Property Maintenance',
-    location: 'West Lake Hills, TX',
-    before: 'https://images.unsplash.com/photo-1689728222087-6984f72460c4?w=1200&q=80',
-    after: 'https://images.pexels.com/photos/28463539/pexels-photo-28463539.jpeg?w=1200&q=80',
-    description: 'Ongoing weekly property maintenance — mowing, edging, bed maintenance, trim.',
+    location: 'Austin, TX',
+    image: '/gallery/service-junk-haul-off.jpg',
+    description: 'Trailer loaded with brush, branches, and yard debris ready for haul-off. Same-week service for storm cleanup, tree work, and seasonal cleanouts.',
   },
   {
-    id: 5,
-    title: 'Georgetown Mulch Refresh',
-    category: 'Landscaping',
-    location: 'Georgetown, TX',
-    before: 'https://images.unsplash.com/photo-1622383563227-04401ab4e5ea?w=1200&q=80',
-    after: 'https://images.unsplash.com/photo-1738193830098-2d92352a1856?w=1200&q=80',
-    description: 'Fresh hardwood mulch and crisp edging on all front yard beds.',
-  },
-  {
-    id: 6,
-    title: 'Pflugerville Move-Out Clean',
+    id: 111,
+    type: 'showcase',
+    title: 'Move-Out Deep Clean',
     category: 'Cleaning',
-    location: 'Pflugerville, TX',
-    before: 'https://images.pexels.com/photos/6197116/pexels-photo-6197116.jpeg?w=1200&q=80',
-    after: 'https://images.pexels.com/photos/6647052/pexels-photo-6647052.jpeg?w=1200&q=80',
-    description: 'Full move-out deep clean — inside cabinets, appliances, baseboards, floors.',
+    location: 'Austin Metro, TX',
+    image: '/gallery/service-cleaning.jpg',
+    description: 'Full move-out deep clean — floors mopped to a shine, baseboards wiped, kitchen and bathrooms fully sanitized. Ready for the next tenant.',
   },
 ];
 
