@@ -1,4 +1,5 @@
 import { inject } from "@vercel/analytics";
+import { Analytics } from "@vercel/analytics/react";
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -20,7 +21,8 @@ const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
-      <App />
+    <App />
+    <Analytics />
     </QueryClientProvider>
   </React.StrictMode>,
 );
