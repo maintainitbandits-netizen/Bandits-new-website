@@ -1,12 +1,81 @@
-// Photo gallery \u2014 placeholder images. Replace with real customer photos via mock.js or upload.
+// Photo gallery — real customer/job photos plus existing before/after slider entries.
+// "type: 'showcase'" entries render a single image card (no slider).
+// Entries without "type" default to the before/after slider.
 
 export const GALLERY = [
+  // ===== REAL JOB PHOTOS (showcase cards) =====
+  {
+    id: 100,
+    type: 'showcase',
+    title: 'Pristine Backyard – Full Property Maintenance',
+    category: 'Property Maintenance',
+    location: 'Austin Metro, TX',
+    featured: true,
+    image: '/gallery/lush-lawn-after.jpg',
+    description: 'Lush, freshly mowed backyard with crisp edges and a clean fence line. Ongoing weekly maintenance keeps this property the best on the block.',
+  },
+  {
+    id: 101,
+    type: 'showcase',
+    title: 'Fresh Mow Stripes – Lawn Mowing Service',
+    category: 'Lawn Mowing',
+    location: 'Round Rock, TX',
+    image: '/gallery/fresh-mow-stripes-after.jpg',
+    description: 'Professional striping pattern with perfectly straight lines. Every cut finishes with detailed edging and full debris cleanup.',
+  },
+  {
+    id: 102,
+    type: 'showcase',
+    title: 'Crepe Myrtle Landscape Bed',
+    category: 'Landscaping',
+    location: 'Cedar Park, TX',
+    featured: true,
+    image: '/gallery/crepe-myrtle-landscaping.jpg',
+    description: 'Custom landscape bed featuring a mature crepe myrtle, layered shrubs, seasonal color, and fresh hardwood mulch with clean curved edging.',
+  },
+  {
+    id: 103,
+    type: 'showcase',
+    title: 'Side Yard Refresh – Hydrangeas & Edging',
+    category: 'Landscaping',
+    location: 'Georgetown, TX',
+    image: '/gallery/side-yard-landscaping.jpg',
+    description: 'Side yard transformation with hydrangeas, ornamental trees, fresh mulch, and a striped lawn that runs perfectly to the fence line.',
+  },
+  {
+    id: 104,
+    type: 'showcase',
+    title: 'Lawn Mowing in Progress',
+    category: 'Lawn Mowing',
+    location: 'Pflugerville, TX',
+    image: '/gallery/mower-action.jpg',
+    description: 'Our crew on-site laying down fresh stripes. We use commercial-grade equipment and treat every yard like it’s our own.',
+  },
+  {
+    id: 105,
+    type: 'showcase',
+    title: 'Backyard Restoration In Progress',
+    category: 'Lawn Mowing',
+    location: 'Leander, TX',
+    image: '/gallery/patchy-backyard-before.jpg',
+    description: 'Recovery mow on a thinned-out backyard — first step in a multi-visit restoration plan including fertilization and weed control.',
+  },
+  {
+    id: 106,
+    type: 'showcase',
+    title: 'Side Yard Cleanup',
+    category: 'Lawn Mowing',
+    location: 'Hutto, TX',
+    image: '/gallery/side-yard-before.jpg',
+    description: 'Narrow side-yard mow and trim — proving no space is too tight for a clean cut and crisp edge.',
+  },
+
+  // ===== EXISTING BEFORE / AFTER SLIDER ENTRIES =====
   {
     id: 0,
     title: 'Round Rock Lawn Restoration',
     category: 'Lawn Mowing',
     location: 'Round Rock, TX',
-    featured: true,
     before: 'https://customer-assets.emergentagent.com/job_bandits-replica/artifacts/egbdiogf_PXL_20260529_160224380.jpg',
     after: 'https://customer-assets.emergentagent.com/job_bandits-replica/artifacts/92x2c2l7_PXL_20260529_160844732.jpg',
     description: 'Full lawn restoration including mowing, edging, weed treatment, and cleanup. Transformed a weed-overrun yard into a crisp, well-maintained property.',
@@ -36,7 +105,7 @@ export const GALLERY = [
     location: 'Cedar Park, TX',
     before: 'https://images.unsplash.com/photo-1466692476868-aef1dfb1e735?w=1200&q=80',
     after: 'https://images.unsplash.com/photo-1733842210636-5a4cd75a06e5?w=1200&q=80',
-    description: 'Bare soil to lush green Bermuda sod \u2014 install completed in a single day.',
+    description: 'Bare soil to lush green Bermuda sod — install completed in a single day.',
   },
   {
     id: 4,
@@ -45,7 +114,7 @@ export const GALLERY = [
     location: 'West Lake Hills, TX',
     before: 'https://images.unsplash.com/photo-1689728222087-6984f72460c4?w=1200&q=80',
     after: 'https://images.pexels.com/photos/28463539/pexels-photo-28463539.jpeg?w=1200&q=80',
-    description: 'Ongoing weekly property maintenance \u2014 mowing, edging, bed maintenance, trim.',
+    description: 'Ongoing weekly property maintenance — mowing, edging, bed maintenance, trim.',
   },
   {
     id: 5,
@@ -63,7 +132,7 @@ export const GALLERY = [
     location: 'Pflugerville, TX',
     before: 'https://images.pexels.com/photos/6197116/pexels-photo-6197116.jpeg?w=1200&q=80',
     after: 'https://images.pexels.com/photos/6647052/pexels-photo-6647052.jpeg?w=1200&q=80',
-    description: 'Full move-out deep clean \u2014 inside cabinets, appliances, baseboards, floors.',
+    description: 'Full move-out deep clean — inside cabinets, appliances, baseboards, floors.',
   },
 ];
 
