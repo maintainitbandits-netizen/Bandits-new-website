@@ -328,6 +328,50 @@ export const SERVICES = [
       'Handles what the city won\'t pick up',
     ],
   },
+  {
+    slug: 'pressure-washing',
+    title: 'Pressure Washing',
+    short: 'Professional pressure washing in Austin TX. We remove dirt, mold, mildew and grime from driveways, patios, fences and siding. Same-week service.',
+    image: 'https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?w=1200&q=80',
+    description: 'Austin heat and humidity create the perfect conditions for algae, mold, and mildew to build up on your driveway, patio, walkways, fences, and siding. Our professional pressure washing service blasts years of buildup away fast, restoring surfaces to like-new condition. We use the right pressure and detergent for every surface type.',
+    included: [
+      'Concrete driveways and walkways',
+      'Patios and pool decks',
+      'Wood and vinyl fencing',
+      'Brick and stone exterior walls',
+      'Garage floors',
+      'Soft wash option for delicate surfaces',
+    ],
+    benefits: [
+      'Instant curb appeal boost',
+      'Removes mold, mildew and algae',
+      'Protects surfaces from long-term damage',
+      'Safe for kids and pets after drying',
+      'Same-week scheduling available',
+    ],
+  },
+  {
+    slug: 'gutter-cleaning',
+    title: 'Gutter Cleaning',
+    short: 'Professional gutter cleaning in Austin TX. We clear clogs, flush downspouts and protect your home from water damage. Free estimates.',
+    image: 'https://images.unsplash.com/photo-1632207691143-643e2a9a9361?w=1200&q=80',
+    description: 'Clogged gutters cause foundation damage, roof rot, and basement flooding - especially during Austin\'s heavy spring rain seasons. Our gutter cleaning crew removes all debris by hand, flushes every downspout, and checks for leaks and improper slope. Recommended twice a year for most Austin homes.',
+    included: [
+      'Hand removal of all debris from gutters',
+      'Full downspout flush and check',
+      'Inspection for leaks and improper slope',
+      'Bag and haul-off all debris',
+      'Single and two-story homes',
+      'Twice-yearly service plans available',
+    ],
+    benefits: [
+      'Prevents foundation damage',
+      'Stops fascia board rot',
+      'Eliminates mosquito breeding water',
+      'Protects roof from water backup',
+      'Peace of mind before rain season',
+    ],
+  },
 ];
 
 export const SERVICE_AREAS = [
@@ -341,6 +385,8 @@ export const SERVICE_AREAS = [
   { slug: 'west-lake-hills', name: 'West Lake Hills TX' },
   { slug: 'lakeway', name: 'Lakeway TX' },
   { slug: 'dripping-springs', name: 'Dripping Springs TX' },
+  { slug: 'hutto', name: 'Hutto TX' },
+  { slug: 'taylor', name: 'Taylor TX' },
 ];
 
 export const TESTIMONIALS = [
