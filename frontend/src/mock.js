@@ -46,7 +46,7 @@ export const SERVICES = [
     slug: 'lawn-mowing',
     title: 'Lawn Mowing & Maintenance',
     short: 'Weekly & bi-weekly lawn mowing, edging, blowing, and trimming to keep your Austin TX property looking pristine year-round.',
-    image: 'https://images.unsplash.com/photo-1458245201577-fc8a130b8829?w=1200&q=80',
+    image: '/gallery/mower-action.jpg',
     description: 'Our lawn mowing and maintenance services are designed to keep your property looking its best year-round. We use professional-grade equipment and proven techniques to deliver a clean, even cut every time. Our team pays attention to the details - from precise edging along walkways to careful trimming around obstacles.',
     included: [
       'Weekly or bi-weekly mowing schedules',
@@ -68,7 +68,7 @@ export const SERVICES = [
     slug: 'landscaping',
     title: 'Landscaping & Design',
     short: 'Custom landscape design, garden bed installation, mulching, and hardscaping to transform your outdoor space in Austin TX.',
-    image: 'https://images.unsplash.com/photo-1738193830098-2d92352a1856?w=1200&q=80',
+    image: '/gallery/crepe-myrtle-landscaping.jpg',
     description: 'Transform your outdoor space with our complete landscape design and installation services. From native plant gardens to hardscaping features, we create beautiful, low-maintenance landscapes tailored to the Austin climate.',
     included: [
       'Custom landscape design',
@@ -90,7 +90,7 @@ export const SERVICES = [
     slug: 'fertilization',
     title: 'Fertilization & Weed Control',
     short: 'Seasonal fertilization programs and targeted weed control to keep your Austin lawn green, healthy, and weed-free.',
-    image: 'https://images.unsplash.com/photo-1533460004989-cef01064af7e?w=1200&q=80',
+    image: '/gallery/fresh-mow-stripes-after.jpg',
     description: 'A healthy lawn starts with proper nutrition and weed management. Our seasonal fertilization programs are tailored to Austin\u2019s climate and grass types, ensuring lush, green growth all year long.',
     included: [
       'Custom fertilization programs',
@@ -112,7 +112,7 @@ export const SERVICES = [
     slug: 'sod-installation',
     title: 'Sod Installation',
     short: 'Fresh sod installation with premium grass varieties suited for Austin TX climate \u2014 Bermuda, St. Augustine, and Zoysia.',
-    image: 'https://images.unsplash.com/photo-1734079692079-aae7e24a7035?w=1200&q=80',
+    image: '/gallery/service-sod-installation.jpg',
     description: 'Get an instant lawn with our professional sod installation service. We prepare the soil, install fresh sod, and provide care instructions so your new lawn thrives from day one.',
     included: [
       'Site preparation & grading',
@@ -134,7 +134,7 @@ export const SERVICES = [
     slug: 'property-maintenance',
     title: 'Property Maintenance',
     short: 'Comprehensive residential and commercial property maintenance for Austin TX \u2014 keeping your entire property in top shape.',
-    image: 'https://images.pexels.com/photos/28463539/pexels-photo-28463539.jpeg?w=1200&q=80',
+    image: '/gallery/lush-lawn-after.jpg',
     description: 'From residential homes to commercial properties, we provide comprehensive maintenance services that keep every part of your property looking great and functioning properly.',
     included: [
       'Residential maintenance',
@@ -156,7 +156,7 @@ export const SERVICES = [
     slug: 'cleaning',
     title: 'Cleaning Services',
     short: 'Move-in cleaning, move-out cleaning, and rodent feces cleanup services for Austin TX homes. Thorough, safe, and reliable.',
-    image: 'https://images.pexels.com/photos/6197116/pexels-photo-6197116.jpeg?w=1200&q=80',
+    image: '/gallery/service-cleaning.jpg',
     description: 'Our professional cleaning services are perfect for move-in/move-out situations and specialty cleanups. We handle the dirty work so you can focus on what matters.',
     included: [
       'Move-in cleaning',
@@ -178,7 +178,7 @@ export const SERVICES = [
     slug: 'mulching',
     title: 'Mulching',
     short: 'Professional mulch supply and installation for Austin TX garden beds. Retains moisture, suppresses weeds, and boosts curb appeal year-round.',
-    image: 'https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=1200&q=80',
+    image: '/gallery/service-mulching.jpg',
     description: 'Fresh mulch is one of the best investments you can make in your Austin landscape. It regulates soil temperature, locks in moisture through brutal Texas summers, suppresses weeds, and gives every bed a clean, finished look. We supply and install hardwood, cedar, pine bark, and specialty mulches.',
     included: [
       'Hardwood, cedar & pine bark mulch options',
@@ -200,7 +200,7 @@ export const SERVICES = [
     slug: 'shrub-trimming',
     title: 'Shrub & Hedge Trimming',
     short: 'Professional shrub and hedge trimming in Austin TX. We shape, prune, and maintain your bushes and hedges for a clean, healthy landscape year-round.',
-    image: 'https://images.unsplash.com/photo-1585320806297-9794b3e4aaae?w=1200&q=80',
+    image: '/gallery/service-shrub-trimming.jpg',
     description: 'Overgrown shrubs and hedges drag down the appearance of even a well-maintained lawn. Our crew shapes and prunes ornamental shrubs, hedgerows, topiaries, and foundation plantings throughout the Austin area, keeping them healthy, correctly sized, and looking sharp.',
     included: [
       'Hand and power trimming of all shrub types',
@@ -222,7 +222,7 @@ export const SERVICES = [
     slug: 'flower-bed-planting',
     title: 'Flower Bed Design & Planting',
     short: 'Custom flower bed design and installation in Austin TX. We create colorful, low-maintenance garden beds with plants suited for Central Texas.',
-    image: 'https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=1200&q=80',
+    image: '/gallery/service-mulching.jpg',
     description: 'A well-designed flower bed transforms the front or back of any Austin home. We design, install, and plant custom garden beds using flowering plants, ornamental grasses, and Austin-native species that thrive in Central Texas heat, clay soil, and variable rainfall.',
     included: [
       'Custom bed layout and design',
@@ -244,7 +244,7 @@ export const SERVICES = [
     slug: 'seasonal-cleanup',
     title: 'Seasonal Yard Cleanups',
     short: 'Spring and fall yard cleanup services in Austin TX. We clear leaves, debris, dead growth, and overgrowth so your property looks great every season.',
-    image: 'https://images.pexels.com/photos/28463539/pexels-photo-28463539.jpeg?w=1200&q=80',
+    image: '/gallery/lush-lawn-after.jpg',
     description: 'Austin yards need attention at the start and end of every growing season. Our seasonal cleanup crews clear out the buildup of leaves, dead plant material, winter debris, and overgrown areas, leaving your property fresh, clean, and ready for the season ahead.',
     included: [
       'Leaf removal and bagging',
@@ -266,7 +266,7 @@ export const SERVICES = [
     slug: 'yard-work',
     title: 'Yard Work',
     short: 'General yard work and maintenance for Austin TX homeowners. Mowing, edging, raking, trimming, and cleanup done right every time.',
-    image: 'https://images.unsplash.com/photo-1458245201577-fc8a130b8829?w=1200&q=80',
+    image: '/gallery/mower-action.jpg',
     description: 'Not every yard project fits neatly into one category. Our general yard work service covers all the tasks that pile up and eat your weekends. From mowing and edging to raking, blowing, trimming, and general cleanup, our crews handle it all for Austin homeowners and property managers.',
     included: [
       'Lawn mowing and edging',
@@ -288,7 +288,7 @@ export const SERVICES = [
     slug: 'mulch-rock-installation',
     title: 'Mulch & Rock Installation',
     short: 'Mulch and decorative rock installation in Austin TX. River rock, decomposed granite, and hardwood mulch installed to enhance and protect your landscape.',
-    image: 'https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=1200&q=80',
+    image: '/gallery/service-mulching.jpg',
     description: 'Ground cover is one of the most impactful and practical upgrades you can make to your Austin landscape. We install a wide range of materials including hardwood mulch, cedar mulch, river rock, decomposed granite, and decorative stone to protect your soil, reduce weeds, and dramatically improve curb appeal.',
     included: [
       'Hardwood and cedar mulch installation',
@@ -310,7 +310,7 @@ export const SERVICES = [
     slug: 'junk-haul-off',
     title: 'Junk & Brush Haul-Off',
     short: 'Fast junk and brush haul-off in Austin TX. We remove yard debris, brush piles, storm waste, and unwanted junk quickly with no mess left behind.',
-    image: 'https://images.pexels.com/photos/28463539/pexels-photo-28463539.jpeg?w=1200&q=80',
+    image: '/gallery/service-junk-haul-off.jpg',
     description: 'Yard waste, brush piles, storm debris, and unwanted junk pile up fast. Our haul-off crew loads everything up and removes it from your property quickly and cleanly. We serve homeowners, landlords, property managers, and anyone who needs a yard cleared fast in the Austin metro area.',
     included: [
       'Brush and limb pile removal',
@@ -407,9 +407,9 @@ export const TESTIMONIALS = [
   },
 ];
 
-export const HERO_IMAGE = 'https://images.unsplash.com/photo-1734303023491-db8037a21f09?w=1920&q=80';
+export const HERO_IMAGE = '/gallery/lush-lawn-after.jpg';
 export const AUSTIN_SKYLINE = 'https://images.unsplash.com/photo-1666969565832-b55bf42a900d?w=1200&q=80';
-export const TEAM_IMAGE = 'https://images.pexels.com/photos/6647052/pexels-photo-6647052.jpeg?w=1200&q=80';
+export const TEAM_IMAGE = '/gallery/mower-action.jpg';
 
 export const WHY_CHOOSE = [
   'Licensed & insured for your peace of mind',
