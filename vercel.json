@@ -13,689 +13,77 @@
       "use": "@vercel/python"
     }
   ],
+  "redirects": [
+    {
+      "source": "/:city(pflugerville|round-rock|cedar-park|georgetown|leander|austin|taylor|hutto)-lawn-care",
+      "destination": "/services/lawn-mowing/:city",
+      "permanent": true
+    },
+    {
+      "source": "/:city(pflugerville|round-rock|cedar-park|georgetown|leander|austin|taylor|hutto)-landscaping",
+      "destination": "/services/landscaping/:city",
+      "permanent": true
+    },
+    {
+      "source": "/:city(pflugerville|round-rock|cedar-park|georgetown|leander|austin|taylor|hutto)-sod-installation",
+      "destination": "/services/sod-installation/:city",
+      "permanent": true
+    },
+    {
+      "source": "/:city(pflugerville|round-rock|cedar-park|georgetown|leander|austin|taylor|hutto)-weed-control",
+      "destination": "/services/fertilization/:city",
+      "permanent": true
+    },
+    {
+      "source": "/:city(pflugerville|round-rock|cedar-park|georgetown|leander|austin|taylor|hutto)-pressure-washing",
+      "destination": "/services/pressure-washing/:city",
+      "permanent": true
+    },
+    {
+      "source": "/:city(pflugerville|round-rock|cedar-park|georgetown|leander|austin|taylor|hutto)-gutter-cleaning",
+      "destination": "/services/gutter-cleaning/:city",
+      "permanent": true
+    },
+    {
+      "source": "/:city(pflugerville|round-rock|cedar-park|georgetown|leander|austin|taylor|hutto)-junk-removal",
+      "destination": "/services/junk-haul-off/:city",
+      "permanent": true
+    },
+    {
+      "source": "/:city(pflugerville|round-rock|cedar-park|georgetown|leander|austin|taylor|hutto)-mulching",
+      "destination": "/services/mulching/:city",
+      "permanent": true
+    },
+    {
+      "source": "/:city(pflugerville|round-rock|cedar-park|georgetown|leander|austin|taylor|hutto)-yard-cleanup",
+      "destination": "/services/seasonal-cleanup/:city",
+      "permanent": true
+    },
+    {
+      "source": "/:city(pflugerville|round-rock|cedar-park|georgetown|leander|austin|taylor|hutto)-shrub-trimming",
+      "destination": "/services/shrub-trimming/:city",
+      "permanent": true
+    },
+    {
+      "source": "/:city(pflugerville|round-rock|cedar-park|georgetown|leander|austin|taylor|hutto)-flower-bed-planting",
+      "destination": "/services/flower-bed-planting/:city",
+      "permanent": true
+    },
+    {
+      "source": "/:city(pflugerville|round-rock|cedar-park|georgetown|leander|austin|taylor|hutto)-yard-work",
+      "destination": "/services/yard-work/:city",
+      "permanent": true
+    },
+    {
+      "source": "/:city(pflugerville|round-rock|cedar-park|georgetown|leander|austin|taylor|hutto)-house-cleaning",
+      "destination": "/services/cleaning/:city",
+      "permanent": true
+    }
+  ],
   "routes": [
     {
       "src": "/_/backend/(.*)",
       "dest": "backend/server.py"
-    },
-    {
-      "src": "/austin-lawn-care",
-      "headers": {
-        "Location": "/services/lawn-mowing/austin"
-      },
-      "status": 301
-    },
-    {
-      "src": "/austin-landscaping",
-      "headers": {
-        "Location": "/services/landscaping/austin"
-      },
-      "status": 301
-    },
-    {
-      "src": "/austin-sod-installation",
-      "headers": {
-        "Location": "/services/sod-installation/austin"
-      },
-      "status": 301
-    },
-    {
-      "src": "/austin-weed-control",
-      "headers": {
-        "Location": "/services/fertilization/austin"
-      },
-      "status": 301
-    },
-    {
-      "src": "/austin-pressure-washing",
-      "headers": {
-        "Location": "/services/pressure-washing/austin"
-      },
-      "status": 301
-    },
-    {
-      "src": "/austin-gutter-cleaning",
-      "headers": {
-        "Location": "/services/gutter-cleaning/austin"
-      },
-      "status": 301
-    },
-    {
-      "src": "/austin-junk-removal",
-      "headers": {
-        "Location": "/services/junk-haul-off/austin"
-      },
-      "status": 301
-    },
-    {
-      "src": "/austin-mulching",
-      "headers": {
-        "Location": "/services/mulching/austin"
-      },
-      "status": 301
-    },
-    {
-      "src": "/austin-yard-cleanup",
-      "headers": {
-        "Location": "/services/seasonal-cleanup/austin"
-      },
-      "status": 301
-    },
-    {
-      "src": "/austin-shrub-trimming",
-      "headers": {
-        "Location": "/services/shrub-trimming/austin"
-      },
-      "status": 301
-    },
-    {
-      "src": "/austin-flower-bed-planting",
-      "headers": {
-        "Location": "/services/flower-bed-planting/austin"
-      },
-      "status": 301
-    },
-    {
-      "src": "/austin-yard-work",
-      "headers": {
-        "Location": "/services/yard-work/austin"
-      },
-      "status": 301
-    },
-    {
-      "src": "/austin-house-cleaning",
-      "headers": {
-        "Location": "/services/cleaning/austin"
-      },
-      "status": 301
-    },
-    {
-      "src": "/round-rock-lawn-care",
-      "headers": {
-        "Location": "/services/lawn-mowing/round-rock"
-      },
-      "status": 301
-    },
-    {
-      "src": "/round-rock-landscaping",
-      "headers": {
-        "Location": "/services/landscaping/round-rock"
-      },
-      "status": 301
-    },
-    {
-      "src": "/round-rock-sod-installation",
-      "headers": {
-        "Location": "/services/sod-installation/round-rock"
-      },
-      "status": 301
-    },
-    {
-      "src": "/round-rock-weed-control",
-      "headers": {
-        "Location": "/services/fertilization/round-rock"
-      },
-      "status": 301
-    },
-    {
-      "src": "/round-rock-pressure-washing",
-      "headers": {
-        "Location": "/services/pressure-washing/round-rock"
-      },
-      "status": 301
-    },
-    {
-      "src": "/round-rock-gutter-cleaning",
-      "headers": {
-        "Location": "/services/gutter-cleaning/round-rock"
-      },
-      "status": 301
-    },
-    {
-      "src": "/round-rock-junk-removal",
-      "headers": {
-        "Location": "/services/junk-haul-off/round-rock"
-      },
-      "status": 301
-    },
-    {
-      "src": "/round-rock-mulching",
-      "headers": {
-        "Location": "/services/mulching/round-rock"
-      },
-      "status": 301
-    },
-    {
-      "src": "/round-rock-yard-cleanup",
-      "headers": {
-        "Location": "/services/seasonal-cleanup/round-rock"
-      },
-      "status": 301
-    },
-    {
-      "src": "/round-rock-shrub-trimming",
-      "headers": {
-        "Location": "/services/shrub-trimming/round-rock"
-      },
-      "status": 301
-    },
-    {
-      "src": "/round-rock-yard-work",
-      "headers": {
-        "Location": "/services/yard-work/round-rock"
-      },
-      "status": 301
-    },
-    {
-      "src": "/round-rock-house-cleaning",
-      "headers": {
-        "Location": "/services/cleaning/round-rock"
-      },
-      "status": 301
-    },
-    {
-      "src": "/cedar-park-lawn-care",
-      "headers": {
-        "Location": "/services/lawn-mowing/cedar-park"
-      },
-      "status": 301
-    },
-    {
-      "src": "/cedar-park-landscaping",
-      "headers": {
-        "Location": "/services/landscaping/cedar-park"
-      },
-      "status": 301
-    },
-    {
-      "src": "/cedar-park-sod-installation",
-      "headers": {
-        "Location": "/services/sod-installation/cedar-park"
-      },
-      "status": 301
-    },
-    {
-      "src": "/cedar-park-weed-control",
-      "headers": {
-        "Location": "/services/fertilization/cedar-park"
-      },
-      "status": 301
-    },
-    {
-      "src": "/cedar-park-pressure-washing",
-      "headers": {
-        "Location": "/services/pressure-washing/cedar-park"
-      },
-      "status": 301
-    },
-    {
-      "src": "/cedar-park-gutter-cleaning",
-      "headers": {
-        "Location": "/services/gutter-cleaning/cedar-park"
-      },
-      "status": 301
-    },
-    {
-      "src": "/cedar-park-junk-removal",
-      "headers": {
-        "Location": "/services/junk-haul-off/cedar-park"
-      },
-      "status": 301
-    },
-    {
-      "src": "/cedar-park-mulching",
-      "headers": {
-        "Location": "/services/mulching/cedar-park"
-      },
-      "status": 301
-    },
-    {
-      "src": "/cedar-park-yard-cleanup",
-      "headers": {
-        "Location": "/services/seasonal-cleanup/cedar-park"
-      },
-      "status": 301
-    },
-    {
-      "src": "/cedar-park-shrub-trimming",
-      "headers": {
-        "Location": "/services/shrub-trimming/cedar-park"
-      },
-      "status": 301
-    },
-    {
-      "src": "/cedar-park-yard-work",
-      "headers": {
-        "Location": "/services/yard-work/cedar-park"
-      },
-      "status": 301
-    },
-    {
-      "src": "/cedar-park-house-cleaning",
-      "headers": {
-        "Location": "/services/cleaning/cedar-park"
-      },
-      "status": 301
-    },
-    {
-      "src": "/georgetown-lawn-care",
-      "headers": {
-        "Location": "/services/lawn-mowing/georgetown"
-      },
-      "status": 301
-    },
-    {
-      "src": "/georgetown-landscaping",
-      "headers": {
-        "Location": "/services/landscaping/georgetown"
-      },
-      "status": 301
-    },
-    {
-      "src": "/georgetown-sod-installation",
-      "headers": {
-        "Location": "/services/sod-installation/georgetown"
-      },
-      "status": 301
-    },
-    {
-      "src": "/georgetown-weed-control",
-      "headers": {
-        "Location": "/services/fertilization/georgetown"
-      },
-      "status": 301
-    },
-    {
-      "src": "/georgetown-pressure-washing",
-      "headers": {
-        "Location": "/services/pressure-washing/georgetown"
-      },
-      "status": 301
-    },
-    {
-      "src": "/georgetown-gutter-cleaning",
-      "headers": {
-        "Location": "/services/gutter-cleaning/georgetown"
-      },
-      "status": 301
-    },
-    {
-      "src": "/georgetown-junk-removal",
-      "headers": {
-        "Location": "/services/junk-haul-off/georgetown"
-      },
-      "status": 301
-    },
-    {
-      "src": "/georgetown-mulching",
-      "headers": {
-        "Location": "/services/mulching/georgetown"
-      },
-      "status": 301
-    },
-    {
-      "src": "/georgetown-yard-cleanup",
-      "headers": {
-        "Location": "/services/seasonal-cleanup/georgetown"
-      },
-      "status": 301
-    },
-    {
-      "src": "/georgetown-shrub-trimming",
-      "headers": {
-        "Location": "/services/shrub-trimming/georgetown"
-      },
-      "status": 301
-    },
-    {
-      "src": "/georgetown-yard-work",
-      "headers": {
-        "Location": "/services/yard-work/georgetown"
-      },
-      "status": 301
-    },
-    {
-      "src": "/georgetown-house-cleaning",
-      "headers": {
-        "Location": "/services/cleaning/georgetown"
-      },
-      "status": 301
-    },
-    {
-      "src": "/pflugerville-lawn-care",
-      "headers": {
-        "Location": "/services/lawn-mowing/pflugerville"
-      },
-      "status": 301
-    },
-    {
-      "src": "/pflugerville-landscaping",
-      "headers": {
-        "Location": "/services/landscaping/pflugerville"
-      },
-      "status": 301
-    },
-    {
-      "src": "/pflugerville-sod-installation",
-      "headers": {
-        "Location": "/services/sod-installation/pflugerville"
-      },
-      "status": 301
-    },
-    {
-      "src": "/pflugerville-weed-control",
-      "headers": {
-        "Location": "/services/fertilization/pflugerville"
-      },
-      "status": 301
-    },
-    {
-      "src": "/pflugerville-pressure-washing",
-      "headers": {
-        "Location": "/services/pressure-washing/pflugerville"
-      },
-      "status": 301
-    },
-    {
-      "src": "/pflugerville-gutter-cleaning",
-      "headers": {
-        "Location": "/services/gutter-cleaning/pflugerville"
-      },
-      "status": 301
-    },
-    {
-      "src": "/pflugerville-junk-removal",
-      "headers": {
-        "Location": "/services/junk-haul-off/pflugerville"
-      },
-      "status": 301
-    },
-    {
-      "src": "/pflugerville-mulching",
-      "headers": {
-        "Location": "/services/mulching/pflugerville"
-      },
-      "status": 301
-    },
-    {
-      "src": "/pflugerville-yard-cleanup",
-      "headers": {
-        "Location": "/services/seasonal-cleanup/pflugerville"
-      },
-      "status": 301
-    },
-    {
-      "src": "/pflugerville-shrub-trimming",
-      "headers": {
-        "Location": "/services/shrub-trimming/pflugerville"
-      },
-      "status": 301
-    },
-    {
-      "src": "/pflugerville-yard-work",
-      "headers": {
-        "Location": "/services/yard-work/pflugerville"
-      },
-      "status": 301
-    },
-    {
-      "src": "/pflugerville-house-cleaning",
-      "headers": {
-        "Location": "/services/cleaning/pflugerville"
-      },
-      "status": 301
-    },
-    {
-      "src": "/leander-lawn-care",
-      "headers": {
-        "Location": "/services/lawn-mowing/leander"
-      },
-      "status": 301
-    },
-    {
-      "src": "/leander-landscaping",
-      "headers": {
-        "Location": "/services/landscaping/leander"
-      },
-      "status": 301
-    },
-    {
-      "src": "/leander-sod-installation",
-      "headers": {
-        "Location": "/services/sod-installation/leander"
-      },
-      "status": 301
-    },
-    {
-      "src": "/leander-weed-control",
-      "headers": {
-        "Location": "/services/fertilization/leander"
-      },
-      "status": 301
-    },
-    {
-      "src": "/leander-pressure-washing",
-      "headers": {
-        "Location": "/services/pressure-washing/leander"
-      },
-      "status": 301
-    },
-    {
-      "src": "/leander-gutter-cleaning",
-      "headers": {
-        "Location": "/services/gutter-cleaning/leander"
-      },
-      "status": 301
-    },
-    {
-      "src": "/leander-junk-removal",
-      "headers": {
-        "Location": "/services/junk-haul-off/leander"
-      },
-      "status": 301
-    },
-    {
-      "src": "/leander-mulching",
-      "headers": {
-        "Location": "/services/mulching/leander"
-      },
-      "status": 301
-    },
-    {
-      "src": "/leander-yard-cleanup",
-      "headers": {
-        "Location": "/services/seasonal-cleanup/leander"
-      },
-      "status": 301
-    },
-    {
-      "src": "/leander-shrub-trimming",
-      "headers": {
-        "Location": "/services/shrub-trimming/leander"
-      },
-      "status": 301
-    },
-    {
-      "src": "/leander-yard-work",
-      "headers": {
-        "Location": "/services/yard-work/leander"
-      },
-      "status": 301
-    },
-    {
-      "src": "/leander-house-cleaning",
-      "headers": {
-        "Location": "/services/cleaning/leander"
-      },
-      "status": 301
-    },
-    {
-      "src": "/hutto-lawn-care",
-      "headers": {
-        "Location": "/services/lawn-mowing/hutto"
-      },
-      "status": 301
-    },
-    {
-      "src": "/hutto-landscaping",
-      "headers": {
-        "Location": "/services/landscaping/hutto"
-      },
-      "status": 301
-    },
-    {
-      "src": "/hutto-sod-installation",
-      "headers": {
-        "Location": "/services/sod-installation/hutto"
-      },
-      "status": 301
-    },
-    {
-      "src": "/hutto-weed-control",
-      "headers": {
-        "Location": "/services/fertilization/hutto"
-      },
-      "status": 301
-    },
-    {
-      "src": "/hutto-pressure-washing",
-      "headers": {
-        "Location": "/services/pressure-washing/hutto"
-      },
-      "status": 301
-    },
-    {
-      "src": "/hutto-gutter-cleaning",
-      "headers": {
-        "Location": "/services/gutter-cleaning/hutto"
-      },
-      "status": 301
-    },
-    {
-      "src": "/hutto-junk-removal",
-      "headers": {
-        "Location": "/services/junk-haul-off/hutto"
-      },
-      "status": 301
-    },
-    {
-      "src": "/hutto-mulching",
-      "headers": {
-        "Location": "/services/mulching/hutto"
-      },
-      "status": 301
-    },
-    {
-      "src": "/hutto-yard-cleanup",
-      "headers": {
-        "Location": "/services/seasonal-cleanup/hutto"
-      },
-      "status": 301
-    },
-    {
-      "src": "/hutto-shrub-trimming",
-      "headers": {
-        "Location": "/services/shrub-trimming/hutto"
-      },
-      "status": 301
-    },
-    {
-      "src": "/hutto-yard-work",
-      "headers": {
-        "Location": "/services/yard-work/hutto"
-      },
-      "status": 301
-    },
-    {
-      "src": "/hutto-house-cleaning",
-      "headers": {
-        "Location": "/services/cleaning/hutto"
-      },
-      "status": 301
-    },
-    {
-      "src": "/taylor-lawn-care",
-      "headers": {
-        "Location": "/services/lawn-mowing/taylor"
-      },
-      "status": 301
-    },
-    {
-      "src": "/taylor-landscaping",
-      "headers": {
-        "Location": "/services/landscaping/taylor"
-      },
-      "status": 301
-    },
-    {
-      "src": "/taylor-sod-installation",
-      "headers": {
-        "Location": "/services/sod-installation/taylor"
-      },
-      "status": 301
-    },
-    {
-      "src": "/taylor-weed-control",
-      "headers": {
-        "Location": "/services/fertilization/taylor"
-      },
-      "status": 301
-    },
-    {
-      "src": "/taylor-pressure-washing",
-      "headers": {
-        "Location": "/services/pressure-washing/taylor"
-      },
-      "status": 301
-    },
-    {
-      "src": "/taylor-gutter-cleaning",
-      "headers": {
-        "Location": "/services/gutter-cleaning/taylor"
-      },
-      "status": 301
-    },
-    {
-      "src": "/taylor-junk-removal",
-      "headers": {
-        "Location": "/services/junk-haul-off/taylor"
-      },
-      "status": 301
-    },
-    {
-      "src": "/taylor-mulching",
-      "headers": {
-        "Location": "/services/mulching/taylor"
-      },
-      "status": 301
-    },
-    {
-      "src": "/taylor-yard-cleanup",
-      "headers": {
-        "Location": "/services/seasonal-cleanup/taylor"
-      },
-      "status": 301
-    },
-    {
-      "src": "/taylor-shrub-trimming",
-      "headers": {
-        "Location": "/services/shrub-trimming/taylor"
-      },
-      "status": 301
-    },
-    {
-      "src": "/taylor-yard-work",
-      "headers": {
-        "Location": "/services/yard-work/taylor"
-      },
-      "status": 301
-    },
-    {
-      "src": "/taylor-house-cleaning",
-      "headers": {
-        "Location": "/services/cleaning/taylor"
-      },
-      "status": 301
     },
     {
       "handle": "filesystem"
