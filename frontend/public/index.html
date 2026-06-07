@@ -10,23 +10,79 @@
         <meta name="description" content="Austin TX's one-stop shop for lawn care, landscaping, cleaning, and home services. Licensed & insured. Free estimates. Serving Austin, Round Rock, Cedar Park & surrounding areas." />
         <meta name="robots" content="index, follow" />
 
+        <!-- Canonical (homepage default; per-route canonical is injected by SEO.jsx) -->
+        <link rel="canonical" href="https://www.maintainitbandits.com/" />
+
         <meta property="og:type" content="website" />
         <meta property="og:site_name" content="Maintain It Bandits LLC" />
         <meta property="og:title" content="Lawn Care, Landscaping & Home Services Austin TX | Maintain It Bandits LLC" />
         <meta property="og:description" content="Austin's trusted one-stop shop for lawn care, landscaping, and home services. Licensed & insured. Free estimates." />
-        <meta property="og:image" content="https://images.unsplash.com/photo-1734303023491-db8037a21f09?w=1200&h=630&fit=crop&q=80" />
-        <meta property="og:url" content="https://maintainitbandits.com" />
+        <meta property="og:image" content="https://www.maintainitbandits.com/gallery/lush-lawn-after.jpg" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="900" />
+        <meta property="og:image:alt" content="Pristine green backyard maintained by Maintain It Bandits LLC in Austin TX" />
+        <meta property="og:url" content="https://www.maintainitbandits.com/" />
 
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="Lawn Care, Landscaping & Home Services Austin TX" />
         <meta name="twitter:description" content="Austin's trusted one-stop shop. Licensed & insured. Free estimates." />
-        <meta name="twitter:image" content="https://images.unsplash.com/photo-1734303023491-db8037a21f09?w=1200&h=630&fit=crop&q=80" />
+        <meta name="twitter:image" content="https://www.maintainitbandits.com/gallery/lush-lawn-after.jpg" />
+        <meta name="twitter:image:alt" content="Pristine green backyard maintained by Maintain It Bandits LLC in Austin TX" />
 
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@600&display=swap" rel="stylesheet" />
 
         <title>Lawn Care, Landscaping & Home Services Austin TX | Maintain It Bandits LLC</title>
+
+        <!-- =================== STATIC JSON-LD LocalBusiness SCHEMA =================== -->
+        <!-- Mirrors the schema in Home.jsx so search engines & social crawlers see it
+             in the initial HTML response without needing to execute JavaScript. -->
+        <script type="application/ld+json">
+        {
+            "@context": "https://schema.org",
+            "@type": "LocalBusiness",
+            "@id": "https://www.maintainitbandits.com/#business",
+            "name": "Maintain It Bandits LLC",
+            "image": "https://www.maintainitbandits.com/gallery/lush-lawn-after.jpg",
+            "logo": "https://customer-assets.emergentagent.com/job_bandits-replica/artifacts/46mb1ori_1B8C2EE3-.png",
+            "url": "https://www.maintainitbandits.com/",
+            "telephone": "(512) 518-1558",
+            "email": "info@maintainitbandits.com",
+            "priceRange": "$$",
+            "description": "Austin TX's one-stop shop for lawn care, landscaping, cleaning, and home services. Licensed & insured. Free estimates.",
+            "address": {
+                "@type": "PostalAddress",
+                "addressLocality": "Austin",
+                "addressRegion": "TX",
+                "addressCountry": "US"
+            },
+            "areaServed": [
+                "Austin TX",
+                "Round Rock TX",
+                "Cedar Park TX",
+                "Georgetown TX",
+                "Pflugerville TX",
+                "Leander TX",
+                "Bee Cave TX",
+                "West Lake Hills TX",
+                "Lakeway TX",
+                "Dripping Springs TX",
+                "Hutto TX",
+                "Taylor TX"
+            ],
+            "openingHoursSpecification": [
+                { "@type": "OpeningHoursSpecification", "dayOfWeek": "Monday",    "opens": "07:00", "closes": "17:00" },
+                { "@type": "OpeningHoursSpecification", "dayOfWeek": "Tuesday",   "opens": "07:00", "closes": "17:00" },
+                { "@type": "OpeningHoursSpecification", "dayOfWeek": "Wednesday", "opens": "07:00", "closes": "17:00" },
+                { "@type": "OpeningHoursSpecification", "dayOfWeek": "Thursday",  "opens": "07:00", "closes": "17:00" },
+                { "@type": "OpeningHoursSpecification", "dayOfWeek": "Friday",    "opens": "07:00", "closes": "17:00" },
+                { "@type": "OpeningHoursSpecification", "dayOfWeek": "Saturday",  "opens": "09:00", "closes": "17:00" }
+            ],
+            "sameAs": []
+        }
+        </script>
+        <!-- =================== /STATIC JSON-LD =================== -->
 
         <!-- =================== ANALYTICS =================== -->
         <!-- GA4 / Meta Pixel / GTM placeholders -->
@@ -102,5 +158,5 @@
                 },
             });
         </script>
-    </body>
+    <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a080fa29eb2152a8',t:'MTc4MDg0OTE1Mw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
