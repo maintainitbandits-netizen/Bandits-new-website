@@ -10,8 +10,9 @@
         <meta name="description" content="Austin TX's one-stop shop for lawn care, landscaping, cleaning, and home services. Licensed & insured. Free estimates. Serving Austin, Round Rock, Cedar Park & surrounding areas." />
         <meta name="robots" content="index, follow" />
 
-        <!-- Canonical (homepage default; per-route canonical is injected by SEO.jsx) -->
-        <link rel="canonical" href="https://www.maintainitbandits.com/" />
+        <!-- NOTE: Canonical URL is injected per-route by SEO.jsx via react-helmet-async.
+             A static canonical here would point every SPA route at the homepage, which
+             Google would treat as duplicates of "/" and refuse to index. -->
 
         <meta property="og:type" content="website" />
         <meta property="og:site_name" content="Maintain It Bandits LLC" />
@@ -36,8 +37,9 @@
         <title>Lawn Care, Landscaping & Home Services Austin TX | Maintain It Bandits LLC</title>
 
         <!-- =================== STATIC JSON-LD LocalBusiness SCHEMA =================== -->
-        <!-- Mirrors the schema in Home.jsx so search engines & social crawlers see it
-             in the initial HTML response without needing to execute JavaScript. -->
+        <!-- This is fine to be static. It describes the business itself, not the page.
+             Google reads it once and uses it for the whole site. Per-page Service schema
+             is added by individual page components via SEO.jsx. -->
         <script type="application/ld+json">
         {
             "@context": "https://schema.org",
@@ -158,5 +160,5 @@
                 },
             });
         </script>
-    <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a080fa29eb2152a8',t:'MTc4MDg0OTE1Mw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+    </body>
 </html>
