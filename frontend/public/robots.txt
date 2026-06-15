@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://maintainitbandits.com/sitemap.xml
+Sitemap: https://www.maintainitbandits.com/sitemap.xml
