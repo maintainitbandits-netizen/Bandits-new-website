@@ -42,6 +42,17 @@ const FAQ_GROUPS = [
       { q: 'Is rodent feces cleanup safe?', a: 'When done correctly, yes. We follow CDC-recommended procedures with proper PPE, HEPA vacuums, and EPA-approved disinfectants.' },
     ],
   },
+  {
+    title: 'Make Readys & Tenant Turnovers',
+    faqs: [
+      { q: 'What is a make ready service?', a: 'A make ready is the complete process of getting a rental unit back to rent-ready condition between tenants — deep cleaning, paint touch-ups, minor repairs, haul-off, and curb-appeal refresh. We handle the entire turn with one crew and one invoice.' },
+      { q: 'How fast can you turn a unit around?', a: 'Most make readys finish in 2–4 business days from move-out. Rush 24–48 hour turnarounds are available when a new lease is already signed.' },
+      { q: 'How much does a make ready cost in Austin?', a: 'Refresh make readys start around $295 per unit. Standard make readys typically run $550–$950. Full turnovers with paint and repairs run $1,200–$2,500+. Every estimate is free and itemized.' },
+      { q: 'Do you work with property managers?', a: 'Yes — we work from your scope sheets, reserve month-end crew capacity, provide COIs, offer net-terms invoicing, and send photo documentation on every line item. Volume pricing applies for portfolios.' },
+      { q: 'Can you remove items the previous tenant left behind?', a: 'Yes — junk, furniture, trash, and belongings left by previous tenants are hauled off as part of the make ready.' },
+      { q: 'Do you handle the exterior and lawn during a turn?', a: 'Yes — lawn mowing, bed cleanup, pressure washing, and curb-appeal refresh are all in-house. That is what makes us a true one-call make ready company.' },
+    ],
+  },
 ];
 
 const FAQ = () => {

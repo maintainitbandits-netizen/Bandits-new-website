@@ -43,9 +43,9 @@ const Home = () => {
   return (
     <div>
       <SEO
-        title="Lawn Care, Landscaping & Home Services Austin TX | Maintain It Bandits LLC"
-        description="Austin TX's one-stop shop for lawn care, landscaping, cleaning, and home services. Licensed & insured. Free estimates. Serving Austin, Round Rock, Cedar Park & surrounding areas."
-        keywords="lawn care Austin TX, landscaping Austin, home services Austin, lawn mowing Austin, Austin landscaper"
+        title="Lawn Care, Landscaping, Make Ready & Home Services Austin TX | Maintain It Bandits LLC"
+        description="Austin TX's one-stop shop for lawn care, landscaping, cleaning, make readys & tenant turnovers. Rent-ready in 48-72 hours. Licensed & insured. Free estimates. Call (512) 518-1558."
+        keywords="lawn care Austin TX, landscaping Austin, home services Austin, lawn mowing Austin, Austin landscaper, make ready services Austin TX, tenant turnover services Austin, make ready cleaning Austin, rental make ready company Austin"
         path="/"
         image="https://maintainitbandits.com/images/hero-bg.jpg"
         schema={homeSchema}
@@ -63,7 +63,7 @@ const Home = () => {
               <span className="text-green-400 italic">All Your Home Needs</span>
             </h1>
             <p className="text-neutral-300 max-w-2xl mt-7 text-base md:text-lg leading-relaxed">
-              From lawn care and landscaping to deep cleaning services — Maintain It Bandits LLC is your Austin TX one-stop shop for everything your home needs. Licensed, insured, and committed to making your property the best on the block.
+              From lawn care and landscaping to make readys, tenant turnovers, and deep cleaning — Maintain It Bandits LLC is your Austin TX one-stop shop for everything your home or rental property needs. Licensed, insured, and committed to making your property the best on the block.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 mt-9">
               <Link to="/contact" className="btn-green inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-full font-semibold">
@@ -132,6 +132,47 @@ const Home = () => {
         </div>
       </section>
 
+      {/* MAKE READY & TURNOVER FEATURE */}
+      <section className="py-24 bg-[#080808] border-y border-[#141414]">
+        <div className="max-w-6xl mx-auto px-5 lg:px-8">
+          <div className="bg-gradient-to-br from-[#0f1d12] to-[#0a0a0a] border border-green-500/25 rounded-3xl overflow-hidden">
+            <div className="grid grid-cols-1 lg:grid-cols-2">
+              <div className="p-10 md:p-14">
+                <Badge>Landlords & Property Managers</Badge>
+                <h2 className="font-serif text-3xl md:text-5xl text-white mt-5 leading-tight">Make Readys &amp; Tenant Turnovers — One Call, Rent-Ready Fast</h2>
+                <p className="text-neutral-400 mt-5 leading-relaxed">
+                  Stop juggling cleaners, painters, handymen, and lawn crews between tenants. Our make ready and turnover crews handle the deep clean, paint touch-ups, minor repairs, junk haul-off, and full curb-appeal refresh — with photo documentation on every line item. Rent-ready in as little as <span className="text-green-400 font-semibold">48–72 hours</span>.
+                </p>
+                <ul className="mt-7 space-y-3">
+                  {[
+                    'One crew, one invoice for the entire turn',
+                    'Photo reports for owner & deposit files',
+                    'COI available · Net-terms invoicing for PMs',
+                    'Volume pricing for multi-unit portfolios',
+                  ].map((f, i) => (
+                    <li key={i} className="flex items-start gap-3 text-neutral-200 text-sm">
+                      <span className="mt-0.5 h-5 w-5 rounded-full bg-green-500/15 border border-green-500/30 grid place-items-center flex-shrink-0"><Check size={12} className="text-green-400" /></span>
+                      {f}
+                    </li>
+                  ))}
+                </ul>
+                <div className="flex flex-col sm:flex-row gap-4 mt-9">
+                  <Link to="/make-ready-turnovers" className="btn-green inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-full font-semibold">Explore Make Ready Services <ArrowRight size={18} /></Link>
+                  <a href={`tel:${COMPANY.phoneRaw}`} className="btn-dark inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-full font-semibold"><Phone size={18} className="text-green-400" /> {COMPANY.phone}</a>
+                </div>
+              </div>
+              <div className="relative min-h-[320px]">
+                <img src="/gallery/make-ready-hero.jpg" alt="Rental home refreshed with make ready and turnover services in Austin TX" className="absolute inset-0 w-full h-full object-cover" />
+                <div className="absolute bottom-5 right-5 bg-[#0c0c0c]/95 border border-green-500/30 rounded-2xl px-5 py-3 shadow-xl">
+                  <div className="text-green-400 font-bold text-2xl">48–72 hrs</div>
+                  <div className="text-neutral-400 text-[10px] uppercase tracking-wider">Typical Turnaround</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* QUOTE CALCULATOR */}
       <section className="py-24 bg-[#080808]">
         <div className="max-w-4xl mx-auto px-5 lg:px-8">
@@ -165,7 +206,7 @@ const Home = () => {
             <Badge>Why Choose Us</Badge>
             <h2 className="font-serif text-4xl md:text-5xl text-white mt-5 leading-tight">Austin TX&apos;s One-Stop Home Service Company</h2>
             <p className="text-neutral-400 mt-5 leading-relaxed">
-              Maintain It Bandits LLC is not just another lawn service — we are your one-stop shop for everything your Austin TX home needs. Lawn care, landscaping, cleaning, and property maintenance all under one roof.
+              Maintain It Bandits LLC is not just another lawn service — we are your one-stop shop for everything your Austin TX home or rental property needs. Lawn care, landscaping, make readys, turnovers, cleaning, and property maintenance all under one roof.
             </p>
             <ul className="mt-8 space-y-3">
               {WHY_CHOOSE.map((w, i) => (
