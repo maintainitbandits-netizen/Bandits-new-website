@@ -8,6 +8,7 @@ const SERVICE_RATES = {
   'Mulch Refresh': { base: 0.35, min: 150, label: 'all beds installed' },
   'Landscape Design': { base: 0.85, min: 1500, label: 'project starting at' },
   'Property Maintenance': { base: 0.018, min: 95, label: 'per visit' },
+  'Make Ready / Turnover': { base: 0.55, min: 395, label: 'per unit (typical range)' },
 };
 
 const QuoteCalculator = () => {
@@ -48,7 +49,7 @@ const QuoteCalculator = () => {
           </select>
         </div>
         <div>
-          <label className="block text-xs text-neutral-400 uppercase tracking-widest mb-2">Lot Size: <span className="text-white">{sqft.toLocaleString()} sq ft</span></label>
+          <label className="block text-xs text-neutral-400 uppercase tracking-widest mb-2">{service === 'Make Ready / Turnover' ? 'Unit' : 'Lot'} Size: <span className="text-white">{sqft.toLocaleString()} sq ft</span></label>
           <input type="range" min="1000" max="30000" step="500" value={sqft} onChange={e => setSqft(Number(e.target.value))} className="w-full accent-green-500"/>
           <div className="flex justify-between text-[10px] text-neutral-500 mt-1"><span>1,000</span><span>30,000+</span></div>
         </div>

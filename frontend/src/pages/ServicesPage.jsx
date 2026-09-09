@@ -8,9 +8,9 @@ import CTASection from '../components/CTASection';
 const ServicesPage = () => (
   <div>
     <SEO
-      title="Our Services | Lawn Care, Landscaping & Cleaning Austin TX | Maintain It Bandits LLC"
-      description="Complete home services in Austin TX: lawn mowing, landscaping, fertilization, sod installation, property maintenance, and cleaning. Licensed & insured."
-      keywords="Austin lawn care services, landscaping services Austin, home services Austin TX, lawn maintenance Austin"
+      title="Our Services | Lawn Care, Landscaping, Make Ready & Cleaning Austin TX | Maintain It Bandits LLC"
+      description="Complete home & rental property services in Austin TX: lawn mowing, landscaping, make readys, tenant turnovers, cleaning, haul-off & more. Licensed & insured. Free estimates."
+      keywords="Austin lawn care services, landscaping services Austin, home services Austin TX, lawn maintenance Austin, make ready services Austin TX, tenant turnover services Austin TX"
       path="/services"
     />
     <section className="py-20 bg-[#0a0a0a] border-b border-[#161616]">

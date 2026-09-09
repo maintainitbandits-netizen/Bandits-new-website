@@ -42,6 +42,7 @@ function App() {
           <Navbar />
           <Routes>
             <Route path="/" element={<Home />} />
+            <Route path="/make-ready-turnovers" element={<MakeReadyHub />} />
             <Route path="/services" element={<ServicesPage />} />
             <Route path="/services/:slug" element={<ServiceDetail />} />
             <Route path="/services/:slug/:city" element={<ServiceCityDetail />} />

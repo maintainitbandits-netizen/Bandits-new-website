@@ -344,5 +344,55 @@
   <url><loc>https://www.maintainitbandits.com/blog/rodent-feces-cleanup-austin-tx-what-to-know</loc><changefreq>yearly</changefreq><priority>0.6</priority></url>
   <url><loc>https://www.maintainitbandits.com/blog/deep-cleaning-vs-regular-cleaning-austin-tx</loc><changefreq>yearly</changefreq><priority>0.6</priority></url>
   <url><loc>https://www.maintainitbandits.com/blog/how-much-does-house-cleaning-cost-austin-tx</loc><changefreq>yearly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://www.maintainitbandits.com/blog/austin-rental-make-ready-checklist-landlords</loc><changefreq>yearly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://www.maintainitbandits.com/blog/how-much-does-a-make-ready-cost-austin-tx</loc><changefreq>yearly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://www.maintainitbandits.com/blog/tenant-turnover-timeline-austin-tx</loc><changefreq>yearly</changefreq><priority>0.8</priority></url>
+
+  <!-- MAKE READY & TURNOVER HUB -->
+  <url>
+    <loc>https://www.maintainitbandits.com/make-ready-turnovers</loc>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
+
+  <!-- MAKE READY & TURNOVER SERVICE PAGES -->
+  <url>
+    <loc>https://www.maintainitbandits.com/services/make-ready-services</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://www.maintainitbandits.com/services/tenant-turnover-services</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.9</priority>
+  </url>
+
+  <!-- MAKE READY x CITY PAGES -->
+  <url><loc>https://www.maintainitbandits.com/services/make-ready-services/austin</loc><changefreq>monthly</changefreq><priority>0.9</priority></url>
+  <url><loc>https://www.maintainitbandits.com/services/make-ready-services/round-rock</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://www.maintainitbandits.com/services/make-ready-services/cedar-park</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://www.maintainitbandits.com/services/make-ready-services/georgetown</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://www.maintainitbandits.com/services/make-ready-services/pflugerville</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://www.maintainitbandits.com/services/make-ready-services/leander</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://www.maintainitbandits.com/services/make-ready-services/bee-cave</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://www.maintainitbandits.com/services/make-ready-services/west-lake-hills</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://www.maintainitbandits.com/services/make-ready-services/lakeway</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://www.maintainitbandits.com/services/make-ready-services/dripping-springs</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://www.maintainitbandits.com/services/make-ready-services/hutto</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://www.maintainitbandits.com/services/make-ready-services/taylor</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+
+  <!-- TENANT TURNOVER x CITY PAGES -->
+  <url><loc>https://www.maintainitbandits.com/services/tenant-turnover-services/austin</loc><changefreq>monthly</changefreq><priority>0.9</priority></url>
+  <url><loc>https://www.maintainitbandits.com/services/tenant-turnover-services/round-rock</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://www.maintainitbandits.com/services/tenant-turnover-services/cedar-park</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://www.maintainitbandits.com/services/tenant-turnover-services/georgetown</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://www.maintainitbandits.com/services/tenant-turnover-services/pflugerville</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://www.maintainitbandits.com/services/tenant-turnover-services/leander</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://www.maintainitbandits.com/services/tenant-turnover-services/bee-cave</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://www.maintainitbandits.com/services/tenant-turnover-services/west-lake-hills</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://www.maintainitbandits.com/services/tenant-turnover-services/lakeway</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://www.maintainitbandits.com/services/tenant-turnover-services/dripping-springs</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://www.maintainitbandits.com/services/tenant-turnover-services/hutto</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://www.maintainitbandits.com/services/tenant-turnover-services/taylor</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
 
 </urlset>

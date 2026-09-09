@@ -4,6 +4,7 @@ import { ArrowRight, Phone, Check, ShieldCheck, Clock, Star, DollarSign, MapPin 
 import { SERVICES, COMPANY, SERVICE_AREAS } from '../mock';
 import { SERVICE_SEO } from '../seo';
 import SEO from '../components/SEO';
+import Breadcrumbs from '../components/Breadcrumbs';
 import CTASection from '../components/CTASection';
 
 const ServiceDetail = () => {
@@ -12,7 +13,7 @@ const ServiceDetail = () => {
   if (!svc) return <Navigate to="/services" replace />;
   const seo = SERVICE_SEO[slug] || {};
 
-  const schema = {
+  const serviceSchema = {
     '@context': 'https://schema.org',
     '@type': 'Service',
     'serviceType': svc.title,
@@ -27,6 +28,37 @@ const ServiceDetail = () => {
     'areaServed': SERVICE_AREAS.map(a => a.name),
   };
 
+  // FAQ structured data → rich results in Google
+  const faqSchema = seo.faqs && seo.faqs.length ? {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: seo.faqs.map(f => ({
+      '@type': 'Question',
+      name: f.q,
+      acceptedAnswer: { '@type': 'Answer', text: f.a },
+    })),
+  } : null;
+
+  const breadcrumbSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://www.maintainitbandits.com/' },
+      { '@type': 'ListItem', position: 2, name: 'Services', item: 'https://www.maintainitbandits.com/services' },
+      { '@type': 'ListItem', position: 3, name: svc.title, item: `https://www.maintainitbandits.com/services/${slug}` },
+    ],
+  };
+
+  const schemas = [serviceSchema, faqSchema, breadcrumbSchema].filter(Boolean);
+
+  // Prefer editorially-chosen related services when available
+  const relatedServices = svc.related
+    ? svc.related
+        .map(r => SERVICES.find(s => s.slug === r))
+        .filter(Boolean)
+        .slice(0, 3)
+    : SERVICES.filter(s => s.slug !== slug).slice(0, 3);
+
   return (
     <div>
       <SEO
@@ -35,8 +67,12 @@ const ServiceDetail = () => {
         keywords={seo.keywords}
         path={`/services/${slug}`}
         image={svc.image}
-        schema={schema}
+        schema={schemas}
       />
+      <Breadcrumbs items={[
+        { name: 'Services', path: '/services' },
+        { name: svc.title, path: `/services/${slug}` },
+      ]} />
 
       {/* HERO */}
       <section className="py-20 bg-[#0a0a0a] border-b border-[#161616]">
@@ -161,7 +197,7 @@ const ServiceDetail = () => {
         <div className="max-w-6xl mx-auto px-5 lg:px-8">
           <h2 className="font-serif text-3xl md:text-4xl text-white text-center">Explore Our Other Services</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-10">
-            {SERVICES.filter(s => s.slug !== slug).slice(0, 3).map(s => (
+            {relatedServices.map(s => (
               <Link to={`/services/${s.slug}`} key={s.slug} className="svc-card bg-[#0f0f0f] border border-[#1c1c1c] rounded-2xl overflow-hidden group">
                 <div className="aspect-[4/3] overflow-hidden">
                   <img src={s.image} alt={s.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />

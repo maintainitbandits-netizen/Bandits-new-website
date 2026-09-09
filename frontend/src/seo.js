@@ -476,4 +476,81 @@ export const SERVICE_SEO = {
       { q: 'Can you install gutter guards after cleaning?', a: 'We can recommend gutter guard options but focus on cleaning and maintenance. Ask us during your estimate visit.' },
     ],
   },
+  'make-ready-services': {
+    metaTitle: 'Make Ready Services Austin TX | Rental Make Ready Company | Maintain It Bandits LLC',
+    metaDesc: 'Professional make ready services in Austin TX. Deep cleaning, paint touch-ups, repairs, haul-off & curb appeal for landlords & property managers. Fast turnarounds. Call (512) 518-1558.',
+    keywords: 'make ready services Austin TX, make ready cleaning Austin, rental make ready Austin, apartment make ready Austin TX, make ready company Austin, property make ready Round Rock, make ready services near me',
+    longContent: [
+      {
+        heading: 'Austin\u2019s One-Call Rental Make Ready Company',
+        body: 'Every vacant day costs you money. The average Austin rental loses $45\u2013$75 per day in rent for every day it sits un-leased \u2014 and most turnovers drag on because landlords are stuck coordinating a cleaner, a painter, a handyman, a haul-off crew, and a lawn service. Maintain It Bandits LLC is the one-call make ready company for Austin, Round Rock, Cedar Park, Georgetown, and the entire Central Texas metro. Our crews handle every piece of the make ready in-house, so your unit goes from move-out mess to rent-ready in as little as 48\u201372 hours.',
+      },
+      {
+        heading: 'What a Full Make Ready Includes',
+        body: 'Our standard make ready covers the entire unit inside and out: a full move-out deep clean (kitchen, bathrooms, floors, windows, baseboards, and inside all cabinets and closets), appliance detailing including the oven and refrigerator, paint touch-ups on scuffs and nail holes, minor repairs and fixture replacements, removal and haul-off of anything the previous tenant left behind, and a complete exterior refresh \u2014 lawn mowing, bed cleanup, and pressure washing of the entry, patio, and driveway. You get photo documentation of every completed line item.',
+      },
+      {
+        heading: 'Make Readys for Single-Family Homes, Condos, Duplexes & Apartments',
+        body: 'We handle make readys for every rental property type in the Austin area: single-family homes, condos, townhomes, duplexes and fourplexes, and full apartment communities. Whether you own one rental in Pflugerville or manage 200 doors across Round Rock and Georgetown, you get the same crew quality, the same written scope, and the same photo-verified results \u2014 with volume pricing available for multi-unit portfolios.',
+      },
+      {
+        heading: 'Why Austin Landlords and Property Managers Choose Us',
+        body: 'Property managers choose us because we eliminate the vendor juggling. One schedule, one invoice, one point of contact \u2014 and a crew that actually shows up when promised. We are licensed and insured (COI available on request), we follow your make-ready checklist or create one for you, and we send before-and-after photos with every completed job. Many of our property management clients book us on a recurring schedule so every turnover is handled the moment a notice to vacate lands.',
+      },
+      {
+        heading: 'How Fast Can We Turn Your Unit?',
+        body: 'Standard make readys are typically completed within 2\u20134 business days of the move-out date. Rush turnarounds of 24\u201348 hours are available when a new lease is already signed \u2014 just tell us the deadline and we will build the schedule backward from it. For property managers with multiple simultaneous move-outs at month end, book in advance and we will reserve crew capacity for your units.',
+      },
+      {
+        heading: 'Make Ready Service Areas Around Austin',
+        body: 'We provide make ready services throughout the Austin metro: Austin (78701\u201378759), Round Rock, Cedar Park, Georgetown, Pflugerville, Leander, Hutto, Taylor, Bee Cave, Lakeway, West Lake Hills, and Dripping Springs. One make ready crew covers everything from downtown Austin condos to Georgetown single-family rentals \u2014 no second vendor required.',
+      },
+    ],
+    faqs: [
+      { q: 'What is a make ready service?', a: 'A make ready (also called a make-ready or turn) is the complete process of getting a rental unit back to rent-ready condition between tenants \u2014 deep cleaning, paint touch-ups, repairs, haul-off, and curb-appeal refresh. We handle the entire process with one crew and one invoice.' },
+      { q: 'How much does a make ready cost in Austin?', a: 'Most standard make readys in the Austin area run $295\u2013$950 per unit depending on size and condition. Full turnovers with paint, repairs, and landscaping run higher. Every estimate is free and itemized \u2014 call (512) 518-1558.' },
+      { q: 'How fast can you turn a unit around?', a: 'Most make readys are completed within 2\u20134 business days of move-out. Rush 24\u201348 hour turnarounds are available when a new lease is already signed.' },
+      { q: 'Do you work with property managers and their make-ready checklists?', a: 'Yes. We work from your checklist and scope sheet, or we can build one for you. Photo documentation is provided for every completed item \u2014 perfect for owner reporting.' },
+      { q: 'Can you remove items the previous tenant left behind?', a: 'Yes. Junk, trash, furniture, and belongings left by previous tenants are hauled off as part of the make ready.' },
+      { q: 'Do you offer recurring turnover scheduling?', a: 'Yes. Property managers can reserve monthly capacity for expected move-outs, so your turnovers start the day keys come back.' },
+      { q: 'Are you licensed and insured?', a: 'Yes \u2014 Maintain It Bandits LLC is fully licensed and insured, and we can add your company to our certificate of insurance for property management work.' },
+      { q: 'Do you handle the lawn and exterior too?', a: 'Yes \u2014 lawn mowing, bed cleanup, pressure washing, and full curb-appeal refresh are all in-house. That is what makes us a true one-call make ready company.' },
+    ],
+  },
+  'tenant-turnover-services': {
+    metaTitle: 'Tenant Turnover Services Austin TX | Fast Rental Turns | Maintain It Bandits LLC',
+    metaDesc: 'Full-service tenant turnover services in Austin TX. Move-out haul-off, deep cleaning, repairs, paint & curb appeal \u2014 one crew, one invoice. Cut vacancy time. Call (512) 518-1558.',
+    keywords: 'tenant turnover services Austin TX, rental turnover services Austin, turnover cleaning Austin TX, property turnover company Austin, apartment turnover services Austin, rental turn services Round Rock, turnover service near me',
+    longContent: [
+      {
+        heading: 'Turnover Services That Cut Vacancy to Days',
+        body: 'The average Austin rental turnover takes 2\u20133 weeks when a property manager has to schedule a haul-off crew, then a cleaner, then a painter, then a handyman, then a lawn service \u2014 each one waiting on the last. Maintain It Bandits LLC compresses that timeline into days. Our turnover crews handle move-out junk removal, full deep cleaning, minor repairs, paint touch-ups, and the complete exterior refresh in one coordinated schedule. One call, one crew, one invoice \u2014 and your unit is back on the market fast.',
+      },
+      {
+        heading: 'Our Turnover Process, Step by Step',
+        body: 'Step 1: Move-out assessment \u2014 we walk the unit and deliver a written scope with flat pricing. Step 2: Haul-off \u2014 everything the tenant left behind is removed. Step 3: Deep clean \u2014 the entire interior is cleaned and sanitized to rent-ready standard. Step 4: Repairs and paint \u2014 punch-list items and paint touch-ups are completed. Step 5: Exterior refresh \u2014 lawn, beds, and pressure washing make the listing photos pop. Step 6: Final walk-through \u2014 you receive a photo report confirming every line item.',
+      },
+      {
+        heading: 'Built for Property Managers and Portfolio Owners',
+        body: 'If you manage rentals in Austin, Round Rock, Cedar Park, Georgetown, or anywhere in Central Texas, you need a turnover partner who can handle month-end volume. We reserve crew capacity for recurring clients, work from your standard scope sheets, provide COI documentation, invoice on net terms, and send photo verification on every unit. Single unit? You get the same process and the same crew quality.',
+      },
+      {
+        heading: 'Why Fast Turnovers Matter in the Austin Rental Market',
+        body: 'Austin renters sign leases based on photos and first impressions. A unit that shows well rents faster and at a better price. Our turnovers end with a full curb-appeal refresh \u2014 mowed and edged lawn, cleaned beds, pressure-washed entry and patio \u2014 specifically so your listing photos and showings convert. Faster lease-up means the turnover service pays for itself in saved vacancy days.',
+      },
+      {
+        heading: 'Turnover Services for Every Property Type',
+        body: 'We turn over single-family rentals, condos, townhomes, duplexes, fourplexes, and apartment units across the Austin metro. Whether it is one unit in Pflugerville or twelve simultaneous month-end move-outs in Round Rock and Georgetown, we scale the crew to the schedule and keep quality identical on every door.',
+      },
+    ],
+    faqs: [
+      { q: 'What are tenant turnover services?', a: 'Tenant turnover services handle everything required to get a rental unit from move-out condition back to rent-ready: junk haul-off, deep cleaning, minor repairs, paint touch-ups, and exterior curb-appeal work \u2014 all coordinated as one project with a single crew and invoice.' },
+      { q: 'How long does a tenant turnover take in Austin?', a: 'With our coordinated crews, most turnovers are completed in 2\u20134 business days. Traditional vendor-by-vendor turnovers often take 2\u20133 weeks.' },
+      { q: 'Can you handle multiple move-outs at month end?', a: 'Yes. Property managers can reserve recurring monthly capacity so simultaneous move-outs are all covered. Contact us to set up portfolio scheduling.' },
+      { q: 'Do you provide photo documentation?', a: 'Yes \u2014 every turnover ends with a photo report of all completed work, ready to forward to owners or attach to your file.' },
+      { q: 'How much do turnover services cost?', a: 'Most Austin-area turnovers run $295\u2013$950 per unit depending on size and condition; full turns with paint and repairs run higher. Estimates are free and itemized.' },
+      { q: 'Do you also handle ongoing maintenance between leases?', a: 'Yes \u2014 we provide lawn care, property maintenance, and seasonal services for rental properties year-round, so your units stay show-ready even while listed.' },
+      { q: 'What areas do you serve for turnover services?', a: 'We serve Austin, Round Rock, Cedar Park, Georgetown, Pflugerville, Leander, Hutto, Taylor, Bee Cave, Lakeway, West Lake Hills, and Dripping Springs.' },
+    ],
+  },
 };

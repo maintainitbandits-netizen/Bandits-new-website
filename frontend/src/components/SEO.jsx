@@ -31,9 +31,10 @@ const SEO = ({ title, description, keywords, path = '/', image, schema }) => {
       {/* Geo */}
       <meta name="geo.region" content="US-TX" />
       <meta name="geo.placename" content="Austin" />
-      {schema && (
-        <script type="application/ld+json">{JSON.stringify(schema)}</script>
-      )}
+      {/* JSON-LD structured data — accepts a single schema object or an array */}
+      {schema && [].concat(schema).map((s, i) => (
+        <script key={i} type="application/ld+json">{JSON.stringify(s)}</script>
+      ))}
     </Helmet>
   );
 };

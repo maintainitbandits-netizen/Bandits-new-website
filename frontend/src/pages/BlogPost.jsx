@@ -7,6 +7,11 @@ import Breadcrumbs from '../components/Breadcrumbs';
 import CTASection from '../components/CTASection';
 import { COMPANY } from '../mock';
 
+// Inline markdown: **bold** and [link text](/path)
+const mdInline = (t) => t
+  .replace(/\*\*(.+?)\*\*/g, '<strong class="text-white">$1</strong>')
+  .replace(/\[(.+?)\]\((.+?)\)/g, '<a href="$2" class="text-green-400 hover:underline">$1</a>');
+
 const renderBlock = (b, i) => {
   if (b.type === 'h2') return <h2 key={i} className="font-serif text-2xl md:text-3xl text-white mt-10 mb-3">{b.text}</h2>;
   if (b.type === 'list') return (
@@ -14,12 +19,12 @@ const renderBlock = (b, i) => {
       {b.items.map((it, j) => (
         <li key={j} className="text-neutral-300 leading-relaxed flex gap-3">
           <span className="text-green-400 mt-1">•</span>
-          <span dangerouslySetInnerHTML={{ __html: it.replace(/\*\*(.+?)\*\*/g, '<strong class="text-white">$1</strong>') }} />
+          <span dangerouslySetInnerHTML={{ __html: mdInline(it) }} />
         </li>
       ))}
     </ul>
   );
-  return <p key={i} className="text-neutral-300 leading-relaxed my-4" dangerouslySetInnerHTML={{ __html: b.text.replace(/\*\*(.+?)\*\*/g, '<strong class="text-white">$1</strong>') }} />;
+  return <p key={i} className="text-neutral-300 leading-relaxed my-4" dangerouslySetInnerHTML={{ __html: mdInline(b.text) }} />;
 };
 
 const BlogPost = () => {

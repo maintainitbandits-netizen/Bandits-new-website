@@ -78,6 +78,36 @@
       "source": "/:city(pflugerville|round-rock|cedar-park|georgetown|leander|austin|taylor|hutto)-house-cleaning",
       "destination": "/services/cleaning/:city",
       "permanent": true
+    },
+    {
+      "source": "/:city(pflugerville|round-rock|cedar-park|georgetown|leander|austin|taylor|hutto)-make-ready-services",
+      "destination": "/services/make-ready-services/:city",
+      "permanent": true
+    },
+    {
+      "source": "/:city(pflugerville|round-rock|cedar-park|georgetown|leander|austin|taylor|hutto)-make-ready",
+      "destination": "/services/make-ready-services/:city",
+      "permanent": true
+    },
+    {
+      "source": "/:city(pflugerville|round-rock|cedar-park|georgetown|leander|austin|taylor|hutto)-make-ready-cleaning",
+      "destination": "/services/make-ready-services/:city",
+      "permanent": true
+    },
+    {
+      "source": "/:city(pflugerville|round-rock|cedar-park|georgetown|leander|austin|taylor|hutto)-tenant-turnover-services",
+      "destination": "/services/tenant-turnover-services/:city",
+      "permanent": true
+    },
+    {
+      "source": "/:city(pflugerville|round-rock|cedar-park|georgetown|leander|austin|taylor|hutto)-turnover-services",
+      "destination": "/services/tenant-turnover-services/:city",
+      "permanent": true
+    },
+    {
+      "source": "/:city(pflugerville|round-rock|cedar-park|georgetown|leander|austin|taylor|hutto)-turnover-cleaning",
+      "destination": "/services/tenant-turnover-services/:city",
+      "permanent": true
     }
   ],
   "routes": [
