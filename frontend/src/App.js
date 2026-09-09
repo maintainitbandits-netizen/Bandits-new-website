@@ -24,6 +24,7 @@ import NotFound from './pages/NotFound';
 import Reviews from './pages/Reviews';
 import Bundles from './pages/Bundles';
 import BundleDetail from './pages/BundleDetail';
+import MakeReadyHub from './pages/MakeReadyHub';
 import { Toaster } from './components/ui/toaster';
 
 function ScrollToTop() {
