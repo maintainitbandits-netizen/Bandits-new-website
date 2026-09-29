@@ -86,3 +86,7 @@ android-sdk/
 credentials.json
 *.key
 .credentials
+
+# Browser test artifacts
+/test-results/
+/playwright-report/

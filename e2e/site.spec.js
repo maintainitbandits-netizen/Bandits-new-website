@@ -1,0 +1,36 @@
+import { test, expect } from '@playwright/test';
+test('charters, request preparation, editing and dialog dismissal', async ({page})=>{
+ const errors=[];page.on('pageerror',e=>errors.push(e.message));
+ await page.goto('/');
+ await expect(page).toHaveTitle(/Knotty Sea/);
+ await expect(page.locator('.trip-card')).toHaveCount(4);
+ await page.getByRole('button',{name:'Request this trip'}).nth(2).click();
+ await expect(page.getByLabel('Choose your adventure')).toHaveValue('8–9');
+ await page.getByLabel('Your name').fill('Test Angler');
+ await page.getByLabel('Email address').fill('angler@example.com');
+ await page.getByLabel('Phone number').fill('9045550100');
+ await page.getByLabel('Preferred date').fill('2027-12-12');
+ await page.getByRole('button',{name:'Prepare trip request'}).click();
+ await expect(page.getByText('Nothing has been sent yet.',{exact:false})).toBeVisible();
+ await expect(page.getByRole('link',{name:'Open email & send request'})).toHaveAttribute('href',/mailto:knottyseafishingcharters@yahoo.com/);
+ await page.getByRole('button',{name:'Edit request'}).click();
+ await expect(page.getByLabel('Your name')).toHaveValue('Test Angler');
+ await page.keyboard.press('Escape');
+ await expect(page.getByRole('dialog')).toHaveCount(0);
+ await page.getByText('Is this a private charter?',{exact:true}).click();
+ await expect(page.getByText('Yes. The listed price', {exact:false})).toBeVisible();
+ expect(errors).toEqual([]);
+});
+test('mobile menu, image and no horizontal overflow',async({page})=>{
+ await page.setViewportSize({width:390,height:844});await page.goto('/');
+ await expect(page.locator('.hero-image')).toBeVisible();
+ expect(await page.locator('.hero-image').evaluate(img=>img.complete && img.naturalWidth>0)).toBeTruthy();
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBeTruthy();
+ await page.getByRole('button',{name:'Toggle menu'}).click();
+ await page.getByRole('navigation').getByRole('link',{name:'Our charters'}).click();
+ await expect(page.getByRole('button',{name:'Toggle menu'})).toHaveAttribute('aria-expanded','false');
+ await page.getByRole('button',{name:'Request this trip'}).first().click();
+ await expect(page.getByRole('dialog')).toBeVisible();
+ await page.getByRole('button',{name:'Close trip request'}).click();
+ await page.screenshot({path:'test-results/mobile.png',fullPage:true});
+});
