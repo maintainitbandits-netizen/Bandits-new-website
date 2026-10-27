@@ -93,7 +93,7 @@ const About = () => (
             },
             {
               title: 'One Call for Everything',
-              body: 'Lawn mowing, landscaping, sod installation, pressure washing, gutter cleaning, junk haul-off, house cleaning - we handle it all. One company, one relationship, one call. No juggling multiple vendors.',
+              body: 'Lawn mowing, landscaping, sod installation, pressure washing, junk haul-off, house cleaning - we handle it all. One company, one relationship, one call. No juggling multiple vendors.',
             },
             {
               title: 'We Treat Your Property Like Our Own',

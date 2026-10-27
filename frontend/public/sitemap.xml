@@ -131,11 +131,6 @@
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
-  <url>
-    <loc>https://www.maintainitbandits.com/services/gutter-cleaning</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
-  </url>
 
   <!-- SERVICE AREA PAGES -->
   <url>
@@ -214,7 +209,6 @@
   <url><loc>https://www.maintainitbandits.com/services/mulch-rock-installation/austin</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
   <url><loc>https://www.maintainitbandits.com/services/junk-haul-off/austin</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
   <url><loc>https://www.maintainitbandits.com/services/pressure-washing/austin</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
-  <url><loc>https://www.maintainitbandits.com/services/gutter-cleaning/austin</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
 
   <!-- SERVICE x CITY PAGES — ROUND ROCK -->
   <url><loc>https://www.maintainitbandits.com/services/lawn-mowing/round-rock</loc><changefreq>monthly</changefreq><priority>0.9</priority></url>
@@ -231,7 +225,6 @@
   <url><loc>https://www.maintainitbandits.com/services/mulch-rock-installation/round-rock</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
   <url><loc>https://www.maintainitbandits.com/services/junk-haul-off/round-rock</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
   <url><loc>https://www.maintainitbandits.com/services/pressure-washing/round-rock</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
-  <url><loc>https://www.maintainitbandits.com/services/gutter-cleaning/round-rock</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
 
   <!-- SERVICE x CITY PAGES — CEDAR PARK -->
   <url><loc>https://www.maintainitbandits.com/services/lawn-mowing/cedar-park</loc><changefreq>monthly</changefreq><priority>0.9</priority></url>
@@ -248,7 +241,6 @@
   <url><loc>https://www.maintainitbandits.com/services/mulch-rock-installation/cedar-park</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
   <url><loc>https://www.maintainitbandits.com/services/junk-haul-off/cedar-park</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
   <url><loc>https://www.maintainitbandits.com/services/pressure-washing/cedar-park</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
-  <url><loc>https://www.maintainitbandits.com/services/gutter-cleaning/cedar-park</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
 
   <!-- SERVICE x CITY PAGES — GEORGETOWN -->
   <url><loc>https://www.maintainitbandits.com/services/lawn-mowing/georgetown</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
@@ -261,7 +253,6 @@
   <url><loc>https://www.maintainitbandits.com/services/shrub-trimming/georgetown</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
   <url><loc>https://www.maintainitbandits.com/services/junk-haul-off/georgetown</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
   <url><loc>https://www.maintainitbandits.com/services/pressure-washing/georgetown</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
-  <url><loc>https://www.maintainitbandits.com/services/gutter-cleaning/georgetown</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
 
   <!-- SERVICE x CITY PAGES — PFLUGERVILLE -->
   <url><loc>https://www.maintainitbandits.com/services/lawn-mowing/pflugerville</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
@@ -272,7 +263,6 @@
   <url><loc>https://www.maintainitbandits.com/services/mulching/pflugerville</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
   <url><loc>https://www.maintainitbandits.com/services/junk-haul-off/pflugerville</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
   <url><loc>https://www.maintainitbandits.com/services/pressure-washing/pflugerville</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
-  <url><loc>https://www.maintainitbandits.com/services/gutter-cleaning/pflugerville</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
 
   <!-- SERVICE x CITY PAGES — LEANDER -->
   <url><loc>https://www.maintainitbandits.com/services/lawn-mowing/leander</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
@@ -283,7 +273,6 @@
   <url><loc>https://www.maintainitbandits.com/services/mulching/leander</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
   <url><loc>https://www.maintainitbandits.com/services/junk-haul-off/leander</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
   <url><loc>https://www.maintainitbandits.com/services/pressure-washing/leander</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
-  <url><loc>https://www.maintainitbandits.com/services/gutter-cleaning/leander</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
 
   <!-- SERVICE x CITY PAGES — BEE CAVE -->
   <url><loc>https://www.maintainitbandits.com/services/lawn-mowing/bee-cave</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
@@ -291,7 +280,6 @@
   <url><loc>https://www.maintainitbandits.com/services/sod-installation/bee-cave</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
   <url><loc>https://www.maintainitbandits.com/services/mulching/bee-cave</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
   <url><loc>https://www.maintainitbandits.com/services/pressure-washing/bee-cave</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
-  <url><loc>https://www.maintainitbandits.com/services/gutter-cleaning/bee-cave</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
 
   <!-- SERVICE x CITY PAGES — WEST LAKE HILLS -->
   <url><loc>https://www.maintainitbandits.com/services/lawn-mowing/west-lake-hills</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
@@ -304,7 +292,6 @@
   <url><loc>https://www.maintainitbandits.com/services/landscaping/lakeway</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
   <url><loc>https://www.maintainitbandits.com/services/sod-installation/lakeway</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
   <url><loc>https://www.maintainitbandits.com/services/pressure-washing/lakeway</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
-  <url><loc>https://www.maintainitbandits.com/services/gutter-cleaning/lakeway</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
 
   <!-- SERVICE x CITY PAGES — DRIPPING SPRINGS -->
   <url><loc>https://www.maintainitbandits.com/services/lawn-mowing/dripping-springs</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
@@ -317,7 +304,6 @@
   <url><loc>https://www.maintainitbandits.com/services/landscaping/hutto</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
   <url><loc>https://www.maintainitbandits.com/services/sod-installation/hutto</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
   <url><loc>https://www.maintainitbandits.com/services/pressure-washing/hutto</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
-  <url><loc>https://www.maintainitbandits.com/services/gutter-cleaning/hutto</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
   <url><loc>https://www.maintainitbandits.com/services/junk-haul-off/hutto</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
 
   <!-- SERVICE x CITY PAGES — TAYLOR -->
@@ -325,7 +311,6 @@
   <url><loc>https://www.maintainitbandits.com/services/landscaping/taylor</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
   <url><loc>https://www.maintainitbandits.com/services/sod-installation/taylor</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
   <url><loc>https://www.maintainitbandits.com/services/pressure-washing/taylor</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
-  <url><loc>https://www.maintainitbandits.com/services/gutter-cleaning/taylor</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
   <url><loc>https://www.maintainitbandits.com/services/junk-haul-off/taylor</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
 
   <!-- BLOG POSTS -->
@@ -336,7 +321,6 @@
   <url><loc>https://www.maintainitbandits.com/blog/fall-lawn-care-checklist-central-texas</loc><changefreq>yearly</changefreq><priority>0.6</priority></url>
   <url><loc>https://www.maintainitbandits.com/blog/how-much-does-lawn-care-cost-austin-tx</loc><changefreq>yearly</changefreq><priority>0.7</priority></url>
   <url><loc>https://www.maintainitbandits.com/blog/spring-lawn-care-guide-austin-texas</loc><changefreq>yearly</changefreq><priority>0.6</priority></url>
-  <url><loc>https://www.maintainitbandits.com/blog/gutter-cleaning-austin-tx-why-it-matters</loc><changefreq>yearly</changefreq><priority>0.6</priority></url>
   <url><loc>https://www.maintainitbandits.com/blog/pressure-washing-austin-tx-what-to-know</loc><changefreq>yearly</changefreq><priority>0.6</priority></url>
   <url><loc>https://www.maintainitbandits.com/blog/mulching-guide-austin-texas-when-how-much</loc><changefreq>yearly</changefreq><priority>0.6</priority></url>
   <url><loc>https://www.maintainitbandits.com/blog/move-out-cleaning-checklist-austin-tx</loc><changefreq>yearly</changefreq><priority>0.6</priority></url>
