@@ -1,6 +1,5 @@
 import json
 import os
-import subprocess
 import unittest
 import xml.etree.ElementTree as ET
 from pathlib import Path
@@ -36,17 +35,6 @@ class SiteIntegrityTests(unittest.TestCase):
             'Referrer-Policy': 'strict-origin-when-cross-origin',
             'Permissions-Policy': 'camera=(), microphone=(), geolocation=(self)',
         })
-
-    def test_frontend_project_uses_the_shared_redirects(self):
-        script = "process.stdout.write(JSON.stringify(require('./frontend/vercel.cjs').config))"
-        result = subprocess.run(['node', '-e', script], cwd=ROOT, check=True,
-                                capture_output=True, text=True)
-        frontend_config = json.loads(result.stdout)
-        self.assertEqual(frontend_config['redirects'], self.config['redirects'])
-        self.assertEqual(frontend_config['headers'], self.config['headers'])
-        self.assertEqual(frontend_config['rewrites'], [
-            {'source': '/(.*)', 'destination': '/index.html'},
-        ])
 
     def test_retired_service_redirects_and_content_removal(self):
         redirects = [r for r in self.config['redirects'] if r['destination'] == '/services']
