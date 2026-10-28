@@ -1072,7 +1072,7 @@ function applyRouteOrder(){
  $("#ro_status").textContent=storageOK?"Route order saved. Keep this page open until it says Synced across devices.":"The order is in memory but could not be saved locally. Use Backup and keep this page open until synced.";render()
 }
 /* Private, per-job photos in Supabase Storage. The CRM record backup does not contain photo bytes. */
-const PHOTO_BUCKET="mib-crm-job-photos",PHOTO_READY_RPC="mib_crm_photo_storage_private_v1",PHOTO_INPUT_LIMIT=20*1024*1024,PHOTO_OUTPUT_LIMIT=5*1024*1024,PHOTO_LIST_LIMIT=100;
+const PHOTO_BUCKET="mib-crm-job-photos",PHOTO_READY_RPC="mib_crm_photo_storage_private_v1",PHOTO_INPUT_LIMIT=20*1024*1024,PHOTO_OUTPUT_LIMIT=5*1024*1024,PHOTO_LIST_LIMIT=100,PHOTO_BATCH_LIMIT=100;
 let photoSeq=0,photoJobId="",photoUrl="",photoBusy=false,photoReady=false;
 function clearPhotoView(){
  photoSeq++;photoJobId="";photoBusy=false;photoReady=false;if(photoUrl){try{URL.revokeObjectURL(photoUrl)}catch(e){}photoUrl=""}
@@ -1087,7 +1087,8 @@ function photoPathValid(path,id){
 }
 function photoCurrent(id,seq){return photoJobId===id&&photoSeq===seq&&$("#dlg").open&&!!$("#ph_status")}
 function photoInputs(busy){
- photoBusy=busy;["#ph_before_input","#ph_after_input","#ph_refresh"].forEach(s=>{const e=$(s);if(e)e.disabled=busy||((s!=="#ph_refresh")&&(!synced||!photoReady))})
+ photoBusy=busy;["#ph_before_input","#ph_after_input","#ph_refresh"].forEach(s=>{const e=$(s);if(e)e.disabled=busy||((s!=="#ph_refresh")&&(!synced||!photoReady||!S.jobs[photoJobId]))});
+ ["#ph_before_list button","#ph_after_list button"].forEach(s=>document.querySelectorAll(s).forEach(e=>{e.disabled=busy}))
 }
 async function privatePhotoBucket(){
  if(!db||!hasSnapshot)throw new Error("Connect and wait for the CRM to load before using job photos.");
@@ -1103,14 +1104,15 @@ function photoListMarkup(id,kind,files){
 function openJobPhotos(id){
  const j=S.jobs[id];if(!j){alert("That job no longer exists.");return}
  dlg(`<h2>Before / after photos</h2><p>${E(cname(j.client))} · ${E(j.date)}</p><p class="m">Photos need an internet connection and a private team storage setup. Save and sync the job first. The CRM JSON backup does not include the photo files.</p>
- <h3>Before</h3><label for="ph_before_input">Add a before photo</label><input id="ph_before_input" type="file" accept="image/*" disabled onchange="uploadJobPhoto(this,'before')"><div id="ph_before_list"></div>
- <h3>After</h3><label for="ph_after_input">Add an after photo</label><input id="ph_after_input" type="file" accept="image/*" disabled onchange="uploadJobPhoto(this,'after')"><div id="ph_after_list"></div>
- <p class="m">Photos are resized and saved as JPEG. The newest 100 per section are shown.</p><div class="bt"><button id="ph_refresh" onclick="refreshJobPhotos()">Refresh photos</button><button onclick="closeD()">Close</button></div>
- <p id="ph_status" class="m" role="status" aria-live="polite">Checking private photo storage…</p><div id="ph_view"></div>`);
+ <p class="m">Select up to ${PHOTO_BATCH_LIMIT} photos at once. Keep this window open and stay online until uploading finishes. Closing it stops the remaining uploads; a photo already uploading may still save. Photos are resized and saved as JPEG.</p>
+ <p id="ph_status" class="m" role="status" aria-live="polite" style="position:sticky;top:0;z-index:1;background:var(--cd);padding:6px 0">Checking private photo storage…</p><div id="ph_errors" class="m"></div>
+ <h3>Before</h3><label for="ph_before_input">Add before photos</label><input id="ph_before_input" type="file" accept="image/*" multiple disabled onchange="uploadJobPhoto(this,'before')"><div id="ph_before_list"></div>
+ <h3>After</h3><label for="ph_after_input">Add after photos</label><input id="ph_after_input" type="file" accept="image/*" multiple disabled onchange="uploadJobPhoto(this,'after')"><div id="ph_after_list"></div>
+ <p class="m">The newest 100 photos per section are shown.</p><div class="bt"><button id="ph_refresh" onclick="refreshJobPhotos()">Refresh photos</button><button onclick="closeD()">Close</button></div><div id="ph_view"></div>`);
  photoJobId=String(id);const seq=++photoSeq;loadJobPhotos(photoJobId,seq)
 }
-async function loadJobPhotos(id,seq){
- if(!photoCurrent(id,seq))return;$("#ph_status").textContent="Checking private photo storage…";
+async function loadJobPhotos(id,seq,quiet=false){
+ if(!photoCurrent(id,seq))return;if(!quiet)$("#ph_status").textContent="Checking private photo storage…";
  try{
   if(!S.jobs[id])throw new Error("This job no longer exists.");
   const bucket=await privatePhotoBucket();if(!photoCurrent(id,seq))return;
@@ -1119,9 +1121,9 @@ async function loadJobPhotos(id,seq){
   const groups=results.map(r=>r.data.filter(f=>f&&/^p-[a-z0-9]{8,100}\.jpg$/.test(String(f.name||""))));
   $("#ph_before_list").innerHTML=photoListMarkup(id,"before",groups[0].slice(0,PHOTO_LIST_LIMIT));
   $("#ph_after_list").innerHTML=photoListMarkup(id,"after",groups[1].slice(0,PHOTO_LIST_LIMIT));
-  $("#ph_status").textContent=!synced?"Wait until the CRM says Synced across devices, then tap Refresh photos before uploading.":groups.some(g=>g.length>PHOTO_LIST_LIMIT)?"Showing the newest 100 photos in each section.":"Choose a photo to upload, or view an existing photo.";
+  if(!quiet)$("#ph_status").textContent=!synced?"Wait until the CRM says Synced across devices, then tap Refresh photos before uploading.":groups.some(g=>g.length>PHOTO_LIST_LIMIT)?"Showing the newest 100 photos in each section.":"Choose one or more photos to upload, or view an existing photo.";
   photoReady=true;photoInputs(false);return true
- }catch(e){if(photoCurrent(id,seq)){photoReady=false;$("#ph_status").textContent=e.message||"Could not load photos.";photoInputs(false)}return false}
+ }catch(e){if(photoCurrent(id,seq)){photoReady=false;if(!quiet)$("#ph_status").textContent=e.message||"Could not load photos.";photoInputs(false)}return false}
 }
 function refreshJobPhotos(){if(!photoJobId||photoBusy)return;const id=photoJobId,seq=++photoSeq;photoReady=false;photoInputs(true);if(photoUrl){try{URL.revokeObjectURL(photoUrl)}catch(e){}photoUrl=""}$("#ph_view").innerHTML="";loadJobPhotos(id,seq)}
 function prepareJobPhoto(file){
@@ -1140,19 +1142,44 @@ function prepareJobPhoto(file){
  })
 }
 function newPhotoName(){const id=typeof crypto!=="undefined"&&typeof crypto.randomUUID==="function"?crypto.randomUUID().replace(/-/g,""):Date.now().toString(36)+Math.random().toString(36).slice(2)+Math.random().toString(36).slice(2);return "p-"+id+".jpg"}
+/* Each selected file is prepared and uploaded separately to limit phone memory.
+   Never automatically retry an unconfirmed request: it may already have saved. */
 async function uploadJobPhoto(input,kind){
- const file=input.files&&input.files[0];input.value="";if(!file||photoBusy)return;const id=photoJobId,seq=photoSeq;
+ const files=Array.from(input.files||[]);input.value="";if(!files.length||photoBusy)return;const id=photoJobId,seq=photoSeq;
  if(!photoCurrent(id,seq)||!["before","after"].includes(kind))return;
- if(!synced||!photoReady){$("#ph_status").textContent="Wait until Synced across devices, then tap Refresh photos.";return}
- photoInputs(true);$("#ph_status").textContent="Preparing and uploading photo… Keep this page open.";
+ const status=$("#ph_status"),details=$("#ph_errors");if(details)details.innerHTML="";
+ if(files.length>PHOTO_BATCH_LIMIT){status.textContent="Choose up to "+PHOTO_BATCH_LIMIT+" photos at a time. None were uploaded.";return}
+ if(!synced||!photoReady){status.textContent="Wait until Synced across devices, then tap Refresh photos.";return}
+ photoInputs(true);let uploaded=0,orphanWarning="";const errors=[];
+ const fileLabel=i=>(i+1)+". "+String(files[i].name||"Photo").replace(/[\x00-\x1f\x7f]/g," ").slice(0,160);
+ const addError=(i,state,message)=>errors.push({label:fileLabel(i),state,message});
+ const skipRest=(from,message)=>{for(let i=from;i<files.length;i++)addError(i,"Not sent",message)};
  try{
-  const bucket=await privatePhotoBucket(),blob=await prepareJobPhoto(file);if(!photoCurrent(id,seq))return;
-  if(!S.jobs[id]||!synced)throw new Error("The job or connection changed. Refresh and try the upload again.");
-  const path=photoFolder(id)+"/"+kind+"/"+newPhotoName(),r=await bucket.upload(path,blob,{contentType:"image/jpeg",cacheControl:"0",upsert:false});
-  if(!r||r.error||!r.data||r.data.path!==path)throw new Error("The photo could not be uploaded. Check the private storage setup and connection.");
-  if(!photoCurrent(id,seq))return;if(!S.jobs[id])throw new Error("The job was deleted while uploading. Ask the storage administrator to review unused photos.");
-  const loaded=await loadJobPhotos(id,seq);if(photoCurrent(id,seq))$("#ph_status").textContent=(kind==="before"?"Before":"After")+" photo uploaded."+(loaded?"":" Could not refresh the list; tap Refresh photos.")
- }catch(e){if(photoCurrent(id,seq))$("#ph_status").textContent=e.message||"Could not upload that photo."}
+  for(let i=0;i<files.length;i++){
+   if(!photoCurrent(id,seq))return;
+   if(!S.jobs[id]||!synced){skipRest(i,"The job or connection changed. Refresh before trying again.");break}
+   status.textContent="Preparing and uploading "+kind+" photo "+(i+1)+" of "+files.length+"… Keep this window open.";
+   let blob;try{blob=await prepareJobPhoto(files[i])}catch(e){if(!photoCurrent(id,seq))return;addError(i,"Not sent",String(e&&e.message||"Could not prepare this photo.").slice(0,240));continue}
+   if(!photoCurrent(id,seq))return;
+   if(!S.jobs[id]||!synced){skipRest(i,"The job or connection changed. Refresh before trying again.");break}
+   // Check the private bucket and policies again before every upload in a long batch.
+   let bucket;try{bucket=await privatePhotoBucket()}catch(e){if(!photoCurrent(id,seq))return;photoReady=false;skipRest(i,String(e&&e.message||"Private photo storage is not ready.").slice(0,240));break}
+   if(!photoCurrent(id,seq))return;
+   if(!S.jobs[id]||!synced){skipRest(i,"The job or connection changed. Refresh before trying again.");break}
+   const path=photoFolder(id)+"/"+kind+"/"+newPhotoName();
+   try{const r=await bucket.upload(path,blob,{contentType:"image/jpeg",cacheControl:"0",upsert:false});if(!r||r.error||!r.data||r.data.path!==path)throw new Error("Upload not confirmed.")}
+   catch(e){if(!photoCurrent(id,seq))return;addError(i,"Upload not confirmed","No successful response was received. Check the photo list before choosing this file again; it may have been saved.");skipRest(i+1,"Not attempted after an upload could not be confirmed.");break}
+   uploaded++;if(!photoCurrent(id,seq))return;
+   if(!S.jobs[id]){orphanWarning="The job was deleted while uploading. Ask the storage administrator to review unused photos.";skipRest(i+1,"The job no longer exists.");break}
+   if(!synced){skipRest(i+1,"The connection or sync state changed. Refresh before trying again.");break}
+  }
+  const unconfirmed=errors.filter(e=>e.state==="Upload not confirmed").length,notSent=errors.length-unconfirmed;
+  if(details)details.innerHTML=errors.length?`<p><b>Photos needing attention</b></p><ul>${errors.map(e=>`<li>${E(e.label)} — ${E(e.state)}: ${E(e.message)}</li>`).join("")}</ul>`:"";
+  const summary=(files.length===1&&uploaded===1&&!errors.length?(kind==="before"?"Before":"After")+" photo uploaded.":uploaded+" of "+files.length+" "+kind+" photos uploaded."+(unconfirmed?" "+unconfirmed+" upload not confirmed.":"")+(notSent?" "+notSent+" not sent.":"")+(errors.length?" Review the details below.":""))+(orphanWarning?" "+orphanWarning:"");
+  status.textContent=summary+(S.jobs[id]?" Refreshing the photo list…":"");
+  const loaded=S.jobs[id]?await loadJobPhotos(id,seq,true):false;if(!photoCurrent(id,seq))return;
+  status.textContent=summary+(loaded?"":" Could not refresh the photo list; tap Refresh photos.")
+ }catch(e){if(photoCurrent(id,seq))status.textContent="Upload stopped after "+uploaded+" confirmed. Check the photo list before selecting files again; an in-progress photo may have saved."}
  finally{if(photoCurrent(id,seq))photoInputs(false)}
 }
 async function viewJobPhoto(button){

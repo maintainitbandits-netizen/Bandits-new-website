@@ -29,7 +29,7 @@ function installFakeSupabase() {
   jobs.forEach(data => rows.set(`jobs/${data.id}`, { coll: 'jobs', id: data.id, data }));
   const photos = new Map();
   let signedIn = false;
-  window.__mock = { rows, photos, uploadedTypes: [] };
+  window.__mock = { rows, photos, uploadedTypes: [], uploadDelayMs: 0 };
   const client = {
     auth: {
       getSession: async () => ({ data: { session: signedIn ? { access_token: 'fictional.jwt.token' } : null } }),
@@ -43,6 +43,7 @@ function installFakeSupabase() {
         return { data: [...photos.keys()].filter(k => k.startsWith(prefix)).reverse().map(k => ({ name: k.slice(prefix.length) })), error: null };
       },
       async upload(name, blob, options) {
+        if (window.__mock.uploadDelayMs) await new Promise(resolve => setTimeout(resolve, window.__mock.uploadDelayMs));
         window.__mock.uploadedTypes.push([blob.type, options.contentType]);
         photos.set(name, blob); return { data: { path: name }, error: null };
       },
@@ -154,19 +155,49 @@ test('new CRM flows fit small screens and use only fictional mock data', { skip:
         await assertNoOverflow(page, `${width} photos dialog`);
         const png = await page.evaluate(() => { const canvas = document.createElement('canvas'); canvas.width = 5; canvas.height = 5; canvas.getContext('2d').fillRect(0, 0, 5, 5); return canvas.toDataURL('image/png'); });
         const buffer = Buffer.from(png.split(',')[1], 'base64');
-        await page.locator('#ph_before_input').setInputFiles({ name: 'fictional-before.png', mimeType: 'image/png', buffer });
-        await page.waitForFunction(() => document.querySelector('#ph_status').textContent.includes('Before photo uploaded.'));
-        assert.match(await page.locator('#ph_before_list').innerText(), /Before photo 1/);
-        await page.locator('#ph_before_list').getByRole('button', { name: 'View' }).click();
+        const largePng = await page.evaluate(() => { const canvas = document.createElement('canvas'); canvas.width = 2000; canvas.height = 1000; canvas.getContext('2d').fillRect(0, 0, 2000, 1000); return canvas.toDataURL('image/png'); });
+        const largeBuffer = Buffer.from(largePng.split(',')[1], 'base64');
+        assert.equal(await page.locator('#ph_before_input').getAttribute('multiple'), '');
+        assert.equal(await page.locator('#ph_after_input').getAttribute('multiple'), '');
+        const photo = name => ({ name, mimeType: 'image/png', buffer });
+        await page.locator('#ph_before_input').setInputFiles([{ name: 'before-large.png', mimeType: 'image/png', buffer: largeBuffer }, photo('before-two.png'), photo('before-three.png')]);
+        await page.waitForFunction(() => document.querySelector('#ph_status').textContent.includes('3 of 3 before photos uploaded.') && !document.querySelector('#ph_before_input').disabled);
+        assert.equal(await page.locator('#ph_before_list .row').count(), 3);
+        assert.equal(await page.evaluate(() => document.querySelector('#ph_before_input').files.length), 0);
+        await page.locator('#ph_before_list').getByRole('button', { name: 'View' }).last().click();
         await page.waitForFunction(() => document.querySelector('#ph_view img')?.naturalWidth > 0);
-        await page.locator('#ph_after_input').setInputFiles({ name: 'fictional-after.png', mimeType: 'image/png', buffer });
-        await page.waitForFunction(() => document.querySelector('#ph_status').textContent.includes('After photo uploaded.'));
-        assert.equal(await page.evaluate(() => window.__mock.photos.size), 2);
-        assert.deepEqual(await page.evaluate(() => window.__mock.uploadedTypes), [['image/jpeg', 'image/jpeg'], ['image/jpeg', 'image/jpeg']]);
+        assert.deepEqual(await page.locator('#ph_view img').evaluate(img => [img.naturalWidth, img.naturalHeight]), [1600, 800]);
+
+        // A slow fictional connection lets us check the progress and busy controls.
+        await page.evaluate(() => { window.__mock.uploadDelayMs = 200; });
+        await page.locator('#ph_after_input').setInputFiles([photo('after-one.png'), photo('after-two.png')]);
+        await page.waitForFunction(() => document.querySelector('#ph_status').textContent.includes('after photo 1 of 2'));
+        assert.equal(await page.locator('#ph_before_input').isDisabled(), true);
+        assert.equal(await page.locator('#ph_after_input').isDisabled(), true);
+        assert.equal(await page.locator('#ph_refresh').isDisabled(), true);
+        assert.equal(await page.locator('#ph_before_list button').first().isDisabled(), true);
+        await page.waitForFunction(() => document.querySelector('#ph_status').textContent.includes('2 of 2 after photos uploaded.') && !document.querySelector('#ph_after_input').disabled);
+        await page.evaluate(() => { window.__mock.uploadDelayMs = 0; });
+        // Single-photo behavior and re-selecting an earlier file remain supported.
+        await page.locator('#ph_after_input').setInputFiles(photo('after-one.png'));
+        await page.waitForFunction(() => document.querySelector('#ph_status').textContent.includes('After photo uploaded.') && !document.querySelector('#ph_after_input').disabled);
+        await page.locator('#ph_after_input').setInputFiles([
+          { name: 'bad<photo>.svg', mimeType: 'image/svg+xml', buffer: Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"></svg>') },
+          photo('after-valid.png'),
+        ]);
+        await page.waitForFunction(() => document.querySelector('#ph_status').textContent.includes('1 of 2 after photos uploaded. 1 not sent.') && !document.querySelector('#ph_after_input').disabled);
+        assert.match(await page.locator('#ph_errors').innerText(), /bad<photo>\.svg — Not sent/);
+        assert.equal(await page.locator('#ph_errors svg').count(), 0);
+        await assertNoOverflow(page, `${width} photo failure details`);
+        assert.equal(await page.evaluate(() => window.__mock.photos.size), 7);
+        assert.ok((await page.evaluate(() => window.__mock.uploadedTypes)).every(([blob, content]) => blob === 'image/jpeg' && content === 'image/jpeg'));
+        const paths = await page.evaluate(() => [...window.__mock.photos.keys()]);
+        assert.equal(paths.filter(p => p.startsWith('j-6a33/before/')).length, 3);
+        assert.equal(paths.filter(p => p.startsWith('j-6a33/after/')).length, 4);
         assert.equal(await page.evaluate(() => Object.keys(localStorage).some(k => /data:image|base64/i.test(localStorage.getItem(k)))), false);
-        await page.locator('#ph_before_list').getByRole('button', { name: 'Delete' }).click();
+        await page.locator('#ph_before_list').getByRole('button', { name: 'Delete' }).first().click();
         await page.waitForFunction(() => document.querySelector('#ph_status').textContent.includes('Photo deleted.'));
-        assert.equal(await page.evaluate(() => window.__mock.photos.size), 1);
+        assert.equal(await page.evaluate(() => window.__mock.photos.size), 6);
         await page.locator('#dlg').getByRole('button', { name: 'Close' }).click();
 
         await page.getByRole('button', { name: 'Import addresses' }).click();

@@ -24,9 +24,14 @@ class FakeServer {
     this.photoObjects = new Map();
     this.photoUploads = 0;
     this.photoFailList = false;
+    this.photoBeforeList = null;
     this.photoFailUpload = false;
+    this.photoUnconfirmedAt = 0;
+    this.photoBeforeUpload = null;
+    this.photoAfterUpload = null;
     this.photoSilentDelete = false;
     this.photoRpcDelay = 0;
+    this.photoRpcCalls = 0;
   }
 
   makeClient() {
@@ -41,6 +46,7 @@ class FakeServer {
       },
       async rpc(name) {
         assert.equal(name, 'mib_crm_photo_storage_private_v1');
+        server.photoRpcCalls++;
         if (server.photoRpcDelay) await wait(server.photoRpcDelay);
         return { data: server.photoReady, error: null };
       },
@@ -48,6 +54,7 @@ class FakeServer {
         assert.equal(bucket, 'mib-crm-job-photos');
         return {
           async list(folder) {
+            if (server.photoBeforeList) await server.photoBeforeList(folder);
             if (server.photoFailList) return { data: null, error: { message: 'simulated list failure' } };
             const prefix = folder + '/';
             const files = [...server.photoObjects.keys()].filter(p => p.startsWith(prefix) && !p.slice(prefix.length).includes('/'))
@@ -55,9 +62,12 @@ class FakeServer {
             return { data: files, error: null };
           },
           async upload(path, blob) {
-            server.photoUploads++;
+            const attempt = ++server.photoUploads;
+            if (server.photoBeforeUpload) await server.photoBeforeUpload({ path, attempt });
             if (server.photoFailUpload) return { data: null, error: { message: 'simulated upload failure' } };
             server.photoObjects.set(path, blob);
+            if (server.photoAfterUpload) await server.photoAfterUpload({ path, attempt });
+            if (server.photoUnconfirmedAt === attempt) return { data: null, error: { message: 'simulated lost response' } };
             return { data: { path }, error: null };
           },
           async download(path, _options, parameters) {
@@ -144,6 +154,7 @@ function makeDevice(server, initialStorage = {}, options = {}) {
   };
   const document = {
     querySelector: element,
+    querySelectorAll: () => [],
     activeElement: { tagName: 'BODY' },
     addEventListener() {},
   };
@@ -979,7 +990,7 @@ test('failed photo uploads and silent permission-denied deletes are not reported
     device.exec("prepareJobPhoto=async()=>({size:3,type:'image/jpeg'})");
     device.context.photoInput = { value: 'chosen', files: [{ type: 'image/jpeg', size: 100 }] };
     server.photoFailUpload = true; await device.exec("uploadJobPhoto(photoInput,'before')");
-    assert.match(device.element('#ph_status').textContent, /could not be uploaded/);
+    assert.match(device.element('#ph_status').textContent, /upload not confirmed/);
     assert.equal(server.photoObjects.size, 0);
     server.photoFailUpload = false;
     device.context.photoInput = { value: 'chosen', files: [{ type: 'image/jpeg', size: 100 }] };
@@ -1008,6 +1019,176 @@ test('unsynced jobs, unsafe image formats, and changed dialogs do not upload pho
     await wait(50);
     assert.match(device.element('#dlg').innerHTML, /<h2>Backup<\/h2>/);
     assert.equal(server.photoObjects.size, 0);
+  } finally { device.dispose(); }
+});
+
+function fakePhotoFiles(...names) {
+  return names.map(name => ({ name, type: 'image/jpeg', size: 100 }));
+}
+
+async function openFakePhotoDialog(server) {
+  seedCrew(server); server.photoReady = true;
+  const device = makeDevice(server, {}, { confirm: () => true });
+  await device.login(); device.exec("openJobPhotos('far')"); await wait(10);
+  device.exec("prepareJobPhoto=async()=>({size:3,type:'image/jpeg'})");
+  return device;
+}
+
+test('one selection uploads every before or after photo and another device can see them', async () => {
+  const server = new FakeServer(), first = await openFakePhotoDialog(server);
+  const second = makeDevice(server);
+  try {
+    await second.login();
+    // A browser clears its FileList when input.value is reset. The snapshot must survive it.
+    first.context.photoInput = { files: fakePhotoFiles('one.jpg', 'two.jpg', 'three.jpg'), set value(v) { if (!v) this.files = []; } };
+    await first.exec("uploadJobPhoto(photoInput,'before')");
+    assert.equal(first.context.photoInput.files.length, 0);
+    assert.equal(server.photoUploads, 3);
+    assert.equal(server.photoObjects.size, 3);
+    assert.equal(first.element('#ph_status').textContent, '3 of 3 before photos uploaded.');
+    assert.equal((first.element('#ph_before_list').innerHTML.match(/Before photo/g) || []).length, 3);
+    first.context.photoInput = { value: 'chosen', files: fakePhotoFiles('four.jpg', 'five.jpg') };
+    await first.exec("uploadJobPhoto(photoInput,'after')");
+    assert.equal(server.photoUploads, 5);
+    assert.equal(first.element('#ph_status').textContent, '2 of 2 after photos uploaded.');
+    const paths = [...server.photoObjects.keys()];
+    assert.equal(paths.filter(p => p.startsWith('j-666172/before/')).length, 3);
+    assert.equal(paths.filter(p => p.startsWith('j-666172/after/')).length, 2);
+    assert.ok(paths.every(p => !/one|two|three|four|five/.test(p)));
+    assert.ok(server.photoRpcCalls >= 8, 'private readiness was checked for every upload as well as the photo lists');
+    assert.equal(first.exec('Object.keys(pending).length'), 0);
+    second.exec("openJobPhotos('far')"); await wait(10);
+    assert.equal((second.element('#ph_before_list').innerHTML.match(/Before photo/g) || []).length, 3);
+    assert.equal((second.element('#ph_after_list').innerHTML.match(/After photo/g) || []).length, 2);
+  } finally { first.dispose(); second.dispose(); }
+});
+
+test('a bad image is reported as not sent and does not block valid photos', async () => {
+  const server = new FakeServer(), device = await openFakePhotoDialog(server);
+  try {
+    device.exec(`prepareJobPhoto=async f=>{if(f.name.includes('bad'))throw new Error('Unsupported <image>');return {size:3,type:'image/jpeg'}}`);
+    device.context.photoInput = { value: 'chosen', files: fakePhotoFiles('first.jpg', 'bad<img>.jpg', 'last.jpg') };
+    await device.exec("uploadJobPhoto(photoInput,'before')");
+    assert.equal(server.photoUploads, 2); assert.equal(server.photoObjects.size, 2);
+    assert.match(device.element('#ph_status').textContent, /2 of 3 before photos uploaded\. 1 not sent/);
+    assert.match(device.element('#ph_errors').innerHTML, /bad&lt;img&gt;\.jpg — Not sent: Unsupported &lt;image&gt;/);
+    assert.doesNotMatch(device.element('#ph_errors').innerHTML, /<img>/);
+  } finally { device.dispose(); }
+});
+
+test('an unconfirmed upload stops the batch without retrying or claiming it failed to save', async () => {
+  const server = new FakeServer(), device = await openFakePhotoDialog(server);
+  try {
+    // Simulate the server saving a photo but the response being lost.
+    server.photoUnconfirmedAt = 2;
+    device.context.photoInput = { value: 'chosen', files: fakePhotoFiles('first.jpg', 'uncertain.jpg', 'unsent.jpg') };
+    await device.exec("uploadJobPhoto(photoInput,'after')");
+    assert.equal(server.photoUploads, 2);
+    assert.equal(server.photoObjects.size, 2);
+    assert.match(device.element('#ph_status').textContent, /1 of 3 after photos uploaded\. 1 upload not confirmed\. 1 not sent/);
+    assert.match(device.element('#ph_errors').innerHTML, /uncertain\.jpg — Upload not confirmed/);
+    assert.match(device.element('#ph_errors').innerHTML, /may have been saved/);
+    assert.match(device.element('#ph_errors').innerHTML, /unsent\.jpg — Not sent/);
+    assert.match(device.element('#ph_after_list').innerHTML, /After photo 2/);
+    device.exec('refreshJobPhotos()'); await wait(10);
+    assert.match(device.element('#ph_errors').innerHTML, /may have been saved/, 'the warning remains visible after refresh');
+    assert.equal(server.photoUploads, 2, 'refresh must not retry or duplicate the uncertain upload');
+  } finally { device.dispose(); }
+});
+
+test('partial results remain visible while a slow photo-list refresh is pending', async () => {
+  const server = new FakeServer(), device = await openFakePhotoDialog(server);
+  try {
+    let releaseList, notifyListStarted;
+    const started = new Promise(resolve => { notifyListStarted = resolve; });
+    const gate = new Promise(resolve => { releaseList = resolve; });
+    server.photoUnconfirmedAt = 2;
+    server.photoBeforeList = async () => { notifyListStarted(); await gate; };
+    device.context.photoInput = { value: 'chosen', files: fakePhotoFiles('first.jpg', 'uncertain.jpg', 'unsent.jpg') };
+    const batch = device.exec("uploadJobPhoto(photoInput,'after')"); await started;
+    assert.match(device.element('#ph_status').textContent, /1 of 3 after photos uploaded\. 1 upload not confirmed\. 1 not sent/);
+    assert.match(device.element('#ph_status').textContent, /Refreshing the photo list/);
+    assert.match(device.element('#ph_errors').innerHTML, /uncertain\.jpg — Upload not confirmed/);
+    assert.match(device.element('#ph_errors').innerHTML, /unsent\.jpg — Not sent/);
+    assert.equal(device.element('#ph_after_input').disabled, true);
+    releaseList(); await batch;
+    assert.doesNotMatch(device.element('#ph_status').textContent, /Refreshing/);
+  } finally { device.dispose(); }
+});
+
+test('a batch over the limit sends nothing, while the 100-photo limit is accepted', async () => {
+  const server = new FakeServer(), device = await openFakePhotoDialog(server);
+  try {
+    const files = Array.from({ length: 101 }, (_, i) => ({ name: `photo-${i}.jpg`, type: 'image/jpeg', size: 100 }));
+    device.context.photoInput = { value: 'chosen', files };
+    await device.exec("uploadJobPhoto(photoInput,'before')");
+    assert.equal(server.photoUploads, 0);
+    assert.match(device.element('#ph_status').textContent, /up to 100 photos.*None were uploaded/);
+    device.context.photoInput = { value: 'chosen', files: files.slice(0, 100) };
+    await device.exec("uploadJobPhoto(photoInput,'before')");
+    assert.equal(server.photoUploads, 100); assert.equal(server.photoObjects.size, 100);
+    assert.match(device.element('#ph_status').textContent, /100 of 100 before photos uploaded/);
+  } finally { device.dispose(); }
+});
+
+test('a private-storage readiness change halts the rest of a batch', async () => {
+  const server = new FakeServer(), device = await openFakePhotoDialog(server);
+  try {
+    server.photoAfterUpload = ({ attempt }) => { if (attempt === 1) server.photoReady = false; };
+    device.context.photoInput = { value: 'chosen', files: fakePhotoFiles('first.jpg', 'second.jpg', 'third.jpg') };
+    await device.exec("uploadJobPhoto(photoInput,'before')");
+    assert.equal(server.photoUploads, 1); assert.equal(server.photoObjects.size, 1);
+    assert.match(device.element('#ph_status').textContent, /1 of 3 before photos uploaded\. 2 not sent/);
+    assert.match(device.element('#ph_errors').innerHTML, /Private photo storage is not ready/);
+    assert.equal(device.element('#ph_before_input').disabled, true);
+  } finally { device.dispose(); }
+});
+
+test('a sync interruption or deleted job stops subsequent photos', async () => {
+  for (const change of ['sync', 'delete']) {
+    const server = new FakeServer(), device = await openFakePhotoDialog(server);
+    try {
+      server.photoAfterUpload = ({ attempt }) => { if (attempt === 1) device.exec(change === 'sync' ? 'synced=false' : 'delete S.jobs.far'); };
+      device.context.photoInput = { value: 'chosen', files: fakePhotoFiles('first.jpg', 'second.jpg', 'third.jpg') };
+      await device.exec("uploadJobPhoto(photoInput,'before')");
+      assert.equal(server.photoUploads, 1, change);
+      assert.match(device.element('#ph_status').textContent, /1 of 3 before photos uploaded\. 2 not sent/);
+      if (change === 'delete') assert.match(device.element('#ph_status').textContent, /job was deleted while uploading/);
+      assert.equal(device.element('#ph_before_input').disabled, true, change);
+    } finally { device.dispose(); }
+  }
+});
+
+test('closing during preparation sends nothing; changing jobs during an upload sends no further photos', async () => {
+  const server = new FakeServer(), device = await openFakePhotoDialog(server);
+  try {
+    let resolvePreparation;
+    device.context.preparation = new Promise(resolve => { resolvePreparation = resolve; });
+    device.exec('prepareJobPhoto=()=>preparation');
+    device.context.photoInput = { value: 'chosen', files: fakePhotoFiles('first.jpg', 'second.jpg') };
+    let batch = device.exec("uploadJobPhoto(photoInput,'before')");
+    assert.match(device.element('#ph_status').textContent, /photo 1 of 2/);
+    assert.equal(device.element('#ph_before_input').disabled, true);
+    assert.equal(device.element('#ph_after_input').disabled, true);
+    assert.equal(device.element('#ph_refresh').disabled, true);
+    device.exec('closeD()'); resolvePreparation({ size: 3, type: 'image/jpeg' }); await batch;
+    assert.equal(server.photoUploads, 0);
+
+    device.exec("openJobPhotos('far');prepareJobPhoto=async()=>({size:3,type:'image/jpeg'})"); await wait(10);
+    let releaseUpload, notifyStarted;
+    const started = new Promise(resolve => { notifyStarted = resolve; });
+    const gate = new Promise(resolve => { releaseUpload = resolve; });
+    server.photoBeforeUpload = async () => { notifyStarted(); await gate; };
+    device.context.photoInput = { value: 'chosen', files: fakePhotoFiles('first.jpg', 'second.jpg', 'third.jpg') };
+    batch = device.exec("uploadJobPhoto(photoInput,'before')"); await started;
+    device.exec("openJobPhotos('near')"); await wait(10);
+    const newDialogStatus = device.element('#ph_status').textContent;
+    releaseUpload(); await batch;
+    assert.equal(server.photoUploads, 1);
+    assert.equal(server.photoObjects.size, 1, 'the in-flight upload may finish for the original job');
+    assert.ok([...server.photoObjects.keys()][0].startsWith('j-666172/before/'));
+    assert.equal(device.element('#ph_status').textContent, newDialogStatus, 'the old batch must not update the new dialog');
+    assert.equal(device.exec('photoJobId'), 'near');
   } finally { device.dispose(); }
 });
 
