@@ -20,6 +20,13 @@ class FakeServer {
     this.failWrites = false;
     this.selectDelay = 0;
     this.writeDelay = 0;
+    this.photoReady = false;
+    this.photoObjects = new Map();
+    this.photoUploads = 0;
+    this.photoFailList = false;
+    this.photoFailUpload = false;
+    this.photoSilentDelete = false;
+    this.photoRpcDelay = 0;
   }
 
   makeClient() {
@@ -32,6 +39,38 @@ class FakeServer {
         signInWithPassword: async () => ({ data: { session: { access_token: 'fake' } }, error: null }),
         signOut: async () => ({ error: null }),
       },
+      async rpc(name) {
+        assert.equal(name, 'mib_crm_photo_storage_private_v1');
+        if (server.photoRpcDelay) await wait(server.photoRpcDelay);
+        return { data: server.photoReady, error: null };
+      },
+      storage: { from(bucket) {
+        assert.equal(bucket, 'mib-crm-job-photos');
+        return {
+          async list(folder) {
+            if (server.photoFailList) return { data: null, error: { message: 'simulated list failure' } };
+            const prefix = folder + '/';
+            const files = [...server.photoObjects.keys()].filter(p => p.startsWith(prefix) && !p.slice(prefix.length).includes('/'))
+              .reverse().map(p => ({ name: p.slice(prefix.length), id: 'fake-object' }));
+            return { data: files, error: null };
+          },
+          async upload(path, blob) {
+            server.photoUploads++;
+            if (server.photoFailUpload) return { data: null, error: { message: 'simulated upload failure' } };
+            server.photoObjects.set(path, blob);
+            return { data: { path }, error: null };
+          },
+          async download(path, _options, parameters) {
+            assert.equal(parameters && parameters.cache, 'no-store');
+            return server.photoObjects.has(path) ? { data: server.photoObjects.get(path), error: null } : { data: null, error: { message: 'not found' } };
+          },
+          async remove(paths) {
+            if (server.photoSilentDelete) return { data: [], error: null };
+            const deleted = paths.filter(p => server.photoObjects.delete(p)).map(name => ({ name }));
+            return { data: deleted, error: null };
+          },
+        };
+      } },
       from(table) {
         assert.equal(table, 'records');
         return {
@@ -114,7 +153,8 @@ function makeDevice(server, initialStorage = {}, options = {}) {
   const context = vm.createContext({
     document, localStorage,
     window: { addEventListener: (name, fn) => { listeners[name] = fn; } },
-    navigator: options.navigator || {}, location: { reload() {} },
+    navigator: options.navigator || {}, location: { reload() {} }, TextEncoder,
+    URL: options.URL || { createObjectURL: () => 'blob:fictional-photo', revokeObjectURL() {} },
     supabase: { createClient: () => client },
     fetch: options.fetch,
     alert() {}, confirm: options.confirm || (() => false),
@@ -731,5 +771,271 @@ test('large imports queue once, create unique IDs and remain recoverable after a
     assert.equal(Object.keys(JSON.parse(device.storage.get('mib_pending_v1'))).length, 1000);
     assert.equal(Object.keys(JSON.parse(device.storage.get('mib')).clients).length, 1000);
     assert.match(device.element('#imp_status').textContent, /Added 1000 clients/);
+  } finally { device.dispose(); }
+});
+
+// Crew workflow tests use fictional route data and in-memory storage only.
+function seedCrew(server) {
+  const state = routeData();
+  state.clients.c1.phone = '(512) 555-0100';
+  state.clients.c2 = { ...record('Second example', 'c2'), phone: '+1 (512) 555-0101' };
+  state.jobs.mid.client = 'c2';
+  for (const [id, data] of Object.entries(state.clients)) server.rows.set(`clients/${id}`, { coll: 'clients', id, data: clone(data) });
+  for (const [id, data] of Object.entries(state.jobs)) server.rows.set(`jobs/${id}`, { coll: 'jobs', id, data: clone(data) });
+  return state;
+}
+
+test('GPS text and CSV accept latitude/longitude and reject ambiguous or invalid data', () => {
+  const device = makeDevice(new FakeServer());
+  try {
+    device.context.gpsText = '30.1000, -97.2000\n30.2,-97.3';
+    assert.deepEqual(Array.from(device.exec("importLines(gpsText,'gps')")), ['30.1, -97.2', '30.2, -97.3']);
+    device.context.gpsCsv = 'Name,Latitude,Longitude\nA,30.1,-97.2\nB,30.2,-97.3';
+    assert.deepEqual(Array.from(device.exec("importCSV(gpsCsv,'gps')")), ['30.1, -97.2', '30.2, -97.3']);
+    device.context.gpsCsv = 'Coordinates\n"30.1,-97.2"\n"30.2,-97.3"';
+    assert.deepEqual(Array.from(device.exec("importCSV(gpsCsv,'gps')")), ['30.1, -97.2', '30.2, -97.3']);
+    device.context.gpsCsv = '30.1,-97.2\n30.2,-97.3';
+    assert.deepEqual(Array.from(device.exec("importCSV(gpsCsv,'gps')")), ['30.1, -97.2', '30.2, -97.3']);
+    for (const value of ['91,-97', '30,-181', '123 Example Street', '30.1,']) {
+      device.context.gpsText = value;
+      assert.throws(() => device.exec("importLines(gpsText,'gps')"), /valid decimal latitude/);
+    }
+    device.context.gpsCsv = 'Latitude,Coordinates\n30.1,"30.1,-97.2"';
+    assert.throws(() => device.exec("importCSV(gpsCsv,'gps')"), /ambiguous GPS columns/);
+    device.context.gpsCsv = 'Latitude,Name\n30.1,Example';
+    assert.throws(() => device.exec("importCSV(gpsCsv,'gps')"), /both Latitude and Longitude/);
+    assert.equal(device.exec('Object.keys(pending).length'), 0);
+  } finally { device.dispose(); }
+});
+
+test('imported jobs keep their list order after existing stops and sync across devices', async () => {
+  const server = new FakeServer(); seedClient(server);
+  server.rows.set('jobs/old', { coll: 'jobs', id: 'old', data: { id: 'old', client: 'c-import', date: '2026-11-04', status: 'Scheduled', service: 'Other', prop: 'Existing Example Rd' } });
+  const first = makeDevice(server, {}, { confirm: () => true }), second = makeDevice(server);
+  try {
+    await Promise.all([first.login(), second.login()]);
+    importSetup(first, { mode: 'jobs', client: 'c-import', text: 'Z Example Rd\nA Example Rd\nM Example Rd' });
+    first.exec('reviewImport();confirmImport()');
+    first.exec("rd='2026-11-04'");
+    assert.deepEqual(Array.from(first.exec('dayJobs().map(j=>j.prop)')), ['Existing Example Rd', 'Z Example Rd', 'A Example Rd', 'M Example Rd']);
+    await wait(130);
+    second.exec("rd='2026-11-04'");
+    assert.deepEqual(Array.from(second.exec('dayJobs().map(j=>j.prop)')), ['Existing Example Rd', 'Z Example Rd', 'A Example Rd', 'M Example Rd']);
+    first.exec("w('jobs',{id:'moved',client:'c-import',date:'2026-11-05',status:'Scheduled',service:'Other',prop:'Moved Example Rd'});addStop('moved')");
+    assert.equal(first.exec('dayJobs().at(-1).id'), 'moved');
+  } finally { first.dispose(); second.dispose(); }
+});
+
+test('GPS job imports normalize locations and work with local coordinate-only auto-pick', async () => {
+  const server = new FakeServer(); seedClient(server); let requests = 0;
+  const device = makeDevice(server, {}, { confirm: () => true, fetch: () => { requests++; throw new Error('external network forbidden'); } });
+  try {
+    await device.login();
+    importSetup(device, { mode: 'jobs', client: 'c-import', text: '30.3,-97\n30.1,-97\n30.2,-97' });
+    device.element('#imp_format').value = 'gps';
+    device.exec('reviewImport();confirmImport();rd="2026-11-04";S.meta.start="30,-97";opt()');
+    assert.deepEqual(Array.from(device.exec('dayJobs().map(j=>j.prop)')), ['30.1, -97', '30.2, -97', '30.3, -97']);
+    assert.equal(requests, 0);
+  } finally { device.dispose(); }
+});
+
+test('route order preview rearranges existing jobs without changing customer, date or creating records', async () => {
+  const server = new FakeServer(); seedCrew(server); let requests = 0;
+  const first = makeDevice(server, {}, { confirm: () => true, fetch: () => { requests++; throw new Error('external network forbidden'); } });
+  const second = makeDevice(server);
+  try {
+    await Promise.all([first.login(), second.login()]);
+    first.exec("rd='2026-11-04';tab='Route';openRouteOrder()");
+    first.element('#ro_format').value = 'address';
+    first.element('#ro_text').value = 'Middle Example Road\nFar Example Road';
+    first.exec('reviewRouteOrder()');
+    assert.match(first.element('#ro_preview').innerHTML, /2<\/b> matched stops/);
+    assert.match(first.element('#ro_preview').innerHTML, /1 unlisted stop stays at the end/);
+    assert.deepEqual(Array.from(first.exec('dayJobs().map(j=>j.id)')), ['far', 'near', 'mid']);
+    first.exec('applyRouteOrder()');
+    assert.deepEqual(Array.from(first.exec('dayJobs().map(j=>j.id)')), ['mid', 'far', 'near']);
+    await wait(130);
+    second.exec("rd='2026-11-04'");
+    assert.deepEqual(Array.from(second.exec('dayJobs().map(j=>j.id)')), ['mid', 'far', 'near']);
+    assert.equal(second.exec('S.jobs.mid.client'), 'c2');
+    assert.equal(second.exec('S.jobs.mid.date'), '2026-11-04');
+    assert.equal(second.exec('Object.keys(S.jobs).length'), 3);
+    assert.equal(requests, 0);
+  } finally { first.dispose(); second.dispose(); }
+});
+
+test('unmatched or stale route lists do not change any jobs', async () => {
+  const server = new FakeServer(); seedCrew(server);
+  const device = makeDevice(server, {}, { confirm: () => true });
+  try {
+    await device.login();
+    device.exec("rd='2026-11-04';openRouteOrder()");
+    device.element('#ro_text').value = 'Wrong Example Road';
+    device.exec('reviewRouteOrder();applyRouteOrder()');
+    assert.equal(device.exec('Object.keys(pending).length'), 0);
+    device.element('#ro_text').value = 'Middle Example Road\nFar Example Road';
+    device.exec('reviewRouteOrder()');
+    device.exec("S.jobs.mid.prop='Changed Example Road';applyRouteOrder()");
+    assert.match(device.element('#ro_status').textContent, /No unmatched stop|changed|Review/);
+    assert.equal(device.exec('S.jobs.far.ord'), 0);
+    assert.equal(device.exec('Object.keys(pending).length'), 0);
+  } finally { device.dispose(); }
+});
+
+test('duplicate locations match separate stops in their current relative order', async () => {
+  const server = new FakeServer(); const state = seedCrew(server);
+  state.jobs.mid.prop = state.jobs.far.prop;
+  server.rows.set('jobs/mid', { coll: 'jobs', id: 'mid', data: clone(state.jobs.mid) });
+  const device = makeDevice(server, {}, { confirm: () => true });
+  try {
+    await device.login();
+    device.exec("rd='2026-11-04';openRouteOrder()");
+    device.element('#ro_text').value = 'Near Example Road\nFar Example Road\nFar Example Road';
+    device.exec('reviewRouteOrder();applyRouteOrder()');
+    assert.deepEqual(Array.from(device.exec('dayJobs().map(j=>j.id)')), ['near', 'far', 'mid']);
+  } finally { device.dispose(); }
+});
+
+test('route-order CSV upload stays local and never changes CRM before review', async () => {
+  const server = new FakeServer(); seedCrew(server);
+  const device = makeDevice(server);
+  try {
+    await device.login(); device.exec("rd='2026-11-04';openRouteOrder()");
+    device.context.routeFile = { value: 'chosen', files: [{ name: 'route.csv', size: 80, text: async () => 'Address\n"Middle Example Road"\n"Far Example Road"' }] };
+    await device.exec('routeOrderFile(routeFile)');
+    assert.equal(device.element('#ro_text').value, 'Middle Example Road\nFar Example Road');
+    assert.equal(device.exec('Object.keys(pending).length'), 0);
+    assert.deepEqual(Array.from(device.exec('dayJobs().map(j=>j.id)')), ['far', 'near', 'mid']);
+  } finally { device.dispose(); }
+});
+
+test('en-route SMS opens a draft for a valid client phone and never sends a message', () => {
+  const server = new FakeServer(), android = makeDevice(server, {}, { navigator: { userAgent: 'Android' } });
+  const ios = makeDevice(server, {}, { navigator: { userAgent: 'iPhone' } });
+  try {
+    const androidLink = android.exec('enRouteText({phone:"+1 (512) 555-0100"})');
+    assert.ok(androidLink.startsWith('sms:+15125550100?body='));
+    assert.match(decodeURIComponent(androidLink), /Maintain It Bandits.*on our way/);
+    assert.ok(ios.exec('enRouteText({phone:"512-555-0100"})').startsWith('sms:5125550100&body='));
+    assert.equal(android.exec('enRouteText({phone:"512-555-0100 ext 22"})'), '');
+    assert.equal(android.exec('enRouteText({phone:"javascript:alert(1)"})'), '');
+    const state = routeData(); state.clients.c1.phone = '(512) 555-0100'; seedRoute(android, state);
+    const markup = android.exec('vRoute()');
+    assert.match(markup, /Text en route/); assert.match(markup, /you tap Send/);
+    assert.equal(android.exec('Object.keys(pending).length'), 0);
+  } finally { android.dispose(); ios.dispose(); }
+});
+
+test('photos fail closed when private bucket readiness is not confirmed', async () => {
+  const server = new FakeServer(); seedCrew(server);
+  const device = makeDevice(server, {}, { confirm: () => true });
+  try {
+    await device.login(); device.exec("openJobPhotos('far')"); await wait(10);
+    assert.match(device.element('#ph_status').textContent, /not ready/);
+    assert.equal(device.element('#ph_before_input').disabled, true);
+    device.context.photoInput = { value: 'chosen', files: [{ type: 'image/jpeg', size: 100 }] };
+    await device.exec("uploadJobPhoto(photoInput,'before')");
+    assert.equal(server.photoUploads, 0); assert.equal(server.photoObjects.size, 0);
+  } finally { device.dispose(); }
+});
+
+test('before/after photos use authenticated private storage and are visible on another device', async () => {
+  const server = new FakeServer(); seedCrew(server); server.photoReady = true;
+  const first = makeDevice(server, {}, { confirm: () => true }), second = makeDevice(server, {}, { confirm: () => true });
+  try {
+    await Promise.all([first.login(), second.login()]);
+    first.exec("openJobPhotos('far')"); await wait(10);
+    assert.equal(first.element('#ph_before_input').disabled, false);
+    first.exec("prepareJobPhoto=async()=>({size:3,type:'image/jpeg'})");
+    first.context.photoInput = { value: 'chosen', files: [{ type: 'image/jpeg', size: 100 }] };
+    await first.exec("uploadJobPhoto(photoInput,'before')");
+    first.context.photoInput = { value: 'chosen', files: [{ type: 'image/png', size: 100 }] };
+    await first.exec("uploadJobPhoto(photoInput,'after')");
+    assert.equal(server.photoObjects.size, 2);
+    const paths = [...server.photoObjects.keys()];
+    assert.ok(paths.some(p => p.startsWith('j-666172/before/p-') && p.endsWith('.jpg')));
+    assert.ok(paths.some(p => p.startsWith('j-666172/after/p-') && p.endsWith('.jpg')));
+    assert.ok(paths.every(p => !p.includes('Example')));
+    assert.equal(first.exec('Object.keys(pending).length'), 0);
+    second.exec("openJobPhotos('far')"); await wait(10);
+    assert.match(second.element('#ph_before_list').innerHTML, /Before photo 1/);
+    assert.match(second.element('#ph_after_list').innerHTML, /After photo 1/);
+    second.context.photoButton = { dataset: { path: paths[0] } };
+    await second.exec('viewJobPhoto(photoButton)');
+    assert.match(second.element('#ph_view').innerHTML, /blob:fictional-photo/);
+    assert.doesNotMatch(second.element('#ph_view').innerHTML, /\/public\//);
+    await second.exec('removeJobPhoto(photoButton)');
+    assert.equal(server.photoObjects.size, 1);
+    assert.equal(second.element('#ph_status').textContent, 'Photo deleted.');
+  } finally { first.dispose(); second.dispose(); }
+});
+
+test('failed photo uploads and silent permission-denied deletes are not reported as successful', async () => {
+  const server = new FakeServer(); seedCrew(server); server.photoReady = true;
+  const device = makeDevice(server, {}, { confirm: () => true });
+  try {
+    await device.login(); device.exec("openJobPhotos('far')"); await wait(10);
+    device.exec("prepareJobPhoto=async()=>({size:3,type:'image/jpeg'})");
+    device.context.photoInput = { value: 'chosen', files: [{ type: 'image/jpeg', size: 100 }] };
+    server.photoFailUpload = true; await device.exec("uploadJobPhoto(photoInput,'before')");
+    assert.match(device.element('#ph_status').textContent, /could not be uploaded/);
+    assert.equal(server.photoObjects.size, 0);
+    server.photoFailUpload = false;
+    device.context.photoInput = { value: 'chosen', files: [{ type: 'image/jpeg', size: 100 }] };
+    await device.exec("uploadJobPhoto(photoInput,'before')");
+    const path = [...server.photoObjects.keys()][0];
+    device.context.photoButton = { dataset: { path } }; server.photoSilentDelete = true;
+    await device.exec('removeJobPhoto(photoButton)');
+    assert.match(device.element('#ph_status').textContent, /deletion was not confirmed/i);
+    assert.equal(server.photoObjects.size, 1);
+  } finally { device.dispose(); }
+});
+
+test('unsynced jobs, unsafe image formats, and changed dialogs do not upload photos', async () => {
+  const server = new FakeServer(); seedCrew(server); server.photoReady = true;
+  const device = makeDevice(server, {}, { confirm: () => true });
+  try {
+    await device.login(); device.exec("openJobPhotos('far')"); await wait(10);
+    await assert.rejects(device.exec("prepareJobPhoto({type:'image/svg+xml',size:100})"), /Choose a JPEG/);
+    await assert.rejects(device.exec("prepareJobPhoto({type:'image/jpeg',size:30000000})"), /no larger than 20 MB/);
+    device.exec("prepareJobPhoto=async()=>({size:3,type:'image/jpeg'});w('jobs',Object.assign({},S.jobs.far,{notes:'unsynced'}))");
+    device.context.photoInput = { value: 'chosen', files: [{ type: 'image/jpeg', size: 100 }] };
+    await device.exec("uploadJobPhoto(photoInput,'before')");
+    assert.equal(server.photoUploads, 0);
+    assert.match(device.element('#ph_status').textContent, /Synced across devices/);
+    server.photoRpcDelay = 30; device.exec("openJobPhotos('near');openBackup()");
+    await wait(50);
+    assert.match(device.element('#dlg').innerHTML, /<h2>Backup<\/h2>/);
+    assert.equal(server.photoObjects.size, 0);
+  } finally { device.dispose(); }
+});
+
+test('GPS import skips an existing coordinate even when its decimal formatting differs', async () => {
+  const server = new FakeServer(); seedClient(server, { props: '30.10000,-97.20000' });
+  const device = makeDevice(server, {}, { confirm: () => true });
+  try {
+    await device.login();
+    importSetup(device, { mode: 'properties', client: 'c-import', text: '30.1, -97.2\n30.30, -97.40' });
+    device.element('#imp_format').value = 'gps';
+    device.exec('reviewImport()');
+    assert.match(device.element('#imp_preview').innerHTML, /<b>1<\/b> property/);
+    assert.match(device.element('#imp_preview').innerHTML, /1 already in the destination will be skipped/);
+    device.exec('confirmImport()');
+    assert.equal(device.exec('S.clients["c-import"].props'), '30.10000,-97.20000\n30.3, -97.4');
+  } finally { device.dispose(); }
+});
+
+test('new manually entered jobs are appended after a previously ordered route', async () => {
+  const server = new FakeServer(); seedCrew(server);
+  const device = makeDevice(server);
+  try {
+    await device.login(); device.exec("rd='2026-11-04';openJob(null,{date:rd})");
+    for (const [selector, value] of Object.entries({
+      '#j_client': 'c1', '#j_service': 'Mow / edge / blow', '#j_prop': 'New Example Road',
+      '#j_date': '2026-11-04', '#j_status': 'Scheduled', '#j_rep': 'One-time',
+      '#j_items': '', '#j_price': '0', '#j_notes': '',
+    })) device.element(selector).value = value;
+    device.exec('saveJob("")');
+    assert.deepEqual(Array.from(device.exec('dayJobs().map(j=>j.prop)')), ['Far Example Road', 'Near Example Road', 'Middle Example Road', 'New Example Road']);
   } finally { device.dispose(); }
 });

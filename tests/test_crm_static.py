@@ -100,6 +100,17 @@ class CRMStaticTests(unittest.TestCase):
         self.assertIn('Some changes have not synced', self.source)
         self.assertIn('Replace ALL current data with this backup?', self.source)
 
+    def test_photo_controls_require_private_storage_and_do_not_use_public_urls(self):
+        self.assertIn('mib_crm_photo_storage_private_v1', self.source)
+        self.assertIn('bucket.download(path,{}, {cache:"no-store"})', self.source)
+        self.assertNotIn('getPublicUrl', self.source)
+        self.assertIn('Photo files are not included', self.source)
+        self.assertIn('not automatically deleted from storage', self.source)
+        sql = (ROOT / 'supabase/crm_job_photos.sql').read_text(encoding='utf-8')
+        self.assertIn('SECURITY INVOKER', sql)
+        self.assertIn('AS RESTRICTIVE', sql)
+        self.assertIn('GRANT EXECUTE ON FUNCTION public.mib_crm_photo_storage_private_v1() TO authenticated', sql)
+
 
 if __name__ == '__main__':
     unittest.main()
