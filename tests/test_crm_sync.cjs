@@ -1470,3 +1470,195 @@ test('new-client duplicate detection and combined storage checks protect existin
     assert.equal(device.exec('Object.keys(pending).length'), 0);
   } finally { device.dispose(); }
 });
+
+// Picked-stop routes use only fictional jobs, a fake provider, and no writes.
+test('a picked route includes only chosen scheduled jobs across dates and changes no CRM records', async () => {
+  const server = new FakeServer(); seedCrew(server); const requests = [];
+  const extra = { id: 'later', client: 'c1', date: '2026-11-05', status: 'Scheduled', prop: 'Later Example Road', service: 'Mow', ord: 3, dateRequirement: 'deadline', requiredDate: '2026-11-06' };
+  const done = { ...extra, id: 'done', status: 'Done', prop: 'Done Example Road' };
+  server.rows.set('jobs/later', { coll: 'jobs', id: 'later', data: extra });
+  server.rows.set('jobs/done', { coll: 'jobs', id: 'done', data: done });
+  const first = makeDevice(server, {}, { fetch: async (_url, options) => {
+    const body = JSON.parse(options.body); requests.push(body);
+    return body.action === 'geocode' ? fakeRoadResponse({ matches: fakeMatches(body.addresses) }) : fakeRoadResponse({ order: [1, 0] });
+  } });
+  const second = makeDevice(server);
+  try {
+    await Promise.all([first.login(), second.login()]); first.client.auth.getSession = async () => fakeSession();
+    first.exec("rd='2026-11-04';S.meta.start='30,-97';tab='Route';openPickRoute()");
+    assert.equal(first.exec("pickedRoute.candidates.some(x=>x.record.id==='done')"), false);
+    first.exec("pickedRoute.selected.add('far');pickedRoute.selected.add('later');pickContinue()");
+    assert.equal(requests.length, 0);
+    assert.deepEqual(Array.from(first.exec('roadPlan.snapshot.stops.map(j=>j.id)')), ['far', 'later']);
+    await first.exec('roadBegin()');
+    assert.deepEqual(requests[0].addresses, ['Far Example Road', 'Later Example Road']);
+    assert.doesNotMatch(JSON.stringify(requests[0]), /Near Example|Middle Example|Done Example|555/);
+    await first.exec('roadOptimize()');
+    assert.equal(requests[1].stops.length, 2); assert.deepEqual(requests[1].start, [30, -97]);
+    assert.doesNotMatch(JSON.stringify(requests[1]), /Example|555/);
+    assert.match(first.element('#rr_preview').innerHTML, /Later Example Road/);
+    assert.match(first.element('#rr_preview').innerHTML, /Far Example Road/);
+    assert.doesNotMatch(first.element('#rr_preview').innerHTML, /Near Example|Middle Example|Done Example/);
+    assert.match(first.element('#rr_status').textContent, /not saved or synced/);
+    first.exec('roadSave()'); // no hidden code path may rewrite picked stops
+    assert.equal(first.exec('Object.keys(pending).length'), 0);
+    await wait(40);
+    assert.equal(second.exec("S.jobs.later.date"), '2026-11-05');
+    assert.equal(second.exec("S.jobs.far.ord"), 0);
+    assert.equal(second.exec("S.jobs.near.ord"), 1);
+    assert.equal(second.exec("S.jobs.mid.ord"), 2);
+    assert.equal(server.rows.get('jobs/later').data.status, 'Scheduled');
+  } finally { first.dispose(); second.dispose(); }
+});
+
+test('picked routes honor date requirements and refuse stale selection or unsynced data', async () => {
+  const server = new FakeServer(); seedCrew(server);
+  const fixed = { id: 'fixed', client: 'c1', date: '2026-11-05', status: 'Scheduled', prop: 'Fixed Example Road', service: 'Mow', dateRequirement: 'exact', requiredDate: '2026-11-05' };
+  const late = { ...fixed, id: 'late', prop: 'Late Example Road', dateRequirement: 'deadline', requiredDate: '2026-11-03' };
+  server.rows.set('jobs/fixed', { coll: 'jobs', id: 'fixed', data: fixed });
+  server.rows.set('jobs/late', { coll: 'jobs', id: 'late', data: late });
+  const device = makeDevice(server);
+  try {
+    await device.login(); device.exec("rd='2026-11-04';openPickRoute()");
+    assert.match(device.exec("pickedRoute.candidates.find(x=>x.record.id==='fixed').problem"), /must be done on 2026-11-05/);
+    assert.match(device.exec("pickedRoute.candidates.find(x=>x.record.id==='late').problem"), /due by 2026-11-03/);
+    device.exec("pickedRoute.selected.add('fixed');pickContinue()");
+    assert.match(device.element('#pick_status').textContent, /changed/);
+    assert.equal(device.exec('roadPlan'), null);
+    device.exec("pickedRoute.selected.clear();pickedRoute.selected.add('far');S.jobs.far.prop='Edited since choosing';pickContinue()");
+    assert.match(device.element('#pick_status').textContent, /changed/);
+    device.exec("pickedRoute.selected.clear();pickedRoute.selected.add('near');synced=false;pickContinue()");
+    assert.match(device.element('#pick_status').textContent, /sync state changed/i);
+    assert.equal(device.exec('Object.keys(pending).length'), 0);
+  } finally { device.dispose(); }
+});
+
+test('a single picked stop opens Google Maps without calling a routing provider or saving', async () => {
+  const server = new FakeServer(); seedCrew(server); let calls = 0;
+  const device = makeDevice(server, {}, { fetch: async () => { calls++; throw new Error('unexpected provider request'); } });
+  try {
+    await device.login(); device.exec("rd='2026-11-04';S.meta.start='';openPickRoute();pickedRoute.selected.add('near');pickContinue()");
+    assert.equal(calls, 0); assert.equal(device.exec('roadPlan.order.length'), 1);
+    assert.match(device.element('#rr_status').textContent, /No optimization request was needed/);
+    const part = clone(device.exec('pickMapParts(roadPlan)'))[0], url = new URL(part.url);
+    assert.equal(url.searchParams.get('origin'), null);
+    assert.equal(url.searchParams.get('destination'), 'Near Example Road, Austin, TX');
+    assert.equal(device.exec('roadMapGuard()'), true);
+    device.exec("S.jobs.near.status='Done'");
+    assert.equal(device.exec('roadMapGuard()'), false);
+    assert.match(device.element('#rr_status').textContent, /no longer scheduled/);
+    assert.equal(device.exec('Object.keys(pending).length'), 0);
+  } finally { device.dispose(); }
+});
+
+test('Google Maps parts cover every selected stop in order with at most three waypoints', () => {
+  const device = makeDevice(new FakeServer());
+  try {
+    for (const n of [1, 2, 3, 4, 5, 8, 9, 99, 100]) {
+      for (const round of [false, true]) {
+        device.context.n = n; device.context.roundTrip = round;
+        const parts = clone(device.exec(`(() => {
+          const stops=Array.from({length:n},(_,i)=>({location:(30+i/1000)+',-97'}));
+          return pickMapParts({snapshot:{start:'30,-98',round:roundTrip,stops},points:null,order:stops.map((_,i)=>i)})
+        })()`));
+        const expected = Array.from({ length: n }, (_, i) => `${30 + i / 1000},-97`);
+        if (round) expected.push('30,-98');
+        const actual = [];
+        for (let i = 0; i < parts.length; i++) {
+          const url = new URL(parts[i].url), waypoints = url.searchParams.get('waypoints');
+          const intermediate = waypoints ? waypoints.split('|') : [];
+          assert.ok(intermediate.length <= 3, `part ${i + 1} exceeds mobile waypoint limit`);
+          assert.equal(url.searchParams.get('origin'), i ? actual.at(-1) : '30,-98');
+          actual.push(...intermediate, url.searchParams.get('destination'));
+        }
+        assert.deepEqual(actual, expected, `${n} stops, return=${round}`);
+      }
+    }
+  } finally { device.dispose(); }
+});
+
+test('a changed selected job blocks provider responses and opening stale map links', async () => {
+  const server = new FakeServer(); seedCrew(server); let release;
+  const device = makeDevice(server, {}, { fetch: async (_url, options) => {
+    const body = JSON.parse(options.body);
+    return new Promise(resolve => { release = () => resolve(fakeRoadResponse({ matches: fakeMatches(body.addresses) })); });
+  } });
+  try {
+    await device.login(); device.client.auth.getSession = async () => fakeSession();
+    device.exec("rd='2026-11-04';S.meta.start='30,-97';openPickRoute();pickedRoute.selected.add('far');pickedRoute.selected.add('near');pickContinue()");
+    const pendingLookup = device.exec('roadBegin()'); await wait(0);
+    device.exec("S.jobs.near.requiredDate='2026-11-05';S.jobs.near.dateRequirement='exact'"); release(); await pendingLookup;
+    assert.match(device.element('#rr_status').textContent, /must be done on|changed/);
+    assert.equal(device.exec('roadPlan.order'), null);
+    assert.equal(device.exec('Object.keys(pending).length'), 0);
+  } finally { device.dispose(); }
+});
+
+test('picked routes reject more than 100 selections and invalid location IDs', async () => {
+  const server = new FakeServer(); seedCrew(server);
+  const device = makeDevice(server);
+  try {
+    await device.login();
+    device.exec(`rd='2026-11-04';for(let i=0;i<101;i++)S.jobs['batch'+i]={id:'batch'+i,client:'c1',date:rd,status:'Scheduled',prop:'30,-97'};openPickRoute();
+      pickedRoute.candidates.forEach(x=>{if(!x.problem)pickedRoute.selected.add(x.record.id)});pickUpdateCount();pickContinue()`);
+    assert.match(device.element('#pick_status').textContent, /100 stops/);
+    assert.equal(device.exec('roadPlan'), null);
+    device.exec("S.jobs.batch0.id='batch1';openPickRoute()");
+    assert.ok(device.exec("pickedRoute.candidates.filter(x=>/invalid or duplicate ID/.test(x.problem)).length") >= 2);
+    assert.equal(device.exec('Object.keys(pending).length'), 0);
+  } finally { device.dispose(); }
+});
+
+test('picked duplicate addresses share a lookup but remain separate jobs', async () => {
+  const server = new FakeServer(); const state = seedCrew(server), requests = [];
+  state.jobs.near.prop = state.jobs.far.prop;
+  server.rows.set('jobs/near', { coll: 'jobs', id: 'near', data: clone(state.jobs.near) });
+  const device = makeDevice(server, {}, { fetch: async (_url, options) => {
+    const body = JSON.parse(options.body); requests.push(body);
+    return body.action === 'geocode' ? fakeRoadResponse({ matches: fakeMatches(body.addresses) }) : fakeRoadResponse({ order: [0, 1] });
+  } });
+  try {
+    await device.login(); device.client.auth.getSession = async () => fakeSession();
+    device.exec("rd='2026-11-04';S.meta.start='30,-97';openPickRoute();pickedRoute.selected.add('far');pickedRoute.selected.add('near');pickContinue()");
+    await device.exec('roadBegin()'); assert.equal(requests[0].addresses.length, 1);
+    await device.exec('roadOptimize()'); assert.equal(requests[1].stops.length, 2);
+    assert.equal(device.exec('roadPlan.order.length'), 2);
+    assert.match(device.element('#rr_preview').innerHTML, /Repeated addresses are separate jobs/);
+    assert.equal((device.element('#rr_preview').innerHTML.match(/Navigate to this stop/g) || []).length, 2);
+    assert.equal(device.exec('Object.keys(pending).length'), 0);
+  } finally { device.dispose(); }
+});
+
+test('picked routes reject imprecise matches or quota errors without producing map links', async () => {
+  for (const type of ['coarse', 'quota']) {
+    const server = new FakeServer(); seedCrew(server); let calls = 0;
+    const device = makeDevice(server, {}, { fetch: async (_url, options) => {
+      calls++; const body = JSON.parse(options.body), matches = fakeMatches(body.addresses);
+      if (type === 'quota') return fakeRoadResponse({ error: 'Geocodio daily limit reached.' }, 429);
+      matches[0].accuracyType = 'city'; return fakeRoadResponse({ matches });
+    } });
+    try {
+      await device.login(); device.client.auth.getSession = async () => fakeSession();
+      device.exec("rd='2026-11-04';S.meta.start='30,-97';openPickRoute();pickedRoute.selected.add('far');pickedRoute.selected.add('near');pickContinue()");
+      await device.exec('roadBegin()'); await device.exec('roadOptimize()');
+      assert.equal(calls, 1); assert.equal(device.exec('roadPlan.order'), null);
+      assert.match(device.element('#rr_status').textContent, /imprecise|limit|resolve/i);
+      assert.doesNotMatch(device.element('#rr_preview').innerHTML, /google\.com\/maps/);
+      assert.equal(device.exec('Object.keys(pending).length'), 0);
+    } finally { device.dispose(); }
+  }
+});
+
+test('picker safely escapes untrusted customer text and job identifiers', async () => {
+  const server = new FakeServer(); seedCrew(server);
+  const unsafe = { id: "unsafe'\"id", client: 'c1', date: '2026-11-04', status: 'Scheduled', prop: '<img src=x onerror=alert(1)>', service: '<script>bad</script>' };
+  server.rows.set(`jobs/${unsafe.id}`, { coll: 'jobs', id: unsafe.id, data: unsafe });
+  const device = makeDevice(server);
+  try {
+    await device.login(); device.exec("rd='2026-11-04';openPickRoute()");
+    const list = device.element('#pick_list').innerHTML;
+    assert.match(list, /&lt;img/); assert.match(list, /&lt;script/);
+    assert.doesNotMatch(list, /<img|<script|unsafe'\"id/);
+    assert.equal(device.exec('Object.keys(pending).length'), 0);
+  } finally { device.dispose(); }
+});

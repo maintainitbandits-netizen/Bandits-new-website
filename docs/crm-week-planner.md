@@ -5,7 +5,7 @@ The existing vanilla `/crm` has an optional **Plan workweek** button. It suggest
 ## Planning a week
 
 1. Sign in and wait for **Synced across devices**. Tap **Plan workweek**, choose the Monday starting the week, and select the days on which you can work. By default, Sunday and Saturday open the following week; on weekdays the default excludes days already past. Selected workdays cannot be in the past.
-2. Choose an existing default client and service. Paste one **complete address with city, state, and ZIP** or GPS pair per line, or upload a `.txt` file under 1 MB. This planner does not read PDF, images, Excel, or CSV. It creates jobs for existing clients, not new clients. It imports only location and an optional date requirement—not other work-order details, names, phone numbers, prices, or notes. Each line becomes a separate one-time job with no price set. You can change the client and service for an individual job in the next step.
+2. Choose an existing default client or explicitly choose to create a client for each distinct address, and choose a service. Paste one **complete address with city, state, and ZIP** or GPS pair per line, or upload a `.txt` file under 1 MB. This planner does not read PDF, images, Excel, or CSV. It imports only location and an optional date requirement—not other work-order details, names, phone numbers, prices, or notes. Each line becomes a separate one-time job with no price set. You can change the client and service for an individual job in the next step.
 3. A job without a date requirement can be suggested for any selected workday in that week. Open an individual job to choose **Due by a date** or **Must be on a date**. Optionally add a suffix directly in the text file:
 
    ```text
@@ -21,6 +21,8 @@ The existing vanilla `/crm` has an optional **Plan workweek** button. It suggest
 7. Possible duplicate jobs in the batch or existing week, and new-client addresses already listed for a client, are flagged but not automatically removed: two work orders may legitimately share an address. The check uses normalized text/GPS and may miss different street abbreviations. Review duplicates carefully. Tap **Save all jobs** and confirm only when the whole week is correct. The confirmation reports how many new clients will also be added. No records are created before this final step. Leave the page open until it says **Synced across devices**, then verify the plan on the other phone.
 
 The split uses **number of stops**, not job durations, staff availability, break times, actual driving time between different days, or live traffic. It may suggest too much work for a day even below 100 stops. Check capacity and change the proposed days before saving.
+
+After saving, **Route → Pick addresses to route** can create a temporary driving route for selected scheduled jobs, including jobs from other dates. It does not move or reschedule them and does not save or sync the temporary route; see [CRM driving routes](crm-driving-routes.md#route-only-the-addresses-you-pick).
 
 ## Stored requirements and safety
 
