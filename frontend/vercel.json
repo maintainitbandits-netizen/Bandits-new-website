@@ -1,4 +1,5 @@
 {
+  "buildCommand": "npm run build && node scripts/prerender-fall-cleanup.cjs",
   "redirects": [
     {
       "source": "/crm",
@@ -112,6 +113,14 @@
     }
   ],
   "rewrites": [
+    {
+      "source": "/blog/fall-cleanup-austin-rental-properties",
+      "destination": "/_prerendered/fall-cleanup-austin-rental-properties.html"
+    },
+    {
+      "source": "/blog/fall-cleanup-austin-rental-properties/",
+      "destination": "/_prerendered/fall-cleanup-austin-rental-properties.html"
+    },
     {
       "source": "/(.*)",
       "destination": "/index.html"
