@@ -88,7 +88,7 @@ class FakeServer {
   }
 }
 
-function makeDevice(server, initialStorage = {}) {
+function makeDevice(server, initialStorage = {}, options = {}) {
   const storage = new Map(Object.entries(initialStorage));
   const localStorage = {
     getItem: key => storage.has(key) ? storage.get(key) : null,
@@ -114,9 +114,10 @@ function makeDevice(server, initialStorage = {}) {
   const context = vm.createContext({
     document, localStorage,
     window: { addEventListener: (name, fn) => { listeners[name] = fn; } },
-    navigator: {}, location: { reload() {} },
+    navigator: options.navigator || {}, location: { reload() {} },
     supabase: { createClient: () => client },
-    alert() {}, confirm: () => false,
+    fetch: options.fetch,
+    alert() {}, confirm: options.confirm || (() => false),
     setTimeout(fn, ms) { const timer = setTimeout(() => { timers.delete(timer); fn(); }, ms); timers.add(timer); return timer; },
     clearTimeout(timer) { timers.delete(timer); clearTimeout(timer); },
   });
@@ -259,4 +260,154 @@ test('sign-out warns before deleting unsynced local changes', async () => {
     await first.exec('logout()'); // fake confirm returns false
     assert.match(first.storage.get('mib_pending_v1'), /Keep me/);
   } finally { first.dispose(); }
+});
+
+// Route tests use fictional addresses and coordinates; they make no network
+// requests and do not use customer data.
+function routeData() {
+  return {
+    clients: { c1: record('Example client', 'c1') },
+    jobs: {
+      far: { id: 'far', client: 'c1', date: '2026-11-04', status: 'Scheduled', prop: 'Far Example Road', service: 'Mow', price: 0, ord: 0 },
+      near: { id: 'near', client: 'c1', date: '2026-11-04', status: 'Scheduled', prop: 'Near Example Road', service: 'Mow', price: 0, ord: 1 },
+      mid: { id: 'mid', client: 'c1', date: '2026-11-04', status: 'Scheduled', prop: 'Middle Example Road', service: 'Mow', price: 0, ord: 2 },
+    },
+    meta: { start: '30.00000,-97.00000' },
+  };
+}
+
+function coordinateRoute() {
+  const state = routeData();
+  state.jobs.far.prop = '30.30000,-97.00000';
+  state.jobs.near.prop = '30.10000,-97.00000';
+  state.jobs.mid.prop = '30.20000,-97.00000';
+  return state;
+}
+
+function seedRoute(device, state = routeData()) {
+  device.exec(`S=${JSON.stringify(state)};rd='2026-11-04';tab='Route';render()`);
+}
+
+test('adding a scheduled stop changes its date and syncs, and a new job uses the selected day', async () => {
+  const server = new FakeServer();
+  const [first, second] = await devices(server);
+  try {
+    first.exec(`rd='2026-11-04';w('clients', ${JSON.stringify(record('Example client', 'c1'))})`);
+    first.exec(`w('jobs', {id:'today',client:'c1',date:'2026-11-04',status:'Scheduled',prop:'123 Example Road',service:'Mow',price:0,ord:0})`);
+    first.exec(`w('jobs', {id:'other',client:'c1',date:'2026-11-05',status:'Scheduled',prop:'456 Example Road',service:'Mow',price:0})`);
+    await wait(100);
+    assert.equal(first.exec("addable().some(j=>j.id==='other')"), true);
+    first.exec("addStop('other')");
+    await wait(100);
+    assert.equal(first.exec("S.jobs.other.date"), '2026-11-04');
+    assert.equal(first.exec("S.jobs.other.ord"), 1);
+    assert.equal(second.exec("S.jobs.other.date"), '2026-11-04');
+    assert.equal(server.rows.get('jobs/other').data.date, '2026-11-04');
+    first.exec('openJob(null,{date:rd})');
+    assert.match(first.element('#dlg').innerHTML, /id="j_date" type="date" value="2026-11-04"/);
+  } finally { first.dispose(); second.dispose(); }
+});
+
+test('a stop that was deleted or is no longer scheduled is not modified', () => {
+  const server = new FakeServer(), device = makeDevice(server);
+  try {
+    seedRoute(device);
+    device.exec("delete S.jobs.far;addStop('far')");
+    assert.match(device.element('#rmsg').textContent, /no longer scheduled/);
+    device.exec("S.jobs.near.status='Done';addStop('near')");
+    assert.equal(device.exec('S.jobs.near.date'), '2026-11-04');
+    assert.equal(device.exec('Object.keys(pending).length'), 0);
+  } finally { device.dispose(); }
+});
+
+test('coordinates and round trips generate a bounded Google Maps link with a mobile warning', () => {
+  const server = new FakeServer(), device = makeDevice(server);
+  try {
+    const state = routeData();
+    state.jobs = {};
+    state.meta.round = true;
+    for (let i = 0; i < 10; i++) state.jobs[`j${i}`] = {
+      id: `j${i}`, client: 'c1', date: '2026-11-04', status: 'Scheduled',
+      prop: `${i + 1} Example Road`, service: 'Mow', price: 0, ord: i,
+    };
+    seedRoute(device, state);
+    const url = new URL(device.exec('mapsUrl(dayJobs())'));
+    assert.equal(url.searchParams.get('origin'), '30.00000,-97.00000');
+    assert.equal(url.searchParams.get('destination'), '30.00000,-97.00000');
+    assert.equal(url.searchParams.get('waypoints').split('|').length, 9);
+    const markup = device.exec('vRoute()');
+    assert.match(markup, /First 9 mapped stops only/);
+    assert.match(markup, /mobile browsers may omit some/);
+    assert.match(markup, /GPS coordinates only/);
+    assert.match(markup, /Move a scheduled job to this day/);
+    device.exec("S.meta.start=''");
+    assert.match(device.exec('vRoute()'), /Add a start location to return to it/);
+  } finally { device.dispose(); }
+});
+
+test('using device location stores the selected coordinates as the start point', () => {
+  const server = new FakeServer();
+  const device = makeDevice(server, {}, { navigator: { geolocation: {
+    getCurrentPosition(success) { success({ coords: { latitude: 30.267149, longitude: -97.743059 } }); },
+  } } });
+  try {
+    device.exec('useLoc()');
+    assert.equal(device.exec('S.meta.start'), '30.26715,-97.74306');
+    const pending = JSON.parse(device.storage.get('mib_pending_v1'));
+    assert.equal(Object.values(pending)[0].data.start, '30.26715,-97.74306');
+  } finally { device.dispose(); }
+});
+
+test('auto-pick orders coordinates locally and preserves offline-safe pending edits', () => {
+  const server = new FakeServer(); let requests = 0;
+  const device = makeDevice(server, {}, { fetch: () => { requests++; throw new Error('no network allowed'); } });
+  try {
+    seedRoute(device, coordinateRoute());
+    device.exec('opt()');
+    assert.deepEqual(Array.from(device.exec('dayJobs().map(j=>j.id)')), ['near', 'mid', 'far']);
+    assert.equal(requests, 0);
+    assert.match(device.element('#rmsg').textContent, /approximate straight-line distance/);
+    const pending = JSON.parse(device.storage.get('mib_pending_v1'));
+    assert.ok(Object.values(pending).every(entry => entry.coll === 'jobs'));
+    assert.equal(device.exec('Object.keys(pending).length'), 3);
+  } finally { device.dispose(); }
+});
+
+test('street addresses are not sent to a geocoder or partially reordered', () => {
+  const server = new FakeServer(); let requests = 0;
+  const device = makeDevice(server, {}, { fetch: () => { requests++; throw new Error('no network allowed'); } });
+  try {
+    const state = coordinateRoute();
+    state.jobs.near.prop = '123 Example Street';
+    seedRoute(device, state);
+    device.exec('opt()');
+    assert.equal(requests, 0);
+    assert.deepEqual(Array.from(device.exec('dayJobs().map(j=>j.id)')), ['far', 'near', 'mid']);
+    assert.equal(device.exec('Object.keys(pending).length'), 0);
+    assert.match(device.element('#rmsg').textContent, /GPS coordinates for every stop/);
+  } finally { device.dispose(); }
+});
+
+test('a street-address start or out-of-range coordinates are not used for automatic ordering', () => {
+  const server = new FakeServer(), device = makeDevice(server);
+  try {
+    const state = coordinateRoute();
+    state.meta.start = '123 Example Street';
+    seedRoute(device, state);
+    device.exec('opt()');
+    assert.match(device.element('#rmsg').textContent, /GPS coordinates for the start/);
+    assert.equal(device.exec("coords('91,0')"), null);
+    assert.equal(device.exec("coords('30,-181')"), null);
+    assert.equal(device.exec('Number.isFinite(hv([90,180],[-90,0]))'), true);
+    assert.equal(device.exec('Object.keys(pending).length'), 0);
+  } finally { device.dispose(); }
+});
+
+test('sign-out removes any address-lookup cache left by an older CRM copy', async () => {
+  const server = new FakeServer();
+  const device = makeDevice(server, { mibgeo: JSON.stringify({ fictional: [30, -97] }) });
+  try {
+    await device.exec('logout()');
+    assert.equal(device.storage.has('mibgeo'), false);
+  } finally { device.dispose(); }
 });
