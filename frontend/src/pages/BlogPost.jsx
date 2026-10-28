@@ -14,6 +14,19 @@ const mdInline = (t) => t
 
 const renderBlock = (b, i) => {
   if (b.type === 'h2') return <h2 key={i} className="font-serif text-2xl md:text-3xl text-white mt-10 mb-3">{b.text}</h2>;
+  if (b.type === 'h3') return <h3 key={i} className="text-xl font-semibold text-white mt-8 mb-3">{b.text}</h3>;
+  if (b.type === 'orderedList') return (
+    <ol key={i} className="list-decimal pl-6 space-y-3 my-4 marker:text-green-400">
+      {b.items.map((it, j) => (
+        <li key={j} className="text-neutral-300 leading-relaxed pl-1" dangerouslySetInnerHTML={{ __html: mdInline(it) }} />
+      ))}
+    </ol>
+  );
+  if (b.type === 'callout') return (
+    <aside key={i} className="my-6 rounded-2xl border border-green-500/30 bg-neutral-900 p-5">
+      <p className="text-neutral-300 leading-relaxed" dangerouslySetInnerHTML={{ __html: mdInline(b.text) }} />
+    </aside>
+  );
   if (b.type === 'list') return (
     <ul key={i} className="space-y-2 my-4">
       {b.items.map((it, j) => (
@@ -32,12 +45,13 @@ const BlogPost = () => {
   const post = BLOG_POSTS.find(p => p.slug === slug);
   if (!post) return <Navigate to="/blog" replace />;
   const related = BLOG_POSTS.filter(p => p.slug !== slug).slice(0, 3);
+  const imageUrl = new URL(post.image, 'https://www.maintainitbandits.com').href;
 
   const schema = {
     '@context': 'https://schema.org',
     '@type': 'BlogPosting',
     headline: post.title,
-    image: post.image,
+    image: imageUrl,
     datePublished: post.date,
     author: { '@type': 'Organization', name: COMPANY.name },
     publisher: { '@type': 'Organization', name: COMPANY.name },
@@ -47,11 +61,13 @@ const BlogPost = () => {
   return (
     <div>
       <SEO
-        title={`${post.title} | Maintain It Bandits LLC`}
-        description={post.excerpt}
+        title={post.metaTitle || `${post.title} | Maintain It Bandits LLC`}
+        description={post.metaDescription || post.excerpt}
         keywords={post.keywords}
         path={`/blog/${slug}`}
-        image={post.image}
+        image={imageUrl}
+        imageAlt={post.imageAlt}
+        type="article"
         schema={schema}
       />
       <Breadcrumbs items={[{ name: 'Blog', path: '/blog' }, { name: post.title, path: `/blog/${slug}` }]} />
@@ -61,10 +77,10 @@ const BlogPost = () => {
         <h1 className="font-serif text-4xl md:text-5xl text-white mt-6 leading-tight">{post.title}</h1>
         <div className="flex flex-wrap items-center gap-4 text-xs text-neutral-500 mt-6">
           <span className="flex items-center gap-2"><User size={12}/> {post.author}</span>
-          <span className="flex items-center gap-2"><Calendar size={12}/> {new Date(post.date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</span>
+          <span className="flex items-center gap-2"><Calendar size={12}/> {new Date(post.date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' })}</span>
           <span className="flex items-center gap-2"><Clock size={12}/> {post.readTime}</span>
         </div>
-        <img src={post.image} alt={post.title} className="w-full rounded-2xl border border-[#1a1a1a] mt-8 aspect-[16/9] object-cover" />
+        <img src={post.image} alt={post.imageAlt || post.title} className="w-full rounded-2xl border border-[#1a1a1a] mt-8 aspect-[16/9] object-cover" />
         <div className="mt-8">
           {post.content.map(renderBlock)}
         </div>
@@ -83,7 +99,7 @@ const BlogPost = () => {
             {related.map(p => (
               <Link to={`/blog/${p.slug}`} key={p.slug} className="bg-[#0f0f0f] border border-[#1c1c1c] rounded-2xl overflow-hidden group hover:border-green-500/30 transition-colors">
                 <div className="aspect-[16/10] overflow-hidden">
-                  <img src={p.image} alt={p.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" loading="lazy"/>
+                  <img src={p.image} alt={p.imageAlt || p.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" loading="lazy"/>
                 </div>
                 <div className="p-5">
                   <h3 className="text-white font-semibold text-base group-hover:text-green-400 transition-colors">{p.title}</h3>

@@ -1,6 +1,8 @@
 // SEO-optimized blog posts for local lawn care ranking
+import fallCleanupPost from './fallCleanupPost.json';
 
 export const BLOG_POSTS = [
+  fallCleanupPost,
   {
     slug: 'austin-rental-make-ready-checklist-landlords',
     title: 'The Ultimate Austin Rental Make Ready Checklist for Landlords (2026)',

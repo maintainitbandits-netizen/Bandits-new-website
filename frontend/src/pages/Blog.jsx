@@ -29,12 +29,12 @@ const Blog = () => (
         {BLOG_POSTS.map(p => (
           <Link to={`/blog/${p.slug}`} key={p.slug} className="svc-card bg-[#0f0f0f] border border-[#1c1c1c] rounded-2xl overflow-hidden group">
             <div className="aspect-[16/10] overflow-hidden">
-              <img src={p.image} alt={p.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" loading="lazy" />
+              <img src={p.image} alt={p.imageAlt || p.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" loading="lazy" />
             </div>
             <div className="p-6">
               <div className="flex flex-wrap items-center gap-3 text-xs text-neutral-500">
                 <span className="chip px-2 py-0.5 rounded-full flex items-center gap-1"><Tag size={11}/> {p.category}</span>
-                <span className="flex items-center gap-1"><Calendar size={12}/> {new Date(p.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                <span className="flex items-center gap-1"><Calendar size={12}/> {new Date(p.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })}</span>
                 <span className="flex items-center gap-1"><Clock size={12}/> {p.readTime}</span>
               </div>
               <h2 className="text-white font-semibold text-lg mt-3 group-hover:text-green-400 transition-colors">{p.title}</h2>

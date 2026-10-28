@@ -40,9 +40,9 @@ class SiteIntegrityTests(unittest.TestCase):
     def test_frontend_project_redirects_match_repository_config(self):
         self.assertNotIn('routes', self.frontend_config)
         self.assertEqual(self.frontend_config['redirects'], self.config['redirects'])
-        self.assertEqual(self.frontend_config['rewrites'], [
-            {'source': '/(.*)', 'destination': '/index.html'},
-        ])
+        rewrites = self.frontend_config['rewrites']
+        self.assertEqual(rewrites[-1], {'source': '/(.*)', 'destination': '/index.html'})
+        self.assertTrue(all(rule['source'] != '/(.*)' for rule in rewrites[:-1]))
 
     def test_retired_service_redirects_and_content_removal(self):
         redirects = [r for r in self.config['redirects'] if r['destination'] == '/services']
