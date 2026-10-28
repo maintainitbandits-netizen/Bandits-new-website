@@ -12,6 +12,7 @@ class SiteIntegrityTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.config = json.loads((ROOT / 'vercel.json').read_text(encoding='utf-8'))
+        cls.frontend_config = json.loads((ROOT / 'frontend/vercel.json').read_text(encoding='utf-8'))
 
     def test_redirects_run_before_spa_fallback(self):
         # Legacy routes can shadow the higher-level redirects. Rewrites run
@@ -36,6 +37,13 @@ class SiteIntegrityTests(unittest.TestCase):
             'Permissions-Policy': 'camera=(), microphone=(), geolocation=(self)',
         })
 
+    def test_frontend_project_redirects_match_repository_config(self):
+        self.assertNotIn('routes', self.frontend_config)
+        self.assertEqual(self.frontend_config['redirects'], self.config['redirects'])
+        self.assertEqual(self.frontend_config['rewrites'], [
+            {'source': '/(.*)', 'destination': '/index.html'},
+        ])
+
     def test_retired_service_redirects_and_content_removal(self):
         redirects = [r for r in self.config['redirects'] if r['destination'] == '/services']
         self.assertEqual(len(redirects), 3)
@@ -50,6 +58,8 @@ class SiteIntegrityTests(unittest.TestCase):
         # Derive the retired term from its redirect, then check the whole
         # repository rather than hardcoding site content into this test.
         term = slug.split('-', 1)[0].casefold()
+        allowed_configs = {ROOT / 'vercel.json', ROOT / 'frontend/vercel.json'}
+        seen_configs = set()
         matches = []
         for directory, dirs, files in os.walk(ROOT):
             dirs[:] = [d for d in dirs if d not in {'.git', 'node_modules', 'build'}]
@@ -63,12 +73,14 @@ class SiteIntegrityTests(unittest.TestCase):
                     continue
                 if term not in content.casefold():
                     continue
-                if file == ROOT / 'vercel.json':
+                if file in allowed_configs:
+                    seen_configs.add(file)
                     lines = [line for line in content.splitlines() if term in line.casefold()]
                     self.assertEqual(len(lines), 3)
                     self.assertTrue(all('"source"' in line for line in lines))
                 else:
                     matches.append(str(file.relative_to(ROOT)))
+        self.assertEqual(seen_configs, allowed_configs)
         self.assertEqual(matches, [])
 
     def test_make_ready_feature_is_intact(self):

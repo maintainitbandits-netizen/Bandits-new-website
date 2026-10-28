@@ -1,0 +1,120 @@
+{
+  "redirects": [
+    {
+      "source": "/crm",
+      "destination": "https://claude.ai/artifact/KbXS55eqMUxaybJFokKLq7",
+      "permanent": false
+    },
+    {
+      "source": "/:city(pflugerville|round-rock|cedar-park|georgetown|leander|austin|taylor|hutto)-lawn-care",
+      "destination": "/services/lawn-mowing/:city",
+      "permanent": true
+    },
+    {
+      "source": "/:city(pflugerville|round-rock|cedar-park|georgetown|leander|austin|taylor|hutto)-landscaping",
+      "destination": "/services/landscaping/:city",
+      "permanent": true
+    },
+    {
+      "source": "/:city(pflugerville|round-rock|cedar-park|georgetown|leander|austin|taylor|hutto)-sod-installation",
+      "destination": "/services/sod-installation/:city",
+      "permanent": true
+    },
+    {
+      "source": "/:city(pflugerville|round-rock|cedar-park|georgetown|leander|austin|taylor|hutto)-weed-control",
+      "destination": "/services/fertilization/:city",
+      "permanent": true
+    },
+    {
+      "source": "/:city(pflugerville|round-rock|cedar-park|georgetown|leander|austin|taylor|hutto)-pressure-washing",
+      "destination": "/services/pressure-washing/:city",
+      "permanent": true
+    },
+    {
+      "source": "/:city(pflugerville|round-rock|cedar-park|georgetown|leander|austin|taylor|hutto)-gutter-cleaning",
+      "destination": "/services",
+      "permanent": true
+    },
+    {
+      "source": "/services/gutter-cleaning",
+      "destination": "/services",
+      "permanent": true
+    },
+    {
+      "source": "/services/gutter-cleaning/:city*",
+      "destination": "/services",
+      "permanent": true
+    },
+    {
+      "source": "/:city(pflugerville|round-rock|cedar-park|georgetown|leander|austin|taylor|hutto)-junk-removal",
+      "destination": "/services/junk-haul-off/:city",
+      "permanent": true
+    },
+    {
+      "source": "/:city(pflugerville|round-rock|cedar-park|georgetown|leander|austin|taylor|hutto)-mulching",
+      "destination": "/services/mulching/:city",
+      "permanent": true
+    },
+    {
+      "source": "/:city(pflugerville|round-rock|cedar-park|georgetown|leander|austin|taylor|hutto)-yard-cleanup",
+      "destination": "/services/seasonal-cleanup/:city",
+      "permanent": true
+    },
+    {
+      "source": "/:city(pflugerville|round-rock|cedar-park|georgetown|leander|austin|taylor|hutto)-shrub-trimming",
+      "destination": "/services/shrub-trimming/:city",
+      "permanent": true
+    },
+    {
+      "source": "/:city(pflugerville|round-rock|cedar-park|georgetown|leander|austin|taylor|hutto)-flower-bed-planting",
+      "destination": "/services/flower-bed-planting/:city",
+      "permanent": true
+    },
+    {
+      "source": "/:city(pflugerville|round-rock|cedar-park|georgetown|leander|austin|taylor|hutto)-yard-work",
+      "destination": "/services/yard-work/:city",
+      "permanent": true
+    },
+    {
+      "source": "/:city(pflugerville|round-rock|cedar-park|georgetown|leander|austin|taylor|hutto)-house-cleaning",
+      "destination": "/services/cleaning/:city",
+      "permanent": true
+    },
+    {
+      "source": "/:city(pflugerville|round-rock|cedar-park|georgetown|leander|austin|taylor|hutto)-make-ready-services",
+      "destination": "/services/make-ready-services/:city",
+      "permanent": true
+    },
+    {
+      "source": "/:city(pflugerville|round-rock|cedar-park|georgetown|leander|austin|taylor|hutto)-make-ready",
+      "destination": "/services/make-ready-services/:city",
+      "permanent": true
+    },
+    {
+      "source": "/:city(pflugerville|round-rock|cedar-park|georgetown|leander|austin|taylor|hutto)-make-ready-cleaning",
+      "destination": "/services/make-ready-services/:city",
+      "permanent": true
+    },
+    {
+      "source": "/:city(pflugerville|round-rock|cedar-park|georgetown|leander|austin|taylor|hutto)-tenant-turnover-services",
+      "destination": "/services/tenant-turnover-services/:city",
+      "permanent": true
+    },
+    {
+      "source": "/:city(pflugerville|round-rock|cedar-park|georgetown|leander|austin|taylor|hutto)-turnover-services",
+      "destination": "/services/tenant-turnover-services/:city",
+      "permanent": true
+    },
+    {
+      "source": "/:city(pflugerville|round-rock|cedar-park|georgetown|leander|austin|taylor|hutto)-turnover-cleaning",
+      "destination": "/services/tenant-turnover-services/:city",
+      "permanent": true
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}
