@@ -5,7 +5,7 @@
   else root.WeeklyPlanner = factory();
 })(typeof globalThis !== 'undefined' ? globalThis : this, function () {
   'use strict';
-  const MAX_JOBS = 1000, MAX_STOPS_PER_DAY = 100, MAX_TEXT = 1024 * 1024;
+  const MAX_JOBS = 1000, MAX_STOPS_PER_DAY = 100, MAX_TEXT = 1024 * 1024, MAX_ESTIMATE_MINUTES = 10080;
   const RULES = ['any', 'deadline', 'exact'];
   const validDate = s => {
     if (typeof s !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;
@@ -88,69 +88,94 @@
     const h = Math.sin(lat / 2) ** 2 + Math.cos(rad(a[0])) * Math.cos(rad(b[0])) * Math.sin(lon / 2) ** 2;
     return 7917.6 * Math.asin(Math.sqrt(Math.max(0, Math.min(1, h))));
   }
-  // Constrained jobs are assigned first. A soft per-day target balances existing
-  // and new stop counts; geographic centroids are only a heuristic, not a
-  // driving-time estimate. Exact dates and deadlines are never relaxed.
-  function suggest(entries, dates, existing, points) {
+  // Date-constrained jobs are assigned first. When estimates exist, longer
+  // jobs are placed first in the least-loaded eligible day; counts and nearby
+  // locations break ties. Unknown times remain unknown, not invented hours.
+  function suggest(entries, dates, existing, points, existingMinutes) {
     if (!Array.isArray(entries) || !entries.length || entries.length > MAX_JOBS) throw new Error('Choose 1 to ' + MAX_JOBS + ' jobs.');
     if (!Array.isArray(dates) || !dates.length || dates.length > 7 || dates.some(d => !validDate(d)) ||
         new Set(dates).size !== dates.length || dates.some((d, i) => i && dates[i - 1] >= d)) throw new Error('Choose valid workdays in order.');
     if (points !== undefined && (!Array.isArray(points) || points.length !== entries.length || !points.every(point))) {
       throw new Error('Every address needs a valid reviewed location.');
     }
-    existing = existing || {};
+    existing = existing || {}; existingMinutes = existingMinutes || {};
+    const estimates = entries.map(e => {
+      const n = e.estimatedMinutes;
+      if (n == null || n === '') return 0;
+      if (!Number.isSafeInteger(n) || n < 1 || n > MAX_ESTIMATE_MINUTES) throw new Error('Estimated time must be whole minutes between 1 and ' + MAX_ESTIMATE_MINUTES + ', or blank.');
+      return n;
+    });
     const counts = Object.fromEntries(dates.map(d => {
       const n = existing[d] == null ? 0 : existing[d];
       if (!Number.isSafeInteger(n) || n < 0) throw new Error('Existing stop counts are invalid.');
       return [d, n];
     }));
+    const minutes = Object.fromEntries(dates.map(d => {
+      const n = existingMinutes[d] == null ? 0 : existingMinutes[d];
+      if (!Number.isSafeInteger(n) || n < 0 || n > MAX_ESTIMATE_MINUTES * MAX_JOBS) throw new Error('Existing work estimates are invalid.');
+      return [d, n];
+    }));
+    const useEstimates = estimates.some(Boolean) || Object.values(minutes).some(Boolean);
     const capacity = t => dates.reduce((sum, d) => sum + Math.max(0, Math.min(MAX_STOPS_PER_DAY, t) - counts[d]), 0);
     let target = 0; while (target < MAX_STOPS_PER_DAY && capacity(target) < entries.length) target++;
     const groups = new Map(), unassigned = [], assignments = Array(entries.length).fill(null);
     entries.forEach((entry, i) => {
       const eligible = eligibleDays(entry, dates);
       if (!eligible.length) { unassigned.push({ index: i, reason: 'No selected workday meets this date requirement.' }); return; }
-      const task = { i, eligible };
+      const task = { i, eligible, minutes: estimates[i] };
       if (!groups.has(eligible.length)) groups.set(eligible.length, []);
       groups.get(eligible.length).push(task);
     });
     const centers = Object.fromEntries(dates.map(d => [d, { lat: 0, lon: 0, n: 0 }]));
     const center = d => [centers[d].lat / centers[d].n, centers[d].lon / centers[d].n];
     const remaining = () => dates.some(d => counts[d] < MAX_STOPS_PER_DAY && !centers[d].n);
+    const distance = (i, d) => centers[d].n ? miles(points[i], center(d)) : 0;
     for (const size of [...groups.keys()].sort((a, b) => a - b)) {
       const tasks = groups.get(size);
       while (tasks.length) {
         let pick = 0;
-        // Select geographically distinct seeds for empty days when possible.
-        if (points && remaining()) {
+        if (useEstimates) {
+          // Duration first; among equal durations favor distinct geographic seeds.
+          let bestTime = -1, bestDistance = -1;
+          for (let k = 0; k < tasks.length; k++) {
+            const task = tasks[k], seeded = points ? task.eligible.filter(d => centers[d].n) : [];
+            const spread = seeded.length ? Math.min(...seeded.map(d => distance(task.i, d))) : 0;
+            if (task.minutes > bestTime || (task.minutes === bestTime && spread > bestDistance)) {
+              bestTime = task.minutes; bestDistance = spread; pick = k;
+            }
+          }
+        } else if (points && remaining()) {
           let best = -1;
           for (let k = 0; k < tasks.length; k++) {
             const task = tasks[k], empty = task.eligible.some(d => counts[d] < MAX_STOPS_PER_DAY && !centers[d].n);
             if (!empty) continue;
             const seeded = task.eligible.filter(d => centers[d].n);
-            const distance = seeded.length ? Math.min(...seeded.map(d => miles(points[task.i], center(d)))) : 0;
-            if (distance > best) { best = distance; pick = k; }
+            const spread = seeded.length ? Math.min(...seeded.map(d => distance(task.i, d))) : 0;
+            if (spread > best) { best = spread; pick = k; }
           }
         }
         const task = tasks.splice(pick, 1)[0];
         let choices = task.eligible.filter(d => counts[d] < MAX_STOPS_PER_DAY);
         if (!choices.length) { unassigned.push({ index: task.i, reason: 'All suitable days already have 100 stops.' }); continue; }
-        const underTarget = choices.filter(d => counts[d] < target);
-        if (underTarget.length) choices = underTarget;
-        if (points) {
-          const empty = choices.filter(d => !centers[d].n);
-          if (empty.length) choices = empty;
-          choices.sort((a, b) => {
-            const da = centers[a].n ? miles(points[task.i], center(a)) : 0;
-            const db = centers[b].n ? miles(points[task.i], center(b)) : 0;
-            return da - db || counts[a] - counts[b] || a.localeCompare(b);
-          });
-        } else choices.sort((a, b) => counts[a] - counts[b] || a.localeCompare(b));
-        const chosen = choices[0]; assignments[task.i] = chosen; counts[chosen]++;
+        if (useEstimates) {
+          // With no duration, do not treat a job as free work: use stop count
+          // first, then known workload and proximity. Known jobs use minutes.
+          choices.sort((a, b) => (task.minutes ? minutes[a] - minutes[b] || counts[a] - counts[b] : counts[a] - counts[b] || minutes[a] - minutes[b]) ||
+            (points ? distance(task.i, a) - distance(task.i, b) : 0) || a.localeCompare(b));
+        } else {
+          const underTarget = choices.filter(d => counts[d] < target);
+          if (underTarget.length) choices = underTarget;
+          if (points) {
+            const empty = choices.filter(d => !centers[d].n);
+            if (empty.length) choices = empty;
+            choices.sort((a, b) => distance(task.i, a) - distance(task.i, b) || counts[a] - counts[b] || a.localeCompare(b));
+          } else choices.sort((a, b) => counts[a] - counts[b] || a.localeCompare(b));
+        }
+        const chosen = choices[0]; assignments[task.i] = chosen; counts[chosen]++; minutes[chosen] += task.minutes;
         if (points) { centers[chosen].lat += points[task.i][0]; centers[chosen].lon += points[task.i][1]; centers[chosen].n++; }
       }
     }
-    return { assignments, unassigned: unassigned.sort((a, b) => a.index - b.index), counts, target };
+    return { assignments, unassigned: unassigned.sort((a, b) => a.index - b.index), counts, target, minutes };
   }
-  return { MAX_JOBS, MAX_STOPS_PER_DAY, MAX_TEXT, validDate, addDays, defaultMonday, defaultFlags, workDates, parseText, lookupBatches, eligibleDays, suggest };
+  return { MAX_JOBS, MAX_STOPS_PER_DAY, MAX_TEXT, MAX_ESTIMATE_MINUTES, validDate, addDays, defaultMonday, defaultFlags, workDates, parseText, lookupBatches, eligibleDays, suggest };
 });

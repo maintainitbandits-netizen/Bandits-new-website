@@ -158,7 +158,7 @@ function makeDevice(server, initialStorage = {}, options = {}) {
     supabase: { createClient: () => client },
     WeeklyPlanner: require('../frontend/public/crm-week.js'),
     fetch: options.fetch,
-    alert() {}, confirm: options.confirm || (() => false),
+    alert: options.alert || (() => {}), confirm: options.confirm || (() => false),
     setTimeout(fn, ms) { const timer = setTimeout(() => { timers.delete(timer); fn(); }, ms); timers.add(timer); return timer; },
     clearTimeout(timer) { timers.delete(timer); clearTimeout(timer); },
   });
@@ -1659,6 +1659,132 @@ test('picker safely escapes untrusted customer text and job identifiers', async 
     const list = device.element('#pick_list').innerHTML;
     assert.match(list, /&lt;img/); assert.match(list, /&lt;script/);
     assert.doesNotMatch(list, /<img|<script|unsafe'\"id/);
+    assert.equal(device.exec('Object.keys(pending).length'), 0);
+  } finally { device.dispose(); }
+});
+
+// Additional operations use fictional records and the same in-memory two-device server.
+test('confirmed client and linked-job deletion retries from the outbox without deleting photo files', async () => {
+  const server = new FakeServer(), warnings = [];
+  const c1 = record('Fictional delete target', 'c-del2'), c2 = record('Fictional keep', 'c-keep');
+  const jobs = [
+    { id:'j-del1', client:c1.id, date:'2026-11-04', status:'Scheduled', prop:'Fictional address', service:'Mow' },
+    { id:'j-del2', client:c1.id, date:'2026-10-04', status:'Paid', prop:'Fictional address', service:'Mow' },
+    { id:'j-keep', client:c2.id, date:'2026-11-04', status:'Scheduled', prop:'Fictional address', service:'Mow' },
+  ];
+  for (const c of [c1,c2]) server.rows.set(`clients/${c.id}`, {coll:'clients',id:c.id,data:c});
+  for (const j of jobs) server.rows.set(`jobs/${j.id}`, {coll:'jobs',id:j.id,data:j});
+  server.photoObjects.set('j-del1/before/fictional.jpg', 'private mock image');
+  const first = makeDevice(server, {}, { confirm: message => { warnings.push(message); return true; } }), second = makeDevice(server);
+  try {
+    await Promise.all([first.login(), second.login()]);
+    server.failWrites = true; first.exec("delClient('c-del2')"); await wait(40);
+    assert.match(warnings[0], /1 client AND 2 linked jobs/);
+    assert.match(warnings[0], /photo files are NOT deleted/i);
+    assert.equal(first.exec("!!S.clients['c-del2'] || !!S.jobs['j-del1'] || !!S.jobs['j-del2']"), false);
+    assert.equal(first.exec('Object.keys(pending).length'), 3);
+    assert.notEqual(first.element('#st').textContent, 'Synced across devices');
+    assert.equal(server.rows.has('jobs/j-del1'), true);
+    assert.equal(second.exec("!!S.clients['c-del2']"), true);
+    server.failWrites = false; first.client.reconnect(); await wait(160);
+    assert.equal(server.rows.has('clients/c-del2'), false);
+    assert.equal(server.rows.has('jobs/j-del1'), false);
+    assert.equal(server.rows.has('jobs/j-del2'), false);
+    assert.equal(second.exec("!!S.clients['c-del2'] || !!S.jobs['j-del1']"), false);
+    assert.equal(second.exec("!!S.clients['c-keep'] && !!S.jobs['j-keep']"), true);
+    assert.equal(server.photoObjects.has('j-del1/before/fictional.jpg'), true);
+    assert.equal(first.element('#st').textContent, 'Synced across devices');
+  } finally { first.dispose(); second.dispose(); }
+});
+
+test('client deletion refuses stale confirmation and insufficient outbox storage', async () => {
+  const server = new FakeServer(), messages = []; const c = record('Fictional target', 'c-stale');
+  const j = {id:'j-stale', client:c.id, date:'2026-11-04', status:'Scheduled', prop:'Fictional address', service:'Mow'};
+  server.rows.set(`clients/${c.id}`, {coll:'clients',id:c.id,data:c}); server.rows.set(`jobs/${j.id}`, {coll:'jobs',id:j.id,data:j});
+  let device, confirmations = 0;
+  device = makeDevice(server, {}, { alert: x => messages.push(x), confirm: () => { confirmations++; device.exec("S.jobs['j-stale'].service='Changed while confirming'"); return true; } });
+  try {
+    await device.login(); device.exec("delClient('c-stale')");
+    assert.match(messages.pop(), /client or its linked jobs changed/i);
+    assert.equal(device.exec("!!S.clients['c-stale'] && !!S.jobs['j-stale']"), true);
+    assert.equal(device.exec('Object.keys(pending).length'), 0);
+    device.exec(`{ const old=localStorage.setItem; localStorage.setItem=(k,v)=>{if(k.startsWith('mib_delete_probe_'))throw Error('quota');return old(k,v)}; }`);
+    device.exec("delClient('c-stale')");
+    assert.match(messages.pop(), /not enough device storage/i);
+    assert.equal(confirmations, 1);
+    assert.equal(server.rows.has('clients/c-stale'), true);
+    assert.equal(server.rows.has('jobs/j-stale'), true);
+  } finally { device.dispose(); }
+});
+
+test('a linked numeric client reference is counted and property imports cannot redirect fallback jobs', async () => {
+  const server = new FakeServer(), c = record('Fictional numeric client', '1');
+  const j = {id:'j-num', client:1, date:'2026-11-04', status:'Scheduled', prop:'', service:'Mow'};
+  server.rows.set('clients/1', {coll:'clients',id:'1',data:c}); server.rows.set('jobs/j-num', {coll:'jobs',id:'j-num',data:j});
+  const device = makeDevice(server);
+  try {
+    await device.login();
+    assert.equal(device.exec("clientDeleteSnapshot(['1']).jobs.length"), 1);
+    assert.throws(() => device.exec("importRecords({mode:'properties',clientId:'1',entries:['100 Fictional St']})"), /first property.*explicit address/i);
+    assert.equal(device.exec("S.clients['1'].props"), '');
+    assert.equal(device.exec("jaddr(S.jobs['j-num'])"), '');
+  } finally { device.dispose(); }
+});
+
+test('edited job estimates retry and sync to a second device and recurring jobs inherit them', async () => {
+  const server = new FakeServer(), messages = [], c = record('Fictional estimate', 'c-est');
+  const j = {id:'j-est',client:c.id,date:'2026-11-04',status:'Scheduled',service:'Mow / edge / blow',prop:'Fictional address',repeat:'Weekly',dateRequirement:'deadline',requiredDate:'2026-11-04'};
+  server.rows.set('clients/c-est',{coll:'clients',id:c.id,data:c});server.rows.set('jobs/j-est',{coll:'jobs',id:j.id,data:j});
+  const first = makeDevice(server, {}, { alert:x=>messages.push(x) }), second = makeDevice(server);
+  try {
+    await Promise.all([first.login(),second.login()]); first.exec("openJob('j-est')");
+    const values = {'#j_client':'c-est','#j_service':'Mow / edge / blow','#j_prop':'Fictional address','#j_date':'2026-11-04','#j_rule':'deadline','#j_required':'2026-11-04','#j_status':'Scheduled','#j_rep':'Weekly','#j_items':'','#j_price':'0','#j_notes':'','#j_minutes':'0'};
+    for (const [selector,value] of Object.entries(values)) first.element(selector).value = value;
+    first.exec("saveJob('j-est')"); assert.match(messages.pop(), /whole number of minutes/i);
+    assert.equal(first.exec('Object.keys(pending).length'), 0);
+    server.failWrites=true; first.element('#j_minutes').value='75'; first.exec("saveJob('j-est')"); await wait(40);
+    assert.equal(first.exec("S.jobs['j-est'].estimatedMinutes"),75);
+    assert.equal(second.exec("S.jobs['j-est'].estimatedMinutes"),undefined);
+    assert.notEqual(first.element('#st').textContent, 'Synced across devices');
+    server.failWrites=false; first.client.reconnect(); await wait(130);
+    assert.equal(second.exec("S.jobs['j-est'].estimatedMinutes"),75);
+    first.exec("setStatus('j-est','Done')"); await wait(130);
+    const next = clone(second.exec("Object.values(S.jobs).find(j=>j.id!=='j-est')"));
+    assert.equal(next.estimatedMinutes,75); assert.equal(next.date,'2026-11-11');
+    assert.equal(next.dateRequirement,undefined); assert.equal(next.requiredDate,undefined);
+  } finally { first.dispose(); second.dispose(); }
+});
+
+test('weekly estimates survive an offline save and later sync, including an unknown estimate', async () => {
+  const server = new FakeServer(), monday=futureMonday(), requests=[]; weeklySeed(server,monday);
+  server.rows.get('jobs/old-week').data.estimatedMinutes=180;
+  const first=makeDevice(server, {}, {confirm:()=>true,fetch:weeklyFakeProvider(requests)}),second=makeDevice(server);
+  try {
+    await Promise.all([first.login(),second.login()]);first.client.auth.getSession=async()=>fakeSession();
+    first.exec(`openWeekPlanner();weekPlan.setup.monday=${JSON.stringify(monday)};weekPlan.setup.flags=[true,true,true,true,true,false,false];weekPlan.setup.clientId='c-week';weekPlan.setup.defaultMinutes='60';weekPlan.setup.text='100 Example St, Austin, TX 78701\\n200 Example St, Austin, TX 78701';weekReviewJobs();weekPlan.entries[0].estimatedMinutes='120';weekPlan.entries[1].estimatedMinutes='';weekReviewSharing()`);
+    await first.exec('weekBegin()');await first.exec('weekSuggest()');
+    assert.equal(first.exec('weekPlan.stage'),'preview'); assert.equal(first.exec('weekExistingWork(weekPlan).minutes[weekPlan.days[0]]'),180);
+    server.failWrites=true;first.exec('weekSave()');await wait(50);
+    assert.equal(first.exec('weekPlan.stage'),'saved');assert.equal(first.exec('Object.keys(pending).length'),2);
+    assert.equal(second.exec('Object.keys(S.jobs).length'),1);
+    server.failWrites=false;first.client.reconnect();await wait(160);
+    const jobs=clone(second.exec('Object.values(S.jobs)'));
+    assert.equal(jobs.find(j=>j.prop.startsWith('100 Example')).estimatedMinutes,120);
+    assert.equal(jobs.find(j=>j.prop.startsWith('200 Example')).estimatedMinutes,null);
+    assert.equal(jobs.find(j=>j.id==='old-week').estimatedMinutes,180);
+    assert.equal(second.exec('synced'),true);
+  } finally {first.dispose();second.dispose()}
+});
+
+test('a required date without a rule remains visible for correction and cannot be routed or moved', () => {
+  const server = new FakeServer(), device = makeDevice(server);
+  try {
+    device.exec("S.clients.c1={id:'c1',name:'Fictional',props:'100 Fictional St'};S.jobs.j1={id:'j1',client:'c1',date:'2026-11-04',status:'Scheduled',service:'Mow',prop:'100 Fictional St',requiredDate:'2026-11-05'};rd='2026-11-05'");
+    assert.match(device.exec("jobDateProblem(S.jobs.j1,rd)"), /no valid requirement/i);
+    assert.match(device.exec("pickCandidates()[0].problem"), /no valid requirement/i);
+    assert.match(device.exec('vDue()'), /Needs a valid requirement \(1\)/i);
+    device.exec("addStop('j1')");
+    assert.equal(device.exec('S.jobs.j1.date'), '2026-11-04');
     assert.equal(device.exec('Object.keys(pending).length'), 0);
   } finally { device.dispose(); }
 });

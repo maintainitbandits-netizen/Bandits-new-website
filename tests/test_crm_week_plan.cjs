@@ -117,3 +117,51 @@ test('a large week preserves every job and explicitly reports any overflow', () 
   assert.equal(result.unassigned.length, 50);
   assert.deepEqual(Object.values(result.counts), [100, 100, 100, 100, 100]);
 });
+
+test('known work minutes are balanced with existing workloads and hard date constraints', () => {
+  const ds = days.slice(0, 2);
+  const entries = [180, 60, 60, 60].map((estimatedMinutes, i) => ({ ...any('Job ' + i), estimatedMinutes }));
+  const result = week.suggest(entries, ds, {}, [[30, -97], [30.01, -97], [30.5, -97], [30.51, -97]], {});
+  assert.deepEqual(Object.values(result.minutes), [180, 180]);
+  assert.deepEqual(result.unassigned, []);
+  const loaded = week.suggest([{ ...any('Flexible'), estimatedMinutes: 90 }, { ...exact('Fixed', ds[0]), estimatedMinutes: 40 }], ds, { [ds[0]]: 2 }, undefined, { [ds[0]]: 240 });
+  assert.equal(loaded.assignments[0], ds[1]);
+  assert.equal(loaded.assignments[1], ds[0]);
+  assert.equal(loaded.minutes[ds[0]], 280);
+  assert.equal(loaded.minutes[ds[1]], 90);
+  const cap = week.suggest([{ ...any('Overflow'), estimatedMinutes: 10 }], ds, { [ds[0]]: 100, [ds[1]]: 100 });
+  assert.equal(cap.unassigned.length, 1);
+});
+
+test('unknown work time remains unknown and uses stop counts rather than treating it as free', () => {
+  const ds = days.slice(0, 2);
+  const result = week.suggest(Array.from({ length: 5 }, (_, i) => any('Unknown ' + i)), ds,
+    { [ds[0]]: 0, [ds[1]]: 50 }, undefined, { [ds[0]]: 600 });
+  assert.ok(result.assignments.every(d => d === ds[0]));
+  assert.equal(result.minutes[ds[0]], 600);
+  assert.equal(result.minutes[ds[1]], 0);
+  for (const invalid of [-1, 0, 1.5, 10081, '60', NaN, Infinity]) {
+    assert.throws(() => week.suggest([{ ...any('Bad'), estimatedMinutes: invalid }], ds), /whole minutes/);
+  }
+  assert.throws(() => week.suggest([any('A')], ds, {}, undefined, { [ds[0]]: -1 }), /invalid/);
+  assert.doesNotThrow(() => week.suggest([{ ...any('A'), estimatedMinutes: null }, any('B')], ds));
+});
+
+test('duration balancing never sacrifices a feasible small set of fixed days and deadlines', () => {
+  const ds = days.slice(0, 3);
+  let seed = 71159;
+  const rand = n => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed % n; };
+  const feasible = (entries, cap, i = 0) => i === entries.length || week.eligibleDays(entries[i], ds).some(day => {
+    const k = ds.indexOf(day); if (!cap[k]) return false;
+    cap[k]--; const ok = feasible(entries, cap, i + 1); cap[k]++; return ok;
+  });
+  for (let i = 0; i < 1000; i++) {
+    const base = Object.fromEntries(ds.map(d => [d, 98 + rand(3)]));
+    const entries = Array.from({ length: 1 + rand(6) }, (_, index) => {
+      const kind = rand(3), date = ds[rand(3)], estimatedMinutes = rand(4) ? 1 + rand(480) : null;
+      return { ...(kind === 0 ? any(String(index)) : kind === 1 ? deadline(String(index), date) : exact(String(index), date)), estimatedMinutes };
+    });
+    const result = week.suggest(entries, ds, base, undefined, Object.fromEntries(ds.map(d => [d, rand(1000)])));
+    assert.equal(result.unassigned.length === 0, feasible(entries, ds.map(d => 100 - base[d])), JSON.stringify({ base, entries, result }));
+  }
+});
