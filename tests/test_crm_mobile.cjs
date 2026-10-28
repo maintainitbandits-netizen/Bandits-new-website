@@ -27,12 +27,13 @@ function installFakeSupabase() {
   clients.forEach(data => rows.set(`clients/${data.id}`, { coll: 'clients', id: data.id, data }));
   jobs.forEach(data => rows.set(`jobs/${data.id}`, { coll: 'jobs', id: data.id, data }));
   const photos = new Map();
+  let signedIn = false;
   window.__mock = { rows, photos, uploadedTypes: [] };
   const client = {
     auth: {
-      getSession: async () => ({ data: { session: null } }),
-      signInWithPassword: async () => ({ data: { session: {} }, error: null }),
-      signOut: async () => ({ error: null }),
+      getSession: async () => ({ data: { session: signedIn ? { access_token: 'fictional.jwt.token' } : null } }),
+      signInWithPassword: async () => { signedIn = true; return { data: { session: { access_token: 'fictional.jwt.token' } }, error: null }; },
+      signOut: async () => { signedIn = false; return { error: null }; },
     },
     rpc: async () => ({ data: true, error: null }),
     storage: { from: () => ({
@@ -72,7 +73,7 @@ test('new CRM flows fit small screens and use only fictional mock data', { skip:
     for (const width of [320, 360, 390]) {
       const context = await browser.newContext({ viewport: { width, height: 760 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, userAgent: 'Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 Chrome/120.0 Mobile Safari/537.36' });
       const page = await context.newPage();
-      const unexpectedRequests = [], errors = [];
+      const unexpectedRequests = [], errors = [], roadRequests = [];
       page.on('pageerror', error => errors.push(error.message));
       page.on('dialog', dialog => dialog.accept());
       await context.addInitScript(installFakeSupabase);
@@ -80,6 +81,15 @@ test('new CRM flows fit small screens and use only fictional mock data', { skip:
         const url = route.request().url();
         if (url === 'https://crm.test/crm.html') return route.fulfill({ status: 200, contentType: 'text/html', body: html });
         if (url.startsWith('https://cdn.jsdelivr.net/npm/@supabase/')) return route.fulfill({ status: 200, contentType: 'application/javascript', body: '// Fake client was injected before page load.' });
+        if (url === 'https://crm.test/api/crm-route') {
+          const request = route.request();
+          assert.equal(request.method(), 'POST');
+          assert.equal(request.headers().authorization, 'Bearer fictional.jwt.token');
+          const input = request.postDataJSON(); roadRequests.push(input);
+          if (input.action === 'geocode') return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ matches: input.addresses.map((a, i) => ({ formatted: `${a}, Austin, TX 78701`, location: [30.1 + i * 0.01, -97], accuracy: 1, accuracyType: 'rooftop', ambiguous: false })) }) });
+          if (input.action === 'optimize') return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ order: input.fixedFirst ? [0, 2, 1] : [1, 2, 0] }) });
+          return route.abort();
+        }
         unexpectedRequests.push(url); return route.abort();
       });
       try {
@@ -95,12 +105,37 @@ test('new CRM flows fit small screens and use only fictional mock data', { skip:
         const sms = await page.locator('#main .card').first().getByRole('link', { name: 'Text en route' }).getAttribute('href');
         assert.match(decodeURIComponent(sms), /^sms:5125550100\?body=.*on our way/);
 
+        await page.getByRole('button', { name: 'Optimize driving route', exact: true }).click();
+        await assertNoOverflow(page, `${width} driving-route consent`);
+        assert.equal(roadRequests.length, 0);
+        assert.equal(await page.locator('#rr_opt').isVisible(), false);
+        assert.equal(await page.locator('#rr_save').isVisible(), false);
+        assert.match(await page.locator('#dlg').innerText(), /Nothing has been sent yet/);
+        await page.getByRole('button', { name: 'Look up these locations' }).click();
+        await page.waitForFunction(() => !document.querySelector('#rr_opt').hidden);
+        await assertNoOverflow(page, `${width} address-match review`);
+        assert.equal(roadRequests.length, 1); assert.equal(roadRequests[0].action, 'geocode');
+        assert.equal(roadRequests[0].addresses.length, 3);
+        assert.doesNotMatch(JSON.stringify(roadRequests[0]), /Fictional Owner|555-0100/);
+        assert.match(await page.locator('#rr_preview').innerText(), /Review address matches/);
+        await page.getByRole('button', { name: 'Matches look right — optimize' }).click();
+        await page.waitForFunction(() => !document.querySelector('#rr_save').hidden);
+        await assertNoOverflow(page, `${width} driving-route preview`);
+        assert.equal(roadRequests.length, 2); assert.equal(roadRequests[1].action, 'optimize');
+        assert.doesNotMatch(JSON.stringify(roadRequests[1]), /Example Road|Fictional Owner/);
+        assert.match(await page.locator('#rr_status').innerText(), /not saved yet/);
+        await page.getByRole('button', { name: 'Save route order', exact: true }).click();
+        await page.waitForFunction(() => document.querySelector('#rr_status').textContent.includes('Route order saved'));
+        await page.locator('#dlg').getByRole('button', { name: 'Close' }).click();
+        await page.waitForFunction(() => document.querySelector('#st').textContent === 'Synced across devices');
+        assert.match(await page.locator('#main .card').nth(1).innerText(), /300 Example Road/);
+
         await page.getByRole('button', { name: 'Paste or upload route order' }).click();
         await assertNoOverflow(page, `${width} route dialog`);
         await page.evaluate(() => { Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async () => { throw new Error('blocked'); } } }); document.execCommand = () => false; });
         await page.getByRole('button', { name: "Copy this day's locations" }).click();
         await page.waitForFunction(() => document.querySelector('#ro_copy_details').open);
-        assert.match(await page.locator('#ro_copy').inputValue(), /100 Example Road\n200 Example Road\n300 Example Road/);
+        assert.match(await page.locator('#ro_copy').inputValue(), /100 Example Road\n300 Example Road\n200 Example Road/);
         await page.locator('#ro_text').fill('300 Example Road\n100 Example Road');
         await page.getByRole('button', { name: 'Review order' }).click();
         assert.match(await page.locator('#ro_preview').innerText(), /2 matched stops/);

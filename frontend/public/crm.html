@@ -8,7 +8,7 @@
 :root{--bg:#f4f7f4;--cd:#fff;--tx:#1b261c;--mu:#667568;--ac:#2e7d32;--ac2:#e3f1e4;--bd:#d8e2d9;--rd:#c62828;--on:#fff;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 @media(prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#101611;--cd:#18211a;--tx:#e7efe8;--mu:#93a595;--ac:#66bb6a;--ac2:#1f3322;--bd:#2a382c;--rd:#ef5350;--on:#0c1a0e;color-scheme:dark}}
 :root[data-theme=dark]{--bg:#101611;--cd:#18211a;--tx:#e7efe8;--mu:#93a595;--ac:#66bb6a;--ac2:#1f3322;--bd:#2a382c;--rd:#ef5350;--on:#0c1a0e;color-scheme:dark}
-*{box-sizing:border-box}html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}[hidden]{display:none!important}html{scroll-padding-top:env(safe-area-inset-top,0px)}
 body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;padding:0 12px 40px}
 header{padding:12px 0 4px}h1{font-size:20px;margin:0}.sub{color:var(--mu);font-size:12px}
 .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:10px 0}
@@ -149,8 +149,8 @@ function vRoute(){const L=dayJobs(),u=mapsUrl(L),ad=addable(),start=!!(S.meta.st
  ${S.meta.round&&!start?'<p class="m">Add a start location to return to it.</p>':""}
  <select onchange="addStop(this.value)"><option value="">+ Move a scheduled job to this day…</option>${ad.map(j=>`<option value="${j.id}">${E(j.date+" · "+cname(j.client)+" · "+(jaddr(j)||j.service))}</option>`).join("")}</select>
  <div class="row" style="margin:0 0 8px"><button onclick="openJob(null,{date:rd})">+ New job on this day</button><button onclick="openRouteOrder()">Paste or upload route order</button></div>
- <div class="sp"><b>${L.length} stop${L.length==1?"":"s"} · ${money(L.reduce((a,j)=>a+(+j.price||0),0))}</b><span><button onclick="byZip()">Group by ZIP</button> <button class="pri" onclick="opt()">Auto-pick route</button></span></div>
- <p class="m" id="rmsg"></p><p class="m">House addresses work for Google Maps and manual ordering. Auto-pick uses GPS coordinates only. Your start location is shared with your team. Text en route opens a draft in your messaging app; you tap Send.</p>
+ <div class="sp" style="flex-wrap:wrap"><b>${L.length} stop${L.length==1?"":"s"} · ${money(L.reduce((a,j)=>a+(+j.price||0),0))}</b><span class="row" style="margin:0"><button onclick="byZip()">Group by ZIP</button> <button onclick="opt()">Auto-pick route</button> <button class="pri" onclick="openRoadRoute()">Optimize driving route</button></span></div>
+ <p class="m" id="rmsg" role="status" aria-live="polite"></p><p class="m">Driving routes use Simple Routing and, for street addresses, Geocodio after you confirm. Auto-pick uses GPS coordinates only and estimates straight-line distance. Your start location is shared with your team. Text en route opens a draft in your messaging app; you tap Send.</p>
  ${u?`<p><a class="btn pri" href="${u}" target="_blank" rel="noopener">Open route in Google Maps</a>${count>limit?`<span class="m"> First ${limit} mapped stops only.</span>`:""}${waypoints>3?'<span class="m"> Check every stop in Google Maps; mobile browsers may omit some.</span>':""}</p>`:""}
  ${L.map((j,i)=>{const a=jaddr(j),c=S.clients[j.client]||{},sms=enRouteText(c);return`<div class="card"><div class="sp"><b>${i+1}. ${E(cname(j.client))}</b><span><button onclick="mvStop('${j.id}',-1)">▲</button> <button onclick="mvStop('${j.id}',1)">▼</button></span></div>
  <div class="m">${E(a||"No address")}</div><div class="m">${E(j.service)} · ${money(j.price)} · <span class="chip">${j.status}</span></div>
@@ -176,6 +176,99 @@ function opt(){const L=dayJobs();if(L.length<2){rmsg("Add at least 2 stops first
  let first=null,s=start;if(!s){first=pts.shift();s=first[1]}
  const o=tsp(s,pts.map(x=>x[1]),!!start&&!!S.meta.round),res=(first?[first[0]]:[]).concat(o.map(i=>pts[i][0]));
  order(res);rmsg("Route ordered by approximate straight-line distance. Check drive times in Google Maps.")}
+/* Optional road-network routing: explicitly share only locations, review matches,
+   and save only after checking the selected day's snapshot has not changed. */
+const ROAD_STOP_LIMIT=100;
+let roadSeq=0,roadPlan=null,roadBusy=false;
+function roadSnapshot(){
+ if(!db||!hasSnapshot||!synced)throw new Error("Wait until the CRM says Synced across devices before planning a driving route.");
+ const stops=dayJobs();if(stops.length<2)throw new Error("Add at least 2 stops first.");
+ if(stops.length>ROAD_STOP_LIMIT)throw new Error("Driving routes are limited to 100 stops at a time. Use a smaller day or order stops manually.");
+ if(stops.some(j=>typeof j.id!=="string"||!j.id||S.jobs[j.id]!==j)||new Set(stops.map(j=>j.id)).size!==stops.length)throw new Error("Some jobs have invalid or duplicate IDs. Do not reorder until the CRM data is corrected.");
+ const start=String(S.meta.start||"").trim(),round=!!S.meta.round;if(round&&!start)throw new Error("Add a start location to return to it, or turn off Return to start.");
+ const snapshot={date:rd,start,round,stops:stops.map(j=>({id:j.id,client:j.client,clientName:cname(j.client),date:j.date,status:j.status,service:j.service,location:String(jaddr(j)||"").trim(),ord:j.ord==null?null:j.ord}))};
+ const all=(start?[start]:[]).concat(snapshot.stops.map(j=>j.location));
+ all.forEach(a=>{if(!a)throw new Error("Add a location to every stop before planning a driving route.");
+  if(a.length>500||/[\x00-\x1f\x7f]/.test(a))throw new Error("A location is too long or contains an unsupported character.");
+  if(!coords(a)&&/^\s*[+-]?\d+(?:\.\d+)?\s*,\s*[+-]?\d+(?:\.\d+)?\s*$/.test(a))throw new Error("A GPS coordinate is invalid or out of range. Use latitude, longitude.")});
+ return snapshot
+}
+function roadAssert(p){let next;try{next=roadSnapshot()}catch(e){throw new Error(e.message||"The route changed. Close and try again.")}
+ if(JSON.stringify(next)!==JSON.stringify(p.snapshot))throw new Error("The route changed. Close this window and plan it again.")}
+function roadCurrent(seq,p){return seq===roadSeq&&roadPlan===p&&$("#dlg").open&&!!$("#rr_status")}
+function roadSetBusy(value){roadBusy=value;["#rr_send","#rr_opt","#rr_save"].forEach(id=>{const b=$(id);if(b)b.disabled=value})}
+function openRoadRoute(){
+ let snapshot;try{snapshot=roadSnapshot()}catch(e){rmsg(e.message);return}
+ const inputs=(snapshot.start?[{label:"Start",raw:snapshot.start}]:[]).concat(snapshot.stops.map(j=>({label:j.clientName,raw:j.location})));
+ const lookups=[],keys=new Map(),locations=inputs.map(item=>{const p=coords(item.raw);if(p)return Object.assign({},item,{point:p});
+  const k=importKey(item.raw);if(!keys.has(k)){keys.set(k,lookups.length);lookups.push(item.raw)}return Object.assign({},item,{lookup:keys.get(k)})});
+ const p={snapshot,locations,lookups,matches:null,matchesOK:false,points:null,order:null};roadPlan=p;roadSeq++;roadBusy=false;
+ dlg(`<h2>Optimize driving route</h2><p class="m">${E(snapshot.date)} · ${snapshot.stops.length} stops. ${snapshot.start?"Uses your chosen start.":"With no start set, the current first stop stays first."} ${snapshot.round?"The route returns to your start.":"The route ends at the last stop."}</p>
+ <p class="m">When you continue, GPS locations go to Simple Routing. ${lookups.length?"The "+lookups.length+" unique street address"+(lookups.length===1?" goes":"es go")+" to Geocodio for lookup; you will review every match before routing.":"No street addresses need a lookup."} Separate customer names, phone numbers and notes are not sent, but anything typed in a location field is included. Both services process the locations.</p>
+ <p class="m">Use complete addresses with city and ZIP, and check each match. Simple Routing uses road estimates, not live traffic. Planning uses your service quotas; retries can count too. Change the order on only one device at a time.</p>
+ ${lookups.length?`<details><summary>Addresses to look up (${lookups.length})</summary><ul>${lookups.map(a=>`<li>${E(a)}</li>`).join("")}</ul></details>`:""}
+ <div class="bt"><button class="pri" id="rr_send" onclick="roadBegin()">${lookups.length?"Look up these locations":"Send GPS points and optimize"}</button><button class="pri" id="rr_opt" hidden onclick="roadOptimize()">Matches look right — optimize</button><button class="pri" id="rr_save" hidden onclick="roadSave()">Save route order</button><button onclick="closeD()">Close</button></div>
+ <p class="m" id="rr_status" role="status" aria-live="polite">${lookups.length?"Nothing has been sent yet. Review the addresses, then tap Look up these locations.":"Nothing has been sent yet. Continue only if you want to share these GPS locations."}</p><div id="rr_preview"></div>`)
+}
+async function roadCall(p,seq,body){
+ roadAssert(p);let session;try{session=await sb.auth.getSession()}catch(e){throw new Error("Could not check your CRM session. Sign in and try again.")}
+ if(!roadCurrent(seq,p))return null;roadAssert(p);
+ const token=session&&session.data&&session.data.session&&session.data.session.access_token;
+ if(session&&session.error||!token)throw new Error("Your CRM session is unavailable. Sign in and try again.");
+ let response;try{response=await fetch("/api/crm-route",{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+token},body:JSON.stringify(body),cache:"no-store"})}
+ catch(e){throw new Error("Could not reach the secure routing service. Check your connection and try again.")}
+ if(!roadCurrent(seq,p))return null;let data;try{data=await response.json()}catch(e){throw new Error("The secure routing service is unavailable. No route was changed.")}
+ if(!response.ok)throw new Error(data&&typeof data.error==="string"?data.error.slice(0,240):"The routing service could not complete this request.");
+ return data
+}
+async function roadBegin(){
+ const p=roadPlan,seq=roadSeq;if(!p||roadBusy||!roadCurrent(seq,p))return;
+ try{roadAssert(p)}catch(e){$("#rr_status").textContent=e.message;return}
+ if(!p.lookups.length){p.points=p.locations.map(x=>x.point);return roadOptimize()}
+ roadSetBusy(true);$("#rr_status").textContent="Looking up addresses with Geocodio…";
+ try{
+  const data=await roadCall(p,seq,{action:"geocode",addresses:p.lookups});if(!roadCurrent(seq,p)||!data)return;roadAssert(p);
+  if(!Array.isArray(data.matches)||data.matches.length!==p.lookups.length)throw new Error("The address lookup was incomplete. No route was changed.");
+  p.matches=data.matches;p.points=p.locations.map(x=>x.point||(data.matches[x.lookup]&&data.matches[x.lookup].location));
+  let missing=false,imprecise=false;const rows=p.locations.filter(x=>x.lookup!==undefined).map(x=>{
+   const m=data.matches[x.lookup],valid=m&&point(m.location)&&typeof m.formatted==="string"&&m.formatted.trim();if(!valid)missing=true;
+   const type=valid?String(m.accuracyType||""):"",usable=valid&&["rooftop","point","range_interpolation"].includes(type);if(valid&&!usable)imprecise=true;
+   const warning=valid&&usable&&(typeof m.accuracy!=="number"||m.accuracy<0.9||m.ambiguous||type==="range_interpolation")?' <b>Estimated or uncertain match — check carefully.</b>':"";
+   const quality=valid?`<br>Location precision: ${E(type?type.replace(/_/g," "):"unknown")}`:"";
+   const fix=valid&&!usable?' <b>Too imprecise for routing — add city and ZIP or use GPS coordinates.</b>':"";
+   return `<li><b>${E(x.label)}</b><br>Saved: ${E(x.raw)}<br>Match: ${valid?E(m.formatted):"Not found — edit this address before routing."}${quality}${warning}${fix}</li>`
+  }).join("");
+  $("#rr_preview").innerHTML=`<h3>Review address matches</h3><p class="m">A match can be wrong even if it looks precise. Compare every saved address with its match.</p><ol>${rows}</ol>`;
+  p.matchesOK=!missing&&!imprecise;$("#rr_send").hidden=true;$("#rr_opt").hidden=!p.matchesOK;
+  $("#rr_status").textContent=missing||imprecise?"Some locations were not found or are too imprecise. Close this window, correct the addresses and try again. No route was changed.":"Review every match. If they are right, tap Matches look right — optimize.";
+ }catch(e){if(roadCurrent(seq,p))$("#rr_status").textContent=e.message||"Could not look up addresses. No route was changed."}
+ finally{if(roadCurrent(seq,p))roadSetBusy(false)}
+}
+async function roadOptimize(){
+ const p=roadPlan,seq=roadSeq;if(!p||roadBusy||!roadCurrent(seq,p))return;
+ try{roadAssert(p);if((p.lookups.length&&!p.matchesOK)||!Array.isArray(p.points)||p.points.length!==p.locations.length||!p.points.every(point))throw new Error("Review and resolve every address match first.")}
+ catch(e){$("#rr_status").textContent=e.message;return}
+ const hasStart=!!p.snapshot.start,stops=p.points.slice(hasStart?1:0),fixedFirst=!hasStart,start=hasStart?p.points[0]:stops[0];
+ roadSetBusy(true);$("#rr_status").textContent="Optimizing the driving order with Simple Routing…";
+ try{
+  const data=await roadCall(p,seq,{action:"optimize",start,stops,fixedFirst,returnToStart:hasStart&&p.snapshot.round});if(!roadCurrent(seq,p)||!data)return;roadAssert(p);
+  const indices=data.order;if(!Array.isArray(indices)||indices.length!==stops.length||new Set(indices).size!==stops.length||indices.some(i=>!Number.isInteger(i)||i<0||i>=stops.length)||(fixedFirst&&indices[0]!==0))throw new Error("The driving order was incomplete. No route was changed.");
+  p.order=indices.slice();const rows=indices.map(i=>{const j=p.snapshot.stops[i];return `<li>${E(j.clientName)} — ${E(j.location)}</li>`}).join("");
+  $("#rr_preview").innerHTML=`<h3>Proposed driving order</h3><p class="m">Review the stops before saving. No jobs or dates will be changed.</p><ol>${rows}</ol>`;
+  $("#rr_send").hidden=true;$("#rr_opt").hidden=true;$("#rr_save").hidden=false;
+  $("#rr_status").textContent="Driving order ready to review. It is not saved yet.";
+ }catch(e){if(roadCurrent(seq,p))$("#rr_status").textContent=e.message||"Could not optimize the route. No route was changed."}
+ finally{if(roadCurrent(seq,p))roadSetBusy(false)}
+}
+function roadSave(){
+ const p=roadPlan,seq=roadSeq;if(!p||roadBusy||!roadCurrent(seq,p)||!Array.isArray(p.order))return;
+ try{roadAssert(p);if(!confirm("Save this driving order for "+p.order.length+" stops on "+p.snapshot.date+"? No jobs will be moved or deleted."))return;roadAssert(p)}
+ catch(e){$("#rr_status").textContent=e.message;return}
+ const updates=p.order.map((idx,i)=>Object.assign({},S.jobs[p.snapshot.stops[idx].id],{ord:i})).filter((j,i)=>S.jobs[p.snapshot.stops[p.order[i]].id].ord!==i);
+ if(updates.length&&!importStorageAvailable("jobs",updates)){$("#rr_status").textContent="Not enough device storage to safely save this order. Free space and try again.";return}
+ roadPlan=null;$("#rr_save").hidden=true;if(updates.length)wBatch("jobs",updates);$("#rr_preview").innerHTML="";
+ $("#rr_status").textContent=storageOK?"Route order saved. Keep this page open until it says Synced across devices.":"The order is in memory but could not be saved locally. Use Backup and keep this page open until synced.";render()
+}
 function vJobs(){const od=today();let L=arr(S.jobs).filter(j=>jf=="All"||(jf=="Open"?j.status!="Paid":j.status==jf)).sort((a,b)=>a.date>b.date?1:-1);
  return`<select onchange="jf=this.value;render()">${["Open",...JS,"All"].map(o=>`<option${o==jf?" selected":""}>${o}</option>`).join("")}</select>`+(L.map(j=>{const late=j.status=="Scheduled"&&j.date<od,nx=JS[JS.indexOf(j.status)+1];
  return`<div class="card" onclick="openJob('${j.id}')"><div class="sp"><b>${E(cname(j.client))}</b><b>${money(j.price)}</b></div><div class="m">${E(j.service)}${j.prop?" · "+E(j.prop):""}</div>
@@ -186,7 +279,7 @@ function spawn(j){if(j.repeat&&j.repeat!="One-time"&&!j.spawned&&j.status!="Sche
 function setStatus(id,s){const j=S.jobs[id];j.status=s;w("jobs",j);spawn(j);render()}
 /* dialogs */
 const dlg=h=>{clearPhotoView();$("#dlg").innerHTML=h;if(!$("#dlg").open)$("#dlg").showModal()},closeD=()=>{$("#dlg").close();later()};
-$("#dlg").addEventListener("close",()=>{clearPhotoView();if(pend)setTimeout(later,0)});
+$("#dlg").addEventListener("close",()=>{roadSeq++;roadPlan=null;roadBusy=false;clearPhotoView();if(pend)setTimeout(later,0)});
 document.addEventListener("focusout",()=>setTimeout(()=>{if(pend&&!busy())render()},80));
 const bt=(id,key,del)=>`<div class="bt"><button class="pri" onclick="${key}('${id||""}')">Save</button>${id&&del?`<button class="dg" onclick="${del}('${id}')">Delete</button>`:""}<button onclick="closeD()">Cancel</button></div>`;
 function openClient(id){const c=id?S.clients[id]:{type:TY[0],stage:"Lead"},v=k=>E(c[k]);
