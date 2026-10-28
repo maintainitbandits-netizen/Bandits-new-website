@@ -48,7 +48,12 @@ async function makeBrowser() {
   process.env.AWS_LAMBDA_JS_RUNTIME ||= 'nodejs22.x';
   const executablePath = await chromium.executablePath();
   process.env.LD_LIBRARY_PATH = `/tmp/al2023/lib:${process.env.LD_LIBRARY_PATH || ''}`;
-  return playwright.chromium.launch({ executablePath, args: chromium.args.filter(a => a !== '--single-process'), headless: true });
+  // Retry only the sandbox Chromium binary's occasional startup SIGSEGV;
+  // application failures and all browser assertions remain fatal.
+  for (let attempt = 0; ; attempt++) {
+    try { return await playwright.chromium.launch({ executablePath, args: chromium.args.filter(a => a !== '--single-process'), headless: true }); }
+    catch (error) { if (attempt >= 2 || !String(error).includes('SIGSEGV')) throw error; }
+  }
 }
 async function setupPage(browser, width, provider = {}) {
   const context = await browser.newContext({ viewport: { width, height: 760 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
@@ -281,6 +286,81 @@ test('planner can start with no clients and create them only after confirmation'
       assert.equal(clients.length, 2); assert.equal(jobs.length, 3);
       assert.ok(clients.every(c => c.stage === 'Won' && c.type === 'Property manager'));
       assert.equal(jobs.filter(j => j.prop.startsWith('100 Example'))[0].client, jobs.filter(j => j.prop.startsWith('100 Example'))[1].client);
+      assert.deepEqual(errors, []);
+    } finally { await context.close(); }
+  } finally { await browser.close(); }
+});
+
+test('time estimates can be edited, moved and saved with honest unknown workload', { skip: !canRun && 'Install browser dependencies externally' }, async () => {
+  const browser = await makeBrowser();
+  try {
+    for (const width of [320, 390]) {
+      const { context, page, errors } = await setupPage(browser, width);
+      try {
+        await page.evaluate(() => { S.jobs.old1.estimatedMinutes = 180; __mock.rows.get('jobs/old1').data.estimatedMinutes = 180; });
+        await page.locator('.bar').getByRole('button', { name:'Plan workweek' }).click();
+        await page.locator('#wk_monday').fill('2026-11-02');
+        await page.locator('#wk_client').selectOption('c1');
+        await page.locator('#wk_text').fill('100 Example Road, Austin, TX 78701 | exact 2026-11-04\n200 Example Road, Austin, TX 78701\n300 Example Road, Austin, TX 78701');
+        await page.locator('#wk_minutes').fill('0');
+        await page.getByRole('button', { name:'Review jobs and dates' }).click();
+        assert.match(await page.locator('#wk_status').innerText(), /whole number of minutes/i);
+        await page.locator('#wk_minutes').fill('60');
+        await page.getByRole('button', { name:'Review jobs and dates' }).click();
+        await page.locator('#wk_entries details').nth(0).locator('summary').click();
+        await page.locator('#wk_detail_0 input[type=number]').fill('10081');
+        await page.getByRole('button', { name:'Review address sharing' }).click();
+        assert.match(await page.locator('#wk_status').innerText(), /Job 1.*whole number/is);
+        await page.locator('#wk_detail_0 input[type=number]').fill('120');
+        await page.locator('#wk_entries details').nth(1).locator('summary').click();
+        await page.locator('#wk_detail_1 input[type=number]').fill('');
+        await page.getByRole('button', { name:'Review address sharing' }).click();
+        await page.getByRole('button', { name:'Look up locations' }).click();
+        await page.getByRole('button', { name:'Matches look right — suggest week' }).click();
+        await page.waitForSelector('#wk_save');
+        await noOverflow(page, `${width} estimated preview`);
+        assert.match(await page.locator('#dlg').innerText(), /without estimates|Work time unknown/i);
+        assert.match(await page.locator('#dlg').innerText(), /travel and breaks/i);
+        assert.deepEqual(await page.evaluate(() => weekPlan.entries.map(e => e.estimatedMinutes)), [120, null, 60]);
+        const before = await page.evaluate(() => ({ day:weekPlan.days.find(d => weekPlan.orders[d].includes(2)), orders:weekPlan.orders }));
+        assert.ok(before.orders['2026-11-04'].includes(0));
+        if (before.day !== '2026-11-04') {
+          await page.locator('#dlg select[data-i="2"]').selectOption('2026-11-04');
+          if (await page.locator('#wk_reopt').isVisible()) {
+            await page.getByRole('button', { name:'Re-optimize changed days' }).click();
+            await page.waitForFunction(() => !document.querySelector('#wk_save').disabled);
+          }
+        }
+        assert.match(await page.locator('#dlg').innerText(), /Estimated work: 6 hrs; \d+ without estimates/i);
+        await page.getByRole('button', { name:'Save all jobs' }).click();
+        await page.waitForFunction(() => document.querySelector('#wk_status').textContent.includes('Added 3 jobs'));
+        await page.waitForFunction(() => document.querySelector('#st').textContent === 'Synced across devices');
+        const jobs = await page.evaluate(() => [...__mock.rows.values()].filter(r => r.coll === 'jobs').map(r => r.data));
+        assert.equal(jobs.find(j => j.prop.startsWith('100 Example')).estimatedMinutes, 120);
+        assert.equal(jobs.find(j => j.prop.startsWith('100 Example')).date, '2026-11-04');
+        assert.equal(jobs.find(j => j.prop.startsWith('200 Example')).estimatedMinutes, null);
+        assert.equal(jobs.find(j => j.prop.startsWith('300 Example')).estimatedMinutes, 60);
+        assert.equal(jobs.find(j => j.prop.startsWith('300 Example')).date, '2026-11-04');
+        assert.deepEqual(errors, []);
+      } finally { await context.close(); }
+    }
+  } finally { await browser.close(); }
+});
+
+test('a changed existing estimate makes a suggested week stale before saving', { skip: !canRun && 'Install browser dependencies externally' }, async () => {
+  const browser = await makeBrowser();
+  try {
+    const { context, page, errors } = await setupPage(browser, 320);
+    try {
+      await beginWeek(page, '100 Example Road, Austin, TX 78701\n200 Example Road, Austin, TX 78701');
+      await page.getByRole('button', { name:'Review address sharing' }).click();
+      await page.getByRole('button', { name:'Look up locations' }).click();
+      await page.getByRole('button', { name:'Matches look right — suggest week' }).click();
+      await page.waitForSelector('#wk_save');
+      await page.evaluate(() => { S.jobs.old1.estimatedMinutes = 30; });
+      await page.getByRole('button', { name:'Save all jobs' }).click();
+      assert.match(await page.locator('#wk_status').innerText(), /CRM changed/i);
+      assert.equal(await page.evaluate(() => __mock.writes.length), 0);
       assert.deepEqual(errors, []);
     } finally { await context.close(); }
   } finally { await browser.close(); }

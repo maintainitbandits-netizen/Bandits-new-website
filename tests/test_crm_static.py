@@ -107,7 +107,7 @@ class CRMStaticTests(unittest.TestCase):
         self.assertIn('bucket.download(path,{}, {cache:"no-store"})', self.source)
         self.assertNotIn('getPublicUrl', self.source)
         self.assertIn('Photo files are not included', self.source)
-        self.assertIn('not automatically deleted from storage', self.source)
+        self.assertIn('photo files are NOT deleted from storage', self.source)
         sql = (ROOT / 'supabase/crm_job_photos.sql').read_text(encoding='utf-8')
         self.assertIn('SECURITY INVOKER', sql)
         self.assertIn('AS RESTRICTIVE', sql)

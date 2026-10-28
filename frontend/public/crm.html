@@ -54,7 +54,7 @@ dialog::backdrop{background:#0008}.bt{display:flex;gap:6px;flex-wrap:wrap}
 const $=s=>document.querySelector(s),E=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const ST=["Lead","Quoted","Won","Recurring","Lost"],JS=["Scheduled","Done","Invoiced","Paid"],RP=["One-time","Weekly","Every 2 weeks","Monthly"],
 TY=["Property manager","Homeowner","Realtor / investor","STR host","Commercial","Other / unknown"],
-SV=["Make-ready cleanup","Mow / edge / blow","Mulch / bed refresh","Trim / prune","Haul-off","Sod / seed","Pressure wash","Other"],TABS=["Pipeline","Clients","Properties","Route","Jobs"],
+SV=["Make-ready cleanup","Mow / edge / blow","Mulch / bed refresh","Trim / prune","Haul-off","Sod / seed","Pressure wash","Other"],TABS=["Pipeline","Clients","Properties","Route","Jobs","Due & overdue"],
 DEF="Mow | 55\nMulch per yard | 85\nBed cleanup | 60\nTrim | 75\nHaul-off | 120\nPressure wash | 150\nMake-ready flat | 250";
 let S={clients:{},jobs:{},meta:{}},db=null,synced=false,tab="Pipeline",jf="Open",q="",pend=false,known={};
 const p2=n=>String(n).padStart(2,"0"),fd=d=>d.getFullYear()+"-"+p2(d.getMonth()+1)+"-"+p2(d.getDate()),today=()=>fd(new Date());
@@ -71,8 +71,12 @@ function dateProblem(rule,required,date){
  if(rule==="exact"&&date!==required)return "This job must be done on "+required+".";
  return ""
 }
-const jobDateProblem=(j,date)=>dateProblem(j.dateRequirement||"any",j.requiredDate||"",date);
+const jobDateProblem=(j,date)=>!j.dateRequirement&&j.requiredDate?"This job has a required date but no valid requirement. Edit the job before routing or moving it.":dateProblem(j.dateRequirement||"any",j.requiredDate||"",date);
 const jobDateLabel=j=>j.dateRequirement==="deadline"?"Due by "+(j.requiredDate||"(date missing)"):j.dateRequirement==="exact"?"Must be on "+(j.requiredDate||"(date missing)"):"";
+const MAX_ESTIMATE_MINUTES=10080;
+function parseEstimate(value){const text=String(value==null?"":value).trim();if(!text)return null;const n=Number(text);if(!/^\d+$/.test(text)||!Number.isSafeInteger(n)||n<1||n>MAX_ESTIMATE_MINUTES)throw new Error("Enter a whole number of minutes from 1 to "+MAX_ESTIMATE_MINUTES+", or leave the estimate blank.");return n}
+const storedEstimate=value=>Number.isSafeInteger(value)&&value>=1&&value<=MAX_ESTIMATE_MINUTES?value:null;
+function estimateText(minutes){if(minutes==null)return "No estimate";const hours=Math.floor(minutes/60),rest=minutes%60;return (hours?hours+" hr"+(hours===1?"":"s"):"")+(hours&&rest?" ":"")+(rest?rest+" min":"")||"0 min"}
 const arr=o=>Object.values(o),money=n=>"$"+(+n||0).toLocaleString("en-US",{maximumFractionDigits:2}),uid=p=>p+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 const props=c=>(c&&c.props||"").split("\n").map(s=>s.trim()).filter(Boolean),same=(a,b)=>(a||"").trim().toLowerCase()==(b||"").trim().toLowerCase();
 const jobsOf=id=>arr(S.jobs).filter(j=>j.client==id),unp=js=>js.filter(j=>j.status=="Done"||j.status=="Invoiced").reduce((a,j)=>a+(+j.price||0),0);
@@ -127,11 +131,11 @@ function render(){pend=false;head();
  const L=arr(S.clients),J=arr(S.jobs);
  $("#stats").innerHTML=[[L.filter(c=>c.stage=="Lead"||c.stage=="Quoted").length,"Open leads"],[L.filter(c=>c.stage=="Recurring").length,"Recurring"],[J.filter(j=>j.status=="Scheduled").length,"Scheduled"],[money(unp(J)),"Unpaid"]].map(a=>`<div class="stat"><b>${a[0]}</b><span>${a[1]}</span></div>`).join("");
  $("#tabs").innerHTML=TABS.map(t=>`<button class="${t==tab?"on":""}" onclick="tab='${t}';render()">${t}</button>`).join("");
- $("#main").innerHTML=({Pipeline:vPipe,Clients:vClients,Properties:vProps,Route:vRoute,Jobs:vJobs})[tab]();
+ $("#main").innerHTML=({Pipeline:vPipe,Clients:vClients,Properties:vProps,Route:vRoute,Jobs:vJobs,"Due & overdue":vDue})[tab]();
  if(tab=="Clients")clist()}
 const sorted=o=>arr(o).sort((a,b)=>(a.name||"").localeCompare(b.name||""));
 function vPipe(){return`<div class="board">${ST.map((s,i)=>{const cs=sorted(S.clients).filter(c=>c.stage==s);
- return`<div class="col"><h3>${s}<span class="m">${cs.length}</span></h3>${cs.map(c=>{const n=nextJob(c.id);
+ return`<div class="col"><h3>${s}<span class="m">${cs.length}</span></h3>${s==="Lead"?'<button class="dg" onclick="openLeadDeletion()">Select leads to delete</button>':""}${cs.map(c=>{const n=nextJob(c.id);
  return`<div class="card" onclick="openClient('${c.id}')"><b>${E(c.name)}</b><div class="m">${E(props(c)[0]||"No address")}</div><div class="m">${n?"Next: "+E(n.date+" · "+n.service):"No job scheduled"}</div>
  <div class="mv"><span>${i>0?`<button onclick="event.stopPropagation();mv('${c.id}',-1)">◀</button>`:""}</span><span>${i<4?`<button onclick="event.stopPropagation();mv('${c.id}',1)">▶</button>`:""}</span></div></div>`}).join("")||'<p class="m">Empty</p>'}</div>`}).join("")}</div>`}
 function mv(id,d){const c=S.clients[id];c.stage=ST[ST.indexOf(c.stage)+d];w("clients",c);render()}
@@ -139,11 +143,11 @@ function vClients(){return`<input id="q" type="search" placeholder="Search clien
 function clist(){const k=q.toLowerCase(),L=sorted(S.clients).filter(c=>!k||[c.name,c.contact,c.phone,c.email,c.props,c.notes,c.type].join(" ").toLowerCase().includes(k));
  $("#cl").innerHTML=L.map(c=>{const js=jobsOf(c.id),u=unp(js);return`<div class="card" onclick="openClient('${c.id}')"><div class="sp"><b>${E(c.name)}</b><span><span class="chip">${E(c.stage)}</span></span></div>
  <div class="m">${E(c.type)}${c.contact?" · "+E(c.contact):""}</div><div class="m">${js.length} job${js.length==1?"":"s"} · Unpaid ${money(u)}</div>
- <div class="row">${c.phone?`<a href="tel:${E(c.phone)}" onclick="event.stopPropagation()">📞 Call</a>`:""}${c.email?`<a href="mailto:${E(c.email)}" onclick="event.stopPropagation()">✉️ Email</a>`:""}<a href="#" onclick="event.stopPropagation();event.preventDefault();openJob(null,{client:'${c.id}'})">+ Job</a></div></div>`}).join("")||'<p class="m">No clients yet. Tap + Client.</p>'}
-function vProps(){const h=sorted(S.clients).map(c=>{const ps=props(c);if(!ps.length)return"";return`<h3>${E(c.name)}</h3>`+ps.map(p=>{
+ <div class="row">${c.phone?`<a href="tel:${E(c.phone)}" onclick="event.stopPropagation()">📞 Call</a>`:""}${c.email?`<a href="mailto:${E(c.email)}" onclick="event.stopPropagation()">✉️ Email</a>`:""}<a href="#" onclick="event.stopPropagation();event.preventDefault();openJob(null,{client:'${c.id}'})">+ Job</a><button class="dg" data-client="${E(c.id)}" onclick="event.stopPropagation();delClient(this.dataset.client)">Delete client</button></div></div>`}).join("")||'<p class="m">No clients yet. Tap + Client.</p>'}
+function vProps(){const h=sorted(S.clients).map(c=>{const ps=props(c);if(!ps.length)return"";return`<h3>${E(c.name)}</h3>`+ps.map((p,i)=>{
  const js=jobsOf(c.id).filter(j=>same(j.prop,p)),last=js.filter(j=>j.status!="Scheduled").sort((a,b)=>a.date<b.date?1:-1)[0],n=nextJob(c.id,p);
  return`<div class="card"><b>${E(p)}</b><div class="m">Last service: ${last?E(last.date+" · "+last.service):"—"}</div><div class="m">Next: ${n?E(n.date+" · "+n.service):"—"}</div><div class="m">Unpaid ${money(unp(js))}</div>
- <div class="row"><a href="#" onclick="event.preventDefault();openJob(null,{client:'${c.id}',prop:this.dataset.p})" data-p="${E(p)}">+ Job</a></div></div>`}).join("")}).join("");return h||'<p class="m">No properties yet. Add addresses to a client.</p>'}
+ <div class="row"><a href="#" onclick="event.preventDefault();openJob(null,{client:'${c.id}',prop:this.dataset.p})" data-p="${E(p)}">+ Job</a><button class="dg" data-client="${E(c.id)}" data-index="${i}" onclick="deleteProperty(this.dataset.client,+this.dataset.index)">Delete property</button></div></div>`}).join("")}).join("");return h||'<p class="m">No properties yet. Add addresses to a client.</p>'}
 const A=a=>/^-?\d+(\.\d+)?,\s*-?\d+(\.\d+)?$/.test(a.trim())||/\b\d{5}\b/.test(a)||/\bTX\b|Texas/i.test(a)?a:a+", Austin, TX",zip=a=>(String(a).match(/\b\d{5}\b/)||["99999"])[0];
 const dayJobs=()=>arr(S.jobs).filter(j=>j.date==rd&&(j.status=="Scheduled"||j.status=="Done")).sort((a,b)=>(a.ord==null?999:a.ord)-(b.ord==null?999:b.ord)||jaddr(a).localeCompare(jaddr(b)));
 const routeTail=date=>arr(S.jobs).filter(j=>j.date===date&&(j.status==="Scheduled"||j.status==="Done")).reduce((n,j)=>Math.max(n,j.ord==null?999:(Number.isFinite(+j.ord)?+j.ord:999)),-1);
@@ -158,19 +162,20 @@ function enRouteText(c){
  const body="Hi! This is Maintain It Bandits. We're on our way to your property now.";
  return "sms:"+number+(ios?"&":"?")+"body="+encodeURIComponent(body)
 }
-function vRoute(){const L=dayJobs(),u=mapsUrl(L),ad=addable(),start=!!(S.meta.start||"").trim(),round=start&&!!S.meta.round,limit=round?9:10,count=L.filter(j=>jaddr(j)).length,mapped=Math.min(count,limit),waypoints=round?mapped:Math.max(0,mapped-(start?1:2));
+function vRoute(){const L=dayJobs(),u=mapsUrl(L),ad=addable(),start=!!(S.meta.start||"").trim(),round=start&&!!S.meta.round,limit=round?9:10,count=L.filter(j=>jaddr(j)).length,mapped=Math.min(count,limit),waypoints=round?mapped:Math.max(0,mapped-(start?1:2)),minutes=L.reduce((n,j)=>n+(storedEstimate(j.estimatedMinutes)||0),0),unknown=L.filter(j=>!storedEstimate(j.estimatedMinutes)).length;
  return`<label>Date<input type="date" value="${rd}" onchange="rd=this.value||today();render()"></label>
  <label>Start location<input value="${E(S.meta.start)}" placeholder="Shop, yard or home address" onchange="S.meta.start=this.value;wm();render()"></label>
  <div class="row"><button onclick="useLoc()">📍 Use my location</button><label style="display:flex;gap:6px;align-items:center;margin:0"><input type="checkbox" style="width:auto;margin:0" ${S.meta.round?"checked":""} onchange="S.meta.round=this.checked;wm();render()"> Return to start</label></div>
  ${S.meta.round&&!start?'<p class="m">Add a start location to return to it.</p>':""}
  <select onchange="addStop(this.value)"><option value="">+ Move a scheduled job to this day…</option>${ad.map(j=>`<option value="${j.id}">${E(j.date+" · "+cname(j.client)+" · "+(jaddr(j)||j.service))}</option>`).join("")}</select>
  <div class="row" style="margin:0 0 8px"><button onclick="openJob(null,{date:rd})">+ New job on this day</button><button onclick="openWeekPlanner()">Plan workweek</button><button onclick="openRouteOrder()">Paste or upload route order</button></div>
- <div class="sp" style="flex-wrap:wrap"><b>${L.length} stop${L.length==1?"":"s"} · ${money(L.reduce((a,j)=>a+(+j.price||0),0))}</b><span class="row" style="margin:0"><button onclick="byZip()">Group by ZIP</button> <button onclick="opt()">Auto-pick route</button> <button onclick="openRoadRoute()">Optimize driving route</button> <button class="pri" onclick="openPickRoute()">Pick addresses to route</button></span></div>
+ <div class="sp" style="flex-wrap:wrap"><b>${L.length} stop${L.length==1?"":"s"} · ${money(L.reduce((a,j)=>a+(+j.price||0),0))}</b><span class="row" style="margin:0"><button onclick="byZip()">Group by ZIP</button> <button onclick="opt()">Auto-pick route</button> <button onclick="openRoadRoute()">Optimize driving route</button> <button onclick="openDayNext()">Next stop for this day</button> <button class="pri" onclick="openPickRoute()">Pick addresses to route</button></span></div>
+ <p class="m">Estimated work on this day: ${E(estimateText(minutes))} known · ${unknown} stop${unknown===1?"":"s"} without an estimate. Includes scheduled and done stops; excludes travel, breaks and live traffic.</p>
  <p class="m" id="rmsg" role="status" aria-live="polite"></p><p class="m">Driving routes use Simple Routing and, for street addresses, Geocodio after you confirm. Auto-pick uses GPS coordinates only and estimates straight-line distance. Your start location is shared with your team. Text en route opens a draft in your messaging app; you tap Send.</p>
  ${u?`<p><a class="btn pri" href="${u}" target="_blank" rel="noopener">Open route in Google Maps</a>${count>limit?`<span class="m"> First ${limit} mapped stops only.</span>`:""}${waypoints>3?'<span class="m"> Check every stop in Google Maps; mobile browsers may omit some.</span>':""}</p>`:""}
  ${L.map((j,i)=>{const a=jaddr(j),c=S.clients[j.client]||{},sms=enRouteText(c);return`<div class="card"><div class="sp"><b>${i+1}. ${E(cname(j.client))}</b><span><button onclick="mvStop('${j.id}',-1)">▲</button> <button onclick="mvStop('${j.id}',1)">▼</button></span></div>
  <div class="m">${E(a||"No address")}</div><div class="m">${E(j.service)} · ${money(j.price)} · <span class="chip">${j.status}</span>${jobDateLabel(j)?` <span class="chip">${E(jobDateLabel(j))}</span>`:""}</div>
- <div class="row">${a?`<a class="btn" href="https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(A(a))}" target="_blank" rel="noopener">Navigate</a>`:""}${c.phone?`<a class="btn" href="tel:${E(c.phone)}">Call</a>`:""}${sms?`<a class="btn" href="${E(sms)}">Text en route</a>`:'<span class="m">Add a valid client phone number to text.</span>'}<button data-job="${E(j.id)}" onclick="openJobPhotos(this.dataset.job)">Before / after photos</button>${j.status=="Scheduled"?`<button class="pri" onclick="setStatus('${j.id}','Done')">Mark Done</button>`:""}</div></div>`}).join("")||'<p class="m">No stops for this date.</p>'}`}
+ <div class="row">${a?`<a class="btn" href="https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(A(a))}" target="_blank" rel="noopener">Navigate</a>`:""}${c.phone?`<a class="btn" href="tel:${E(c.phone)}">Call</a>`:""}${sms?`<a class="btn" href="${E(sms)}">Text en route</a>`:'<span class="m">Add a valid client phone number to text.</span>'}<button data-job="${E(j.id)}" onclick="openJobPhotos(this.dataset.job)">Before / after photos</button><button data-job="${E(j.id)}" onclick="openJob(this.dataset.job)">Edit job</button><button class="dg" data-job="${E(j.id)}" onclick="delJob(this.dataset.job)">Delete job</button>${j.status=="Scheduled"?`<button class="pri" onclick="setStatus('${j.id}','Done')">Mark Done</button>`:""}</div></div>`}).join("")||'<p class="m">No stops for this date.</p>'}`}
 function order(L){L.forEach((j,k)=>{if(j.ord!==k){j.ord=k;w("jobs",j)}});render()}
 function mvStop(id,d){const L=dayJobs(),i=L.findIndex(j=>j.id==id),k=i+d;if(k<0||k>=L.length)return;[L[i],L[k]]=[L[k],L[i]];order(L)}
 function byZip(){order(dayJobs().sort((a,b)=>zip(jaddr(a)).localeCompare(zip(jaddr(b)))))}
@@ -197,7 +202,7 @@ function opt(){const L=dayJobs();if(L.length<2){rmsg("Add at least 2 stops first
 const ROAD_STOP_LIMIT=100;
 let roadSeq=0,roadPlan=null,roadBusy=false,pickedRoute=null;
 let weekSeq=0,weekPlan=null,weekBusy=false;
-function pickRecord(j){return {id:j.id,client:j.client,clientName:cname(j.client),date:j.date,status:j.status,service:j.service,location:String(jaddr(j)||"").trim(),ord:j.ord==null?null:j.ord,dateRequirement:j.dateRequirement||"any",requiredDate:j.requiredDate||""}}
+function pickRecord(j){return {id:j.id,client:j.client,clientName:cname(j.client),date:j.date,status:j.status,service:j.service,location:String(jaddr(j)||"").trim(),ord:j.ord==null?null:j.ord,dateRequirement:j.dateRequirement||"any",requiredDate:j.requiredDate||"",estimatedMinutes:j.estimatedMinutes==null?null:j.estimatedMinutes,repeat:j.repeat||"One-time",spawned:!!j.spawned}}
 function pickCandidates(){
  const jobs=arr(S.jobs).filter(j=>j&&j.status==="Scheduled"),counts=new Map();
  jobs.forEach(j=>{if(typeof j.id==="string")counts.set(j.id,(counts.get(j.id)||0)+1)});
@@ -252,17 +257,18 @@ function pickContinue(){
   openRoadRoute(chosen.map(item=>item.record.id))
  }catch(e){$("#pick_status").textContent=e.message||"Could not prepare the selected route."}
 }
-function pickBack(){roadSeq++;roadPlan=null;roadBusy=false;if(pickedRoute&&pickedRoute.date===rd)pickRender();else closeD()}
-function roadSnapshot(pickedIds){
+function pickBack(){const p=roadPlan;roadSeq++;roadPlan=null;roadBusy=false;if(pickedRoute&&pickedRoute.date===rd){if(p&&p.doneIds&&p.doneIds.length){pickedRoute.candidates=pickCandidates();p.doneIds.forEach(id=>pickedRoute.selected.delete(id))}pickRender()}else closeD()}
+function roadSnapshot(pickedIds,doneIds=[],singleStopsOnly=false){
+
  if(!db||!hasSnapshot||!synced)throw new Error("Wait until the CRM says Synced across devices before planning a driving route.");
  const selected=Array.isArray(pickedIds);if(selected&&!validDate(rd))throw new Error("Choose a valid route date first.");
  const stops=selected?pickedIds.map(id=>S.jobs[id]):dayJobs();
  if(stops.length<(selected?1:2))throw new Error(selected?"Select at least one address.":"Add at least 2 stops first.");
  if(stops.length>ROAD_STOP_LIMIT)throw new Error("Driving routes are limited to 100 stops at a time. Use a smaller selection or order stops manually.");
  if(stops.some(j=>!j||typeof j.id!=="string"||!j.id||S.jobs[j.id]!==j)||new Set(stops.map(j=>j.id)).size!==stops.length)throw new Error("Some jobs have invalid or duplicate IDs. Do not reorder until the CRM data is corrected.");
- if(selected){if(stops.some(j=>j.status!=="Scheduled"))throw new Error("A selected job is no longer scheduled. Close and choose again.");
+ if(selected){if(stops.some(j=>j.status!=="Scheduled"&&!(doneIds.includes(j.id)&&j.status==="Done")))throw new Error("A selected job is no longer scheduled. Close and choose again.");
   const invalid=stops.find(j=>jobDateProblem(j,rd));if(invalid)throw new Error(jobDateProblem(invalid,rd)+" Choose another route date or edit the requirement.")}
- const start=String(S.meta.start||"").trim(),round=!!S.meta.round;if(round&&!start)throw new Error("Add a start location to return to it, or turn off Return to start.");
+ const start=singleStopsOnly?"":String(S.meta.start||"").trim(),round=singleStopsOnly?false:!!S.meta.round;if(round&&!start)throw new Error("Add a start location to return to it, or turn off Return to start.");
  const snapshot={date:rd,start,round,stops:stops.map(pickRecord)};
  const all=(start?[start]:[]).concat(snapshot.stops.map(j=>j.location));
  all.forEach(a=>{if(!a)throw new Error("Add a location to every stop before planning a driving route.");
@@ -270,7 +276,8 @@ function roadSnapshot(pickedIds){
   if(!coords(a)&&/^\s*[+-]?\d+(?:\.\d+)?\s*,\s*[+-]?\d+(?:\.\d+)?\s*$/.test(a))throw new Error("A GPS coordinate is invalid or out of range. Use latitude, longitude.")});
  return snapshot
 }
-function roadAssert(p){let next;try{next=roadSnapshot(p.pickedIds)}catch(e){throw new Error(e.message||"The route changed. Close and try again.")}
+function roadAssert(p){let next;try{next=roadSnapshot(p.pickedIds,p.doneIds||[],!!p.singleStopsOnly)}catch(e){throw new Error(e.message||"The route changed. Close and try again.")}
+ if(p.source==="day"){const ids=dayJobs().filter(j=>j.status==="Scheduled"||((p.doneIds||[]).includes(j.id)&&j.status==="Done")).map(j=>j.id);if(JSON.stringify(ids)!==JSON.stringify(p.pickedIds))throw new Error("The day's stops changed. Close this window and start again.")}
  if(JSON.stringify(next)!==JSON.stringify(p.snapshot))throw new Error("The route changed. Close this window and plan it again.")}
 function roadCurrent(seq,p){return seq===roadSeq&&roadPlan===p&&$("#dlg").open&&!!$("#rr_status")}
 function roadSetBusy(value){roadBusy=value;["#rr_send","#rr_opt","#rr_save","#rr_back"].forEach(id=>{const b=$(id);if(b)b.disabled=value})}
@@ -280,7 +287,7 @@ function openRoadRoute(pickedIds){
  const inputs=(snapshot.start?[{label:"Start",raw:snapshot.start}]:[]).concat(snapshot.stops.map(j=>({label:j.clientName,raw:j.location})));
  const lookups=[],keys=new Map(),locations=inputs.map(item=>{const p=coords(item.raw);if(p)return Object.assign({},item,{point:p});
   const k=importKey(item.raw);if(!keys.has(k)){keys.set(k,lookups.length);lookups.push(item.raw)}return Object.assign({},item,{lookup:keys.get(k)})});
- const p={snapshot,locations,lookups,matches:null,matchesOK:false,points:null,order:null,pickedIds:selected?pickedIds.slice():null};roadPlan=p;roadSeq++;roadBusy=false;
+ const p={snapshot,locations,lookups,matches:null,matchesOK:false,points:null,order:null,pickedIds:selected?pickedIds.slice():null,doneIds:[],cursor:0};roadPlan=p;roadSeq++;roadBusy=false;
  if(selected&&snapshot.stops.length===1){p.order=[0];dlg(`<h2>Selected route</h2><div class="bt"><button id="rr_back" onclick="pickBack()">Back to picks</button><button onclick="closeD()">Close</button></div><p class="m" id="rr_status" role="status" aria-live="polite"></p><div id="rr_preview"></div>`);$("#dlg").scrollTop=0;roadShowResult(p);return}
  dlg(`<h2>${selected?"Route selected addresses":"Optimize driving route"}</h2><p class="m">${E(snapshot.date)} · ${snapshot.stops.length} ${selected?"selected ":""}stops. ${snapshot.start?"Uses your chosen start.":"With no start set, the current first stop stays first."} ${snapshot.round?"The route returns to your start.":"The route ends at the last stop."}</p>
  <p class="m">When you continue, GPS locations go to Simple Routing. ${lookups.length?"The "+lookups.length+" unique street address"+(lookups.length===1?" goes":"es go")+" to Geocodio for lookup; you will review every match before routing.":"No street addresses need a lookup."} Separate customer names, phone numbers and notes are not sent, but anything typed in a location field is included. Both services process the locations.</p>
@@ -288,6 +295,14 @@ function openRoadRoute(pickedIds){
  ${lookups.length?`<details><summary>Addresses to look up (${lookups.length})</summary><ul>${lookups.map(a=>`<li>${E(a)}</li>`).join("")}</ul></details>`:""}
  <div class="bt"><button class="pri" id="rr_send" onclick="roadBegin()">${lookups.length?"Look up these locations":"Send GPS points and optimize"}</button><button class="pri" id="rr_opt" hidden onclick="roadOptimize()">Matches look right — optimize</button>${selected?'<button id="rr_back" onclick="pickBack()">Back to picks</button>':'<button class="pri" id="rr_save" hidden onclick="roadSave()">Save route order</button>'}<button onclick="closeD()">Close</button></div>
  <p class="m" id="rr_status" role="status" aria-live="polite">${lookups.length?"Nothing has been sent yet. Review the addresses, then tap Look up these locations.":"Nothing has been sent yet. Continue only if you want to share these GPS locations."}</p><div id="rr_preview"></div>`);$("#dlg").scrollTop=0
+}
+/* Follow the existing daily order without sending anything to a route provider. */
+function openDayNext(){
+ let snapshot;const ids=dayJobs().filter(j=>j.status==="Scheduled").map(j=>j.id);
+ try{snapshot=roadSnapshot(ids,[],true)}catch(e){rmsg(e.message);return}
+ const p={snapshot,pickedIds:ids.slice(),points:null,order:ids.map((_,i)=>i),doneIds:[],cursor:0,singleStopsOnly:true,source:"day"};
+ pickedRoute=null;roadPlan=p;roadSeq++;roadBusy=false;
+ dlg(`<h2>Next stop for ${E(snapshot.date)}</h2><p class="m">Following this day's current order; no route optimization request was made. Marking a stop done changes the job and syncs it; navigation alone does not.</p><div class="bt"><button onclick="closeD()">Close</button></div><p class="m" id="rr_status" role="status" aria-live="polite"></p><div id="rr_preview"></div>`);$("#dlg").scrollTop=0;roadShowResult(p)
 }
 /* Google Maps links use only selected locations and the optional start. Split
    long routes into small sequential parts rather than silently dropping stops. */
@@ -316,10 +331,31 @@ function roadShowResult(p){
  }).join("");
  const mapParts=pickMapParts(p),parts=mapParts.map((part,i)=>`<a class="btn pri" href="${E(part.url)}" target="_blank" rel="noopener" onclick="return roadMapGuard()">${mapParts.length>1?"Part "+(i+1)+" · ":""}${E(part.label)} in Google Maps</a>`).join(" ");
  const locations=p.snapshot.stops.map(j=>{const pt=coords(j.location);return pt?pt.join(","):importKey(j.location)}),duplicates=new Set(locations).size!==locations.length;
- $("#rr_preview").innerHTML=`<h3>Selected driving order</h3><p class="m">Only your selected stops are listed. This route is temporary: it is not saved or synced, and no jobs or dates change. Keep this page open. ${duplicates?"Repeated addresses are separate jobs; Maps may show one location, so check each job.":""}</p>
- <h3>Open in Google Maps</h3><p class="m">Google receives the locations in the link you open. Review the stops below and open each part in order. Check every stop in Maps, since phone browsers may omit waypoints. Use complete addresses with city, state and ZIP. ${p.snapshot.start?"The first part uses your chosen start.":"The first part uses your current location if Google Maps can find it; otherwise set a start in Maps."}</p><div class="bt">${parts}</div><ol>${rows}</ol>`;
- const send=$("#rr_send"),opt=$("#rr_opt");if(send)send.hidden=true;if(opt)opt.hidden=true;
- $("#rr_status").textContent=p.order.length===1?"One stop is ready. No optimization request was needed.":"Selected route ready. It is not saved or synced."
+ $("#rr_preview").innerHTML=`<h3>Next stop</h3><p class="m">Google receives the destination when you open navigation. Navigating does not mark it done; explicitly mark the job when finished. Skipping leaves it scheduled. Progress through this temporary list is not saved or synced; job completion is synced. ${duplicates?"Repeated addresses are separate jobs.":""}</p><div id="rr_next"></div>
+ <div id="rr_original"><h3>${p.source==="day"?"Today's current order":"Selected driving order"}</h3><p class="m">${p.source==="day"?"This follows the saved day order.":"Only selected stops are listed. This route is temporary and is not saved or synced; picking stops does not change jobs or dates."} Keep this page open. ${duplicates?"Repeated addresses are separate jobs; Maps may show one location, so check each job.":""}</p>
+ <h3>Open in Google Maps</h3><p class="m">Google receives the locations in the link you open. Review the stops below and open each part in order. Check every stop in Maps, since phone browsers may omit waypoints. Use complete addresses with city, state and ZIP. ${p.snapshot.start?"The first part uses your chosen start.":"The first part uses your current location if Google Maps can find it; otherwise set a start in Maps."}</p><div class="bt">${parts}</div><ol>${rows}</ol></div>`;
+ const send=$("#rr_send"),opt=$("#rr_opt");if(send)send.hidden=true;if(opt)opt.hidden=true;nextRender(p);
+ $("#rr_status").textContent=p.source==="day"?"Following the current day order; no optimization request was made.":p.order.length===1?"One stop is ready. No optimization request was needed.":"Selected route ready. It is not saved or synced."
+}
+function nextRender(p){
+ const box=$("#rr_next"),original=$("#rr_original");if(!box)return;if(original)original.hidden=p.cursor>0;
+ if(p.cursor>=p.order.length){box.innerHTML=`<div class="card"><b>No more stops in this list.</b><p class="m">Skipped jobs are still scheduled. Close this window to return to the CRM.</p></div>`;return}
+ const j=p.snapshot.stops[p.order[p.cursor]],href=pickDirections("",pickMapPlace(p,p.order[p.cursor]),[]);
+ box.innerHTML=`<div class="card"><b>Stop ${p.cursor+1} of ${p.order.length}: ${E(j.clientName)}</b><div>${E(j.location)}</div><p class="m">${E(j.service)} · Scheduled ${E(j.date)}${j.date!==p.snapshot.date?" (picking this stop did not reschedule it)":""}</p><div class="bt"><a class="btn" href="${E(href)}" target="_blank" rel="noopener" onclick="return roadMapGuard()">Navigate to next stop</a><button class="pri" onclick="nextDone()">Mark done &amp; next</button><button onclick="nextSkip()">Skip for now</button></div></div>`
+}
+function nextSkip(){const p=roadPlan;if(!p||!roadCurrent(roadSeq,p)||!Array.isArray(p.order)||p.cursor>=p.order.length)return;
+ try{roadAssert(p);p.cursor++;nextRender(p);$("#rr_status").textContent="Skipped. This job remains scheduled."}catch(e){$("#rr_status").textContent=e.message||"The route changed. Close and start again."}}
+function nextDone(){
+ const p=roadPlan;if(!p||!roadCurrent(roadSeq,p)||!Array.isArray(p.order)||p.cursor>=p.order.length)return;
+ try{
+  roadAssert(p);const index=p.order[p.cursor],view=p.snapshot.stops[index],j=S.jobs[view.id];
+  const trial=Object.assign({},j,{status:"Done",spawned:!!(j.spawned||j.repeat&&j.repeat!=="One-time")}),records=[trial];
+  if(j.repeat&&j.repeat!=="One-time"&&!j.spawned)records.push(Object.assign({},trial,{id:"storage-check-"+j.id,status:"Scheduled"}));
+  if(!importStorageAvailable("jobs",records))throw new Error("There is not enough device storage to queue this change. Free space and try again.");
+  if(!confirm("Mark "+view.clientName+" — "+view.service+" as done?"+(view.date!==p.snapshot.date?"\nThis job is scheduled for "+view.date+"; its date will not change.":"")+"\n\nThis updates and syncs the job"+(j.repeat&&j.repeat!=="One-time"&&!j.spawned?" and creates its next repeating occurrence.":".")))return;
+  roadAssert(p);setStatus(view.id,"Done");p.doneIds.push(view.id);p.snapshot.stops[index]=pickRecord(S.jobs[view.id]);p.cursor++;nextRender(p);
+  $("#rr_status").textContent=storageOK?"Marked done. Wait until the CRM says Synced across devices before navigating or advancing again.":"The change could not be saved on this device. Reconnect or free space; do not continue yet."
+ }catch(e){$("#rr_status").textContent=e.message||"The route changed. Close and start again."}
 }
 async function roadCall(p,seq,body){
  roadAssert(p);let session;try{session=await sb.auth.getSession()}catch(e){throw new Error("Could not check your CRM session. Sign in and try again.")}
@@ -380,21 +416,91 @@ function roadSave(){
 function vJobs(){const od=today();let L=arr(S.jobs).filter(j=>jf=="All"||(jf=="Open"?j.status!="Paid":j.status==jf)).sort((a,b)=>a.date>b.date?1:-1);
  return`<select onchange="jf=this.value;render()">${["Open",...JS,"All"].map(o=>`<option${o==jf?" selected":""}>${o}</option>`).join("")}</select>`+(L.map(j=>{const late=j.status=="Scheduled"&&j.date<od,nx=JS[JS.indexOf(j.status)+1];
  return`<div class="card" onclick="openJob('${j.id}')"><div class="sp"><b>${E(cname(j.client))}</b><b>${money(j.price)}</b></div><div class="m">${E(j.service)}${j.prop?" · "+E(j.prop):""}</div>
- <div class="m">${E(j.date)} <span class="chip">${j.status}</span>${jobDateLabel(j)?`<span class="chip">${E(jobDateLabel(j))}</span>`:""}${late?'<span class="chip bad">Overdue</span>':""}${j.repeat&&j.repeat!="One-time"?`<span class="chip">${E(j.repeat)}</span>`:""}</div>
- <div class="row">${nx?`<button onclick="event.stopPropagation();setStatus('${j.id}','${nx}')">→ ${nx}</button>`:""}<button onclick="event.stopPropagation();openDoc('${j.id}')">${j.status=="Scheduled"?"Quote":"Invoice"}</button><button data-job="${E(j.id)}" onclick="event.stopPropagation();openJobPhotos(this.dataset.job)">Before / after photos</button></div></div>`}).join("")||'<p class="m">No jobs here.</p>')}
+ <div class="m">${E(j.date)} <span class="chip">${j.status}</span>${jobDateLabel(j)?`<span class="chip">${E(jobDateLabel(j))}</span>`:""}${storedEstimate(j.estimatedMinutes)?`<span class="chip">${E(estimateText(j.estimatedMinutes))} work</span>`:""}${late?'<span class="chip bad">Overdue</span>':""}${j.repeat&&j.repeat!="One-time"?`<span class="chip">${E(j.repeat)}</span>`:""}</div>
+ <div class="row">${nx?`<button onclick="event.stopPropagation();setStatus('${j.id}','${nx}')">→ ${nx}</button>`:""}<button onclick="event.stopPropagation();openDoc('${j.id}')">${j.status=="Scheduled"?"Quote":"Invoice"}</button><button data-job="${E(j.id)}" onclick="event.stopPropagation();openJobPhotos(this.dataset.job)">Before / after photos</button><button class="dg" data-job="${E(j.id)}" onclick="event.stopPropagation();delJob(this.dataset.job)">Delete job</button></div></div>`}).join("")||'<p class="m">No jobs here.</p>')}
+/* Due dates are based on the required date, not the planned appointment date. */
+function vDue(){
+ const now=today(),jobs=arr(S.jobs).filter(j=>j&&j.status==="Scheduled"&&((j.dateRequirement&&j.dateRequirement!=="any")||(!j.dateRequirement&&j.requiredDate))),groups={overdue:[],today:[],upcoming:[],attention:[]};
+ jobs.forEach(j=>{const d=j.requiredDate,key=!validDate(d)||!["deadline","exact"].includes(j.dateRequirement)?"attention":d<now?"overdue":d===now?"today":"upcoming";groups[key].push(j)});
+ const sections=[["overdue","Overdue"],["today","Due today"],["upcoming","Upcoming"],["attention","Needs a valid requirement"]];
+ return `<h2>Due &amp; overdue jobs</h2><p class="m">Open scheduled jobs with a due-by or exact-day requirement. A job is overdue after its required date, even if it was scheduled earlier.</p>`+sections.map(([key,title])=>{
+  const list=groups[key].sort((a,b)=>String(a.requiredDate||"").localeCompare(String(b.requiredDate||""))||String(a.date||"").localeCompare(String(b.date||""))||String(cname(a.client)).localeCompare(String(cname(b.client))));
+  const rows=list.map(j=>`<div class="card"><div class="sp"><b>${E(cname(j.client))}</b><span class="chip${key==="overdue"?" bad":""}">${E(jobDateLabel(j)||"Invalid requirement")}</span></div><div class="m">${E(jaddr(j)||"No address")} · ${E(j.service||"")}</div><div class="m">Scheduled ${E(j.date||"(date missing)")}${storedEstimate(j.estimatedMinutes)?" · "+E(estimateText(j.estimatedMinutes))+" work":""}</div><div class="row"><button data-job="${E(j.id)}" onclick="openJob(this.dataset.job)">Edit job</button><button class="dg" data-job="${E(j.id)}" onclick="delJob(this.dataset.job)">Delete job</button></div></div>`).join("");
+  return `<section><h3>${E(title)} (${list.length})</h3>${rows||'<p class="m">None.</p>'}</section>`
+ }).join("")
+}
 /* jobs */
 function spawn(j){if(j.repeat&&j.repeat!="One-time"&&!j.spawned&&j.status!="Scheduled"){const n=Object.assign({},j,{id:uid("j"),date:addD(j.date,j.repeat=="Weekly"?7:14,j.repeat=="Monthly"),status:"Scheduled",spawned:false});delete n.ord;delete n.dateRequirement;delete n.requiredDate;j.spawned=true;w("jobs",n);w("jobs",j)}}
 function setStatus(id,s){const j=S.jobs[id];j.status=s;w("jobs",j);spawn(j);render()}
 /* dialogs */
 const dlg=h=>{clearPhotoView();$("#dlg").innerHTML=h;if(!$("#dlg").open)$("#dlg").showModal()},closeD=()=>{$("#dlg").close();later()};
-$("#dlg").addEventListener("close",()=>{roadSeq++;roadPlan=null;roadBusy=false;pickedRoute=null;weekSeq++;weekPlan=null;weekBusy=false;clearPhotoView();if(pend)setTimeout(later,0)});
+$("#dlg").addEventListener("close",()=>{roadSeq++;roadPlan=null;roadBusy=false;pickedRoute=null;weekSeq++;weekPlan=null;weekBusy=false;leadDeletion=null;clearPhotoView();if(pend)setTimeout(later,0)});
 document.addEventListener("focusout",()=>setTimeout(()=>{if(pend&&!busy())render()},80));
 const bt=(id,key,del)=>`<div class="bt"><button class="pri" onclick="${key}('${id||""}')">Save</button>${id&&del?`<button class="dg" onclick="${del}('${id}')">Delete</button>`:""}<button onclick="closeD()">Cancel</button></div>`;
+/* Destructive changes require a current shared snapshot and an explicit count. */
+let leadDeletion=null;
+function deleteReady(){if(!db||!hasSnapshot||!synced)throw new Error("Wait until the CRM says Synced across devices before deleting. Use one device at a time.")}
+function clientDeleteSnapshot(ids,leadsOnly=false){
+ deleteReady();if(!ids.length||new Set(ids).size!==ids.length)throw new Error("Select at least one record.");
+ const clients=ids.map(id=>S.clients[id]);if(clients.some((c,i)=>!c||typeof c.id!=="string"||c.id!==ids[i]||(leadsOnly&&c.stage!=="Lead")))throw new Error("A selected record changed. Close and review it again.");
+ const chosen=new Set(ids),jobs=arr(S.jobs).filter(j=>j&&j.client!=null&&chosen.has(String(j.client))).sort((a,b)=>String(a.id).localeCompare(String(b.id)));
+ if(jobs.some(j=>typeof j.id!=="string"||!j.id||S.jobs[j.id]!==j)||new Set(jobs.map(j=>j.id)).size!==jobs.length)throw new Error("A linked job has an invalid ID. Correct it before deleting.");
+ return {clients,jobs,signature:JSON.stringify({clients,jobs})}
+}
+function deleteSpace(entries){
+ const probe="mib_delete_probe_"+uid("");try{
+  const next=Object.assign({},S,{clients:Object.assign({},S.clients),jobs:Object.assign({},S.jobs)}),queued=Object.assign({},pending);
+  entries.forEach(({coll,id})=>{delete next[coll][id];queued[key(coll,id)]={coll,id,deleted:true,data:null}});
+  const nextQueue=JSON.stringify(queued).length,oldQueue=(localStorage.getItem("mib_pending_v1")||"").length,future=JSON.stringify(next).length+nextQueue,current=(localStorage.getItem("mib")||"").length+oldQueue;
+  // persist writes the outbox before shrinking the local snapshot, so check the peak as well as the final size.
+  localStorage.setItem(probe,"x".repeat(Math.max(0,future-current,nextQueue-oldQueue)+1024));localStorage.removeItem(probe);return true
+ }catch(e){try{localStorage.removeItem(probe)}catch(x){}return false}
+}
+function deleteBatch(entries){entries.forEach(({coll,id})=>{delete S[coll][id];const k=key(coll,id);pending[k]={coll,id,deleted:true,data:null};mark(k)});persist();head();scheduleFlush()}
+function deletionEntries(snap){return snap.jobs.map(j=>({coll:"jobs",id:j.id})).concat(snap.clients.map(c=>({coll:"clients",id:c.id})))}
+function deletionWarning(clientCount,jobCount,lead,clients){const names=(clients||[]).slice(0,5).map(c=>String(c.name||"(unnamed)").replace(/[\x00-\x1f\x7f]/g," ").slice(0,100)).join(", ");return "Delete "+clientCount+" "+(lead?(clientCount===1?"lead":"leads"):(clientCount===1?"client":"clients"))+" AND "+jobCount+" linked job"+(jobCount===1?"":"s")+"?"+(names?"\nSelected: "+names+(clientCount>5?" and "+(clientCount-5)+" more":""):"")+"\n\nAll linked scheduled and historical jobs will be deleted. This cannot be undone.\n\nPrivate photo files are NOT deleted from storage; they will no longer be visible in the CRM. Delete unwanted photos from each job first. Use one device at a time."}
+function fallbackPropertyProblem(c,newProps){return !!(c&&(props(c)[0]||"")!==(props({props:newProps})[0]||"")&&jobsOf(c.id).some(j=>!j.prop))}
+function deleteProperty(id,index){
+ try{deleteReady();const c=S.clients[id],list=props(c);if(!c||!Number.isInteger(index)||index<0||index>=list.length)throw new Error("That property changed. Refresh and try again.");
+  const addr=list[index],next=list.filter((_,i)=>i!==index).join("\n");if(fallbackPropertyProblem(c,next))throw new Error("Some jobs use this client's first property as their address. Edit those jobs to set an explicit address before changing or deleting that property.");
+  const signature=JSON.stringify({c,jobs:jobsOf(id)});if(!confirm("Delete property "+addr+" from "+(c.name||"this client")+"? Jobs with their own address will remain unchanged."))return;
+  deleteReady();if(!S.clients[id]||JSON.stringify({c:S.clients[id],jobs:jobsOf(id)})!==signature)throw new Error("The client or its jobs changed. Review the property again.");
+  const updated=Object.assign({},c,{props:next});if(!importStorageAvailable("clients",[updated]))throw new Error("Not enough device storage to save this change.");w("clients",updated);render()
+ }catch(e){alert(e.message||"Could not delete this property.")}
+}
+function openLeadDeletion(){
+ try{deleteReady();const candidates=sorted(S.clients).filter(c=>c.stage==="Lead").map(c=>{const snap=clientDeleteSnapshot([c.id],true);return {id:c.id,name:c.name||"(unnamed)",jobs:snap.jobs.length,signature:snap.signature}});
+  leadDeletion={candidates,selected:new Set(),shown:[]};
+  dlg(`<h2>Select leads to delete</h2><p class="m">Leads are client records. Deleting a lead also deletes all linked jobs, including historical jobs. Photo files remain in private storage. Use one device at a time.</p><label for="lead_search">Search leads</label><input id="lead_search" type="search" placeholder="Search leads" oninput="leadFilter()"><div class="bt"><button onclick="leadSelectShown()">Select shown</button><button onclick="leadClear()">Clear selection</button><b id="lead_count" role="status" aria-live="polite"></b></div><div id="lead_list"></div><p id="lead_status" class="m" role="status" aria-live="polite"></p><div class="bt"><button class="dg" id="lead_delete" onclick="deleteSelectedLeads()">Delete selected leads</button><button onclick="closeD()">Cancel</button></div>`);$("#dlg").scrollTop=0;leadFilter()
+ }catch(e){alert(e.message||"Could not open lead selection.")}
+}
+function leadFilter(){const p=leadDeletion;if(!p)return;const q=$("#lead_search").value.trim().toLowerCase();p.shown=[];p.candidates.forEach((c,i)=>{if(!q||c.name.toLowerCase().includes(q))p.shown.push(i)});
+ $("#lead_list").innerHTML=p.shown.map(i=>{const c=p.candidates[i];return `<label class="pick-stop"><input type="checkbox" data-index="${i}" onchange="leadToggle(this)"${p.selected.has(c.id)?" checked":""}><span><b>${E(c.name)}</b><span class="m">${c.jobs} linked job${c.jobs===1?"":"s"}</span></span></label>`}).join("")||'<p class="m">No leads match.</p>';leadCount()}
+function leadCount(){const p=leadDeletion;if(!p)return;const selected=p.candidates.filter(c=>p.selected.has(c.id)),jobs=selected.reduce((n,c)=>n+c.jobs,0);$("#lead_count").textContent=selected.length+" selected · "+jobs+" linked jobs (including hidden selections)";$("#lead_delete").disabled=!selected.length}
+function leadToggle(input){const p=leadDeletion,c=p&&p.candidates[+input.dataset.index];if(!c)return;input.checked?p.selected.add(c.id):p.selected.delete(c.id);leadCount()}
+function leadSelectShown(){const p=leadDeletion;if(!p)return;p.shown.forEach(i=>p.selected.add(p.candidates[i].id));leadFilter()}
+function leadClear(){if(leadDeletion){leadDeletion.selected.clear();leadFilter()}}
+function deleteSelectedLeads(){
+ try{const p=leadDeletion;if(!p)return;const chosen=p.candidates.filter(c=>p.selected.has(c.id));if(!chosen.length)throw new Error("Select at least one lead.");
+  chosen.forEach(c=>{if(clientDeleteSnapshot([c.id],true).signature!==c.signature)throw new Error("A selected lead or its linked jobs changed. Close and select again.")});
+  const ids=chosen.map(c=>c.id),snap=clientDeleteSnapshot(ids,true),entries=deletionEntries(snap);
+  if(!deleteSpace(entries))throw new Error("Not enough device storage to queue this deletion. Free space and try again.");
+  if(!confirm(deletionWarning(ids.length,snap.jobs.length,true,snap.clients)))return;
+  if(clientDeleteSnapshot(ids,true).signature!==snap.signature)throw new Error("A selected lead or its linked jobs changed. Close and select again.");
+  deleteBatch(entries);leadDeletion=null;if(!storageOK)alert("The deletion is in memory but could not be saved on this device. Use Backup and keep this page open until synced.");closeD();render()
+ }catch(e){const status=$("#lead_status");if(status)status.textContent=e.message||"Could not delete the selected leads."}
+}
 function openClient(id){const c=id?S.clients[id]:{type:TY[0],stage:"Lead"},v=k=>E(c[k]);
  dlg(`<h2>${id?"Edit":"New"} client</h2>`+F("Name",`<input id="c_name" value="${v("name")}">`)+F("Contact",`<input id="c_contact" value="${v("contact")}">`)+F("Phone",`<input id="c_phone" type="tel" value="${v("phone")}">`)+F("Email",`<input id="c_email" type="email" value="${v("email")}">`)+F("Type",sel(TY,c.type,"c_type"))+F("Stage",sel(ST,c.stage,"c_stage"))+F("Properties (one address, unit or GPS coordinate per line)",`<textarea id="c_props" rows="3">${v("props")}</textarea>`)+F("Notes (gate codes, mower access, pets)",`<textarea id="c_notes" rows="3">${v("notes")}</textarea>`)+bt(id,"saveClient","delClient"))}
 function saveClient(id){const n=$("#c_name").value.trim();if(!n){$("#c_name").focus();return}
+ if(fallbackPropertyProblem(S.clients[id],$("#c_props").value)){alert("Some jobs use this client's first property as their address. Edit those jobs to set an explicit address before changing the first property.");return}
  w("clients",Object.assign({},S.clients[id]||{},{id:id||uid("c"),name:n,contact:$("#c_contact").value,phone:$("#c_phone").value,email:$("#c_email").value,type:$("#c_type").value,stage:$("#c_stage").value,props:$("#c_props").value,notes:$("#c_notes").value}));closeD();render()}
-function delClient(id){if(!confirm("Delete this client and all of their jobs? Their photos will no longer be visible here but are not automatically deleted from storage."))return;jobsOf(id).forEach(j=>rm("jobs",j.id));rm("clients",id);closeD();render()}
+function delClient(id){
+ try{const snap=clientDeleteSnapshot([id]),entries=deletionEntries(snap);if(!deleteSpace(entries))throw new Error("Not enough device storage to queue this deletion.");
+  if(!confirm(deletionWarning(1,snap.jobs.length,false,snap.clients)))return;if(clientDeleteSnapshot([id]).signature!==snap.signature)throw new Error("The client or its linked jobs changed. Review them again.");
+  deleteBatch(entries);if(!storageOK)alert("The deletion is in memory but could not be saved on this device. Use Backup and keep this page open until synced.");if($("#dlg").open)closeD();render()
+ }catch(e){alert(e.message||"Could not delete this client.")}
+}
 const pl=cid=>props(S.clients[cid]).map(p=>`<option value="${E(p)}">`).join("");
 function openJob(id,pre){if(!arr(S.clients).length){alert("Add a client first.");openClient();return}pre=pre||{};
  const j=id?S.jobs[id]:{client:pre.client||sorted(S.clients)[0].id,prop:pre.prop||"",service:SV[1],date:pre.date||today(),status:"Scheduled",repeat:"One-time",items:"",price:""};
@@ -402,7 +508,7 @@ function openJob(id,pre){if(!arr(S.clients).length){alert("Add a client first.")
  dlg(`<h2>${id?"Edit":"New"} job</h2>`+F("Client",`<select id="j_client" onchange="jc()">${sorted(S.clients).map(c=>`<option value="${c.id}"${c.id==j.client?" selected":""}>${E(c.name)}</option>`).join("")}</select>`)+F("Service",sel(SV,j.service,"j_service"))+
  F("Property / unit (address or GPS coordinates)",`<input id="j_prop" list="pl" value="${E(j.prop)}" placeholder="Street address or latitude, longitude"><datalist id="pl">${pl(j.client)}</datalist>`)+F("Date",`<input id="j_date" type="date" value="${E(j.date)}">`)+
  F("Date requirement",`<select id="j_rule" onchange="jobRuleChanged()"><option value="any"${!j.dateRequirement||j.dateRequirement==="any"?" selected":""}>No special date</option><option value="deadline"${j.dateRequirement==="deadline"?" selected":""}>Due by a date</option><option value="exact"${j.dateRequirement==="exact"?" selected":""}>Must be on a date</option></select>`)+
- `<div id="j_required_wrap"${!j.dateRequirement||j.dateRequirement==="any"?" hidden":""}>`+F("Required date",`<input id="j_required" type="date" value="${E(j.requiredDate||"")}">`)+`</div><p class="m">Date requirements apply to this job only; a repeating job's next occurrence has no requirement until you add one.</p>`+F("Status",sel(JS,j.status,"j_status"))+F("Repeat",sel(RP,j.repeat,"j_rep"))+
+ `<div id="j_required_wrap"${!j.dateRequirement||j.dateRequirement==="any"?" hidden":""}>`+F("Required date",`<input id="j_required" type="date" value="${E(j.requiredDate||"")}">`)+`</div><p class="m">Date requirements apply to this job only; a repeating job's next occurrence has no requirement until you add one.</p>`+F("Estimated work time in minutes (optional)",`<input id="j_minutes" type="number" min="1" max="10080" step="1" inputmode="numeric" value="${E(storedEstimate(j.estimatedMinutes)||"")}" placeholder="For example, 45">`)+`<p class="m">Work time only; travel and breaks are not included. Leave blank if unknown.</p>`+F("Status",sel(JS,j.status,"j_status"))+F("Repeat",sel(RP,j.repeat,"j_rep"))+
  F("Line items (description | qty | rate)",`<textarea id="j_items" rows="4" oninput="calc()">${E(j.items)}</textarea>`)+`<select id="j_rate" onchange="addRate(this)"><option value="">Add from rate card…</option>${rates().map((r,i)=>`<option value="${i}">${E(r[0])} — ${money(r[1])}</option>`).join("")}</select>`+
  F("Price ($)",`<input id="j_price" type="number" step="0.01" value="${E(j.price)}">`)+F("Notes",`<textarea id="j_notes" rows="2">${E(j.notes)}</textarea>`)+bt(id,"saveJob","delJob"))}
 function jc(){const c=S.clients[$("#j_client").value];$("#pl").innerHTML=pl(c&&c.id);if(!$("#j_prop").value)$("#j_prop").value=props(c)[0]||""}
@@ -411,10 +517,16 @@ function addRate(s){const r=rates()[s.value];if(!r)return;const t=$("#j_items");
 function jobRuleChanged(){const wrap=$("#j_required_wrap");if(wrap)wrap.hidden=$("#j_rule").value==="any"}
 function saveJob(id){const date=$("#j_date").value||today(),rule=$("#j_rule").value||"any",required=rule==="any"?"":$("#j_required").value;
  const problem=dateProblem(rule,required,date);if(problem){alert(problem);return}
- const o=Object.assign({},S.jobs[id]||{},{id:id||uid("j"),client:$("#j_client").value,service:$("#j_service").value,prop:$("#j_prop").value.trim(),date,dateRequirement:rule,requiredDate:required,status:$("#j_status").value,repeat:$("#j_rep").value,items:$("#j_items").value,price:+$("#j_price").value||0,notes:$("#j_notes").value});
+ let estimatedMinutes;try{estimatedMinutes=parseEstimate($("#j_minutes").value)}catch(e){alert(e.message);return}
+ const o=Object.assign({},S.jobs[id]||{},{id:id||uid("j"),client:$("#j_client").value,service:$("#j_service").value,prop:$("#j_prop").value.trim(),date,dateRequirement:rule,requiredDate:required,estimatedMinutes,status:$("#j_status").value,repeat:$("#j_rep").value,items:$("#j_items").value,price:+$("#j_price").value||0,notes:$("#j_notes").value});
  if(!id&&(o.status==="Scheduled"||o.status==="Done")){const tail=routeTail(o.date);if(Number.isSafeInteger(tail)&&tail<Number.MAX_SAFE_INTEGER)o.ord=tail+1}
  w("jobs",o);spawn(o);closeD();render()}
-function delJob(id){if(!confirm("Delete this job? Its photos will no longer be visible here but are not automatically deleted from storage."))return;rm("jobs",id);closeD();render()}
+function delJob(id){
+ try{deleteReady();const j=S.jobs[id];if(!j||j.id!==id)throw new Error("That job changed. Refresh and try again.");const signature=JSON.stringify(j),entries=[{coll:"jobs",id}];if(!deleteSpace(entries))throw new Error("Not enough device storage to queue this deletion.");
+  if(!confirm("Delete the job for "+cname(j.client)+" — "+(j.service||"job")+" on "+(j.date||"no date")+"? This cannot be undone.\n\nPrivate photo files are NOT deleted from storage and will no longer be visible here. Delete unwanted photos from the job first."))return;
+  deleteReady();if(!S.jobs[id]||JSON.stringify(S.jobs[id])!==signature)throw new Error("The job changed. Review it before deleting.");deleteBatch(entries);if(!storageOK)alert("The deletion is in memory but could not be saved on this device. Use Backup and keep this page open until synced.");if($("#dlg").open)closeD();render()
+ }catch(e){alert(e.message||"Could not delete this job.")}
+}
 function openRates(){dlg(`<h2>Rate card</h2><p class="m">One "name | price" per line. These are placeholder starter rates — replace them with your real pricing.</p><textarea id="rt" rows="9">${E(S.meta.rates==null?DEF:S.meta.rates)}</textarea><div class="bt"><button class="pri" onclick="S.meta.rates=$('#rt').value;wm();closeD()">Save</button><button onclick="closeD()">Cancel</button></div>`)}
 /* Address import: review first, add only, and use the existing sync outbox. */
 const IMPORT_LIMIT=1000,IMPORT_FILE_LIMIT=1024*1024,IMPORT_ADDRESS_LIMIT=500;
@@ -574,8 +686,9 @@ function importRecords(p){
  const coll=p.mode==="jobs"?"jobs":"clients",reserved=new Set(Object.keys(S[coll]));
  const nextId=prefix=>{const base=typeof crypto!=="undefined"&&typeof crypto.randomUUID==="function"?prefix+crypto.randomUUID().replace(/-/g,""):uid(prefix)+Math.random().toString(36).slice(2,10);let id=base,n=1;while(reserved.has(id))id=base+"_"+n++;reserved.add(id);return id};
  if(p.mode==="properties"){
-  const c=S.clients[p.clientId],old=typeof c.props==="string"?c.props:"",sep=old&&!/[\r\n]$/.test(old)?"\n":"";
-  return {coll,records:[Object.assign({},c,{props:old+sep+p.entries.join("\n")})]}
+  const c=S.clients[p.clientId],old=typeof c.props==="string"?c.props:"",sep=old&&!/[\r\n]$/.test(old)?"\n":"",next=old+sep+p.entries.join("\n");
+  if(fallbackPropertyProblem(c,next))throw new Error("Some jobs use this client's first property as their address. Edit those jobs to set an explicit address before adding a first property.");
+  return {coll,records:[Object.assign({},c,{props:next})]}
  }
  if(p.mode==="clients")return {coll,records:p.entries.map(a=>({id:nextId("c"),name:a,contact:"",phone:"",email:"",type:p.type,stage:p.stage,props:a,notes:""}))};
  const last=routeTail(p.date);
@@ -618,7 +731,7 @@ function openWeekPlanner(){
  if(typeof WeeklyPlanner==="undefined"){alert("The workweek planner did not load. Refresh the CRM and try again.");return}
  if(!db||!hasSnapshot||!synced){alert("Wait until the CRM says Synced across devices before planning a workweek.");return}
  const monday=WeeklyPlanner.defaultMonday(today());
- const setup={monday,flags:WeeklyPlanner.defaultFlags(monday,today()),flagsTouched:false,text:"",clientId:"",newType:"Other / unknown",newStage:"Lead",service:"Mow / edge / blow",start:String(S.meta.start||""),round:!!S.meta.round};
+ const setup={monday,flags:WeeklyPlanner.defaultFlags(monday,today()),flagsTouched:false,text:"",clientId:"",newType:"Other / unknown",newStage:"Lead",service:"Mow / edge / blow",defaultMinutes:"",start:String(S.meta.start||""),round:!!S.meta.round};
  weekPlan={stage:"setup",setup,entries:null,entrySource:"",days:[],snapshot:null,duplicates:[],orders:null,dirty:new Set(),saved:false};weekSeq++;weekReadSeq++;weekBusy=false;weekRenderSetup()
 }
 function weekSetSetup(key,value){
@@ -640,14 +753,15 @@ function weekRenderSetup(){
  <fieldset style="border:1px solid var(--bd);border-radius:8px;margin:0 0 8px"><legend>Workdays</legend><div id="wk_days"></div></fieldset>
  <label>Who are these new jobs for?<select id="wk_client" onchange="weekSetSetup('clientId',this.value)"><option value="">Choose an existing client or create clients…</option><option value="${WEEK_NEW_CLIENT}"${p.setup.clientId===WEEK_NEW_CLIENT?" selected":""}>Create a client for each distinct address</option>${c}</select></label>
  <label>Default service<select id="wk_service" onchange="weekSetSetup('service',this.value)">${services}</select></label>
- <p class="m">You can change the client, service, or date requirement for each job next. New clients are named by their address and default to Other / unknown and Lead unless you change the settings. No clients or jobs are created until you save.</p>
+ <label>Default work time per job in minutes (optional)<input id="wk_minutes" type="number" min="1" max="10080" step="1" inputmode="numeric" value="${E(p.setup.defaultMinutes||"")}" placeholder="For example, 45" oninput="weekSetSetup('defaultMinutes',this.value)"></label>
+ <p class="m">You can change the client, service, time estimate, or date requirement for each job next. Leave time blank if unknown. New clients are named by their address and default to Other / unknown and Lead unless you change the settings. No clients or jobs are created until you save.</p>
  <details><summary>Settings for any new clients</summary><label>New client type<select id="wk_new_type" onchange="weekSetSetup('newType',this.value)">${types}</select></label><label>New client stage<select id="wk_new_stage" onchange="weekSetSetup('newStage',this.value)">${stages}</select></label></details>
  <label>Addresses or GPS locations<textarea id="wk_text" rows="7" placeholder="123 Example St, Austin, TX 78701&#10;456 Example Ave, Austin, TX 78702" oninput="weekSetSetup('text',this.value)">${E(p.setup.text)}</textarea></label>
  <label>Or upload a plain-text (.txt) file<input id="wk_file" type="file" accept=".txt,text/plain" onchange="weekReadFile(this)"></label>
  <details><summary>Optional: put a date beside an address</summary><p class="m">Use <b>| due 2026-11-06</b> for a deadline or <b>| exact 2026-11-04</b> for a required day. You can also choose dates after loading the list. Every line is a separate job, even if an address repeats.</p></details>
  <label>Optional route start (address or GPS)<input id="wk_start" value="${E(p.setup.start)}" placeholder="Shop, yard or home address" oninput="weekSetSetup('start',this.value)"></label>
  <label style="display:flex;gap:6px;align-items:center"><input id="wk_round" type="checkbox" style="width:auto;margin:0" ${p.setup.round?"checked":""} onchange="weekSetSetup('round',this.checked)"> Return to this start after each day</label>
- <p class="m">The split considers stop counts, not job duration or live traffic. Existing stops count toward each day but are not moved, reordered, or included in these proposed orders. Use the daily Route later to optimize all stops together.</p>
+ <p class="m">The split considers any work-time estimates, stop counts and proximity. Unknown times are not estimated, and travel, breaks and live traffic are not included. Existing stops count toward each day but are not moved, reordered, or included in these proposed orders.</p>
  <div class="bt"><button class="pri" onclick="weekReviewJobs()">Review jobs and dates</button><button onclick="closeD()">Close</button></div><p class="m" id="wk_status" role="status" aria-live="polite">Nothing has been sent or saved.</p>`);weekDrawDays()
 }
 async function weekReadFile(input){
@@ -678,17 +792,17 @@ function weekReviewJobs(){
   if(!SV.includes(p.setup.service))throw new Error("Choose a default service.");
   if(p.setup.round&&!String(p.setup.start||"").trim())throw new Error("Add a start location to return to it, or turn off Return to start.");
   if(String(p.setup.start||"").trim())weekLocation(p.setup.start,"start");
-  const source=JSON.stringify([p.setup.text,p.setup.clientId,p.setup.service]);
+  const defaultMinutes=parseEstimate(p.setup.defaultMinutes),source=JSON.stringify([p.setup.text,p.setup.clientId,p.setup.service,defaultMinutes]);
   if(p.entries&&p.entrySource!==source&&!confirm("Changing the list or defaults will replace individual job edits. Continue?"))return;
-  if(!p.entries||p.entrySource!==source)p.entries=parsed.map(e=>Object.assign({},e,{clientId:p.setup.clientId,service:p.setup.service}));
+  if(!p.entries||p.entrySource!==source)p.entries=parsed.map(e=>Object.assign({},e,{clientId:p.setup.clientId,service:p.setup.service,estimatedMinutes:defaultMinutes}));
   p.entrySource=source;p.days=days;p.stage="entries";weekRenderEntries()
  }catch(e){$("#wk_status").textContent=e.message||"Could not review this list."}
 }
 function weekRuleText(e){return e.dateRequirement==="deadline"?"Due by "+(e.requiredDate||"(choose date)"):e.dateRequirement==="exact"?"Must be on "+(e.requiredDate||"(choose date)"):"Any selected day this week"}
 function weekRenderEntries(){
  const p=weekPlan;if(!p)return;p.stage="entries";
- const rows=p.entries.map((e,i)=>`<details class="card" data-i="${i}" ontoggle="weekOpenEntry(this)"><summary id="wk_summary_${i}">${E((i+1)+". "+e.location+" — "+weekRuleText(e))}</summary><div id="wk_detail_${i}"></div></details>`).join("");
- dlg(`<h2>Review jobs and dates</h2><p class="m">Tap a job to set <b>due by</b> or <b>must be on</b>, change its client or service, or correct its address. If you leave it alone, it can be scheduled any selected day this week.</p>
+ const rows=p.entries.map((e,i)=>{const estimate=storedEstimate(Number(e.estimatedMinutes));return `<details class="card" data-i="${i}" ontoggle="weekOpenEntry(this)"><summary id="wk_summary_${i}">${E((i+1)+". "+e.location+" — "+weekRuleText(e)+(estimate?" · "+estimateText(estimate):""))}</summary><div id="wk_detail_${i}"></div></details>`}).join("");
+ dlg(`<h2>Review jobs and dates</h2><p class="m">Tap a job to set <b>due by</b> or <b>must be on</b>, change its client, service, or estimated work time, or correct its address. If you leave its date alone, it can be scheduled any selected day this week.</p>
  <p class="m">${p.entries.length} separate job${p.entries.length===1?"":"s"}. Repeated addresses are kept as separate jobs; potential duplicates will be flagged before saving.</p>
  <div id="wk_entries">${rows}</div><div class="bt"><button class="pri" onclick="weekReviewSharing()">Review address sharing</button><button onclick="weekBack('setup')">Back to list and week</button><button onclick="closeD()">Close</button></div>
  <p class="m" id="wk_status" role="status" aria-live="polite">No addresses have been sent and no jobs have been added.</p><div id="wk_problems"></div>`)
@@ -700,22 +814,23 @@ function weekOpenEntry(details){
  $("#wk_detail_"+i).innerHTML=`<label>Location<input data-i="${i}" value="${E(e.location)}" oninput="weekEditEntry(this,'location')"></label>
  <label>Date requirement<select data-i="${i}" onchange="weekEditEntry(this,'dateRequirement')"><option value="any"${e.dateRequirement==="any"?" selected":""}>Any selected day this week</option><option value="deadline"${e.dateRequirement==="deadline"?" selected":""}>Due by a date</option><option value="exact"${e.dateRequirement==="exact"?" selected":""}>Must be on a date</option></select></label>
  <div id="wk_required_wrap_${i}"${e.dateRequirement==="any"?" hidden":""}><label>Required date<input id="wk_required_${i}" type="date" data-i="${i}" value="${E(e.requiredDate||"")}" onchange="weekEditEntry(this,'requiredDate')"></label></div>
- <label>Client<select data-i="${i}" onchange="weekEditEntry(this,'clientId')"><option value="${WEEK_NEW_CLIENT}"${e.clientId===WEEK_NEW_CLIENT?" selected":""}>Create a client for this address</option>${clients}</select></label><label>Service<select data-i="${i}" onchange="weekEditEntry(this,'service')">${services}</select></label>`
+ <label>Client<select data-i="${i}" onchange="weekEditEntry(this,'clientId')"><option value="${WEEK_NEW_CLIENT}"${e.clientId===WEEK_NEW_CLIENT?" selected":""}>Create a client for this address</option>${clients}</select></label><label>Service<select data-i="${i}" onchange="weekEditEntry(this,'service')">${services}</select></label>
+ <label>Estimated work time in minutes (optional)<input type="number" min="1" max="10080" step="1" inputmode="numeric" data-i="${i}" value="${E(e.estimatedMinutes==null?"":e.estimatedMinutes)}" oninput="weekEditEntry(this,'estimatedMinutes')"></label>`
 }
 function weekEditEntry(input,key){
- const p=weekPlan,i=Number(input.dataset.i);if(!p||p.stage!=="entries"||weekBusy||!Number.isInteger(i)||!p.entries[i]||!["location","dateRequirement","requiredDate","clientId","service"].includes(key))return;
+ const p=weekPlan,i=Number(input.dataset.i);if(!p||p.stage!=="entries"||weekBusy||!Number.isInteger(i)||!p.entries[i]||!["location","dateRequirement","requiredDate","clientId","service","estimatedMinutes"].includes(key))return;
  const e=p.entries[i];e[key]=input.value;if(key==="dateRequirement"){
   if(e.dateRequirement==="any"){e.requiredDate="";const date=$("#wk_required_"+i);if(date)date.value=""}
   const wrap=$("#wk_required_wrap_"+i);if(wrap)wrap.hidden=e.dateRequirement==="any"
  }
- const summary=$("#wk_summary_"+i);if(summary)summary.textContent=(i+1)+". "+e.location+" — "+weekRuleText(e)
+ const summary=$("#wk_summary_"+i),estimate=storedEstimate(Number(e.estimatedMinutes));if(summary)summary.textContent=(i+1)+". "+e.location+" — "+weekRuleText(e)+(estimate?" · "+estimateText(estimate):"")
 }
 function weekSnapshot(p){
  if(!db||!hasSnapshot||!synced)throw new Error("Wait until the CRM says Synced across devices before planning or saving.");
  const end=WeeklyPlanner.addDays(p.setup.monday,6),jobs=[];
  Object.keys(S.jobs).forEach(id=>{const j=S.jobs[id];if(!j||j.date<p.setup.monday||j.date>end||!["Scheduled","Done"].includes(j.status))return;
   if(typeof j.id!=="string"||!j.id||j.id!==id)throw new Error("A job has an invalid ID. Correct the CRM data before planning.");
-  jobs.push({id:j.id,date:j.date,status:j.status,client:j.client,service:j.service,location:String(jaddr(j)||"").trim(),ord:j.ord==null?null:j.ord,dateRequirement:j.dateRequirement||"any",requiredDate:j.requiredDate||""})});
+  jobs.push({id:j.id,date:j.date,status:j.status,client:j.client,service:j.service,location:String(jaddr(j)||"").trim(),ord:j.ord==null?null:j.ord,dateRequirement:j.dateRequirement||"any",requiredDate:j.requiredDate||"",estimatedMinutes:j.estimatedMinutes==null?null:j.estimatedMinutes})});
  jobs.sort((a,b)=>a.id.localeCompare(b.id));
  const selected=[...new Set(p.entries.map(e=>e.clientId).filter(id=>id!==WEEK_NEW_CLIENT))];
  selected.forEach(id=>{if(!S.clients[id]||S.clients[id].id!==id)throw new Error("A selected client changed or was removed. Review the jobs again.")});
@@ -725,6 +840,7 @@ function weekSnapshot(p){
 }
 function weekAssert(p){if(JSON.stringify(weekSnapshot(p))!==JSON.stringify(p.snapshot))throw new Error("The CRM changed while planning. Go back, review the jobs, and plan again; nothing was saved.")}
 function weekCounts(p){const counts=Object.fromEntries(p.days.map(d=>[d,0]));p.snapshot.jobs.forEach(j=>{if(Object.prototype.hasOwnProperty.call(counts,j.date))counts[j.date]++});return counts}
+function weekExistingWork(p){const minutes=Object.fromEntries(p.days.map(d=>[d,0])),missing=Object.fromEntries(p.days.map(d=>[d,0]));p.snapshot.jobs.forEach(j=>{if(!Object.prototype.hasOwnProperty.call(minutes,j.date))return;const estimate=storedEstimate(j.estimatedMinutes);if(estimate)minutes[j.date]+=estimate;else missing[j.date]++});return {minutes,missing}}
 function weekDuplicateList(p){
  const normalize=a=>{const pt=coords(a);return pt?pt[0]+", "+pt[1]:importKey(String(a||""))},key=e=>JSON.stringify([e.clientId,e.service,normalize(e.location)]);
  const old=new Map(),knownLocations=new Set();p.snapshot.jobs.forEach(j=>{const k=key({clientId:j.client,service:j.service,location:j.location});if(!old.has(k))old.set(k,j.date);if(j.location)knownLocations.add(normalize(j.location))});
@@ -735,8 +851,9 @@ function weekReviewSharing(){
  const p=weekPlan;if(!p||p.stage!=="entries"||weekBusy)return;
  try{
   p.entries.forEach((e,i)=>{e.location=weekLocation(e.location,i+1);if(e.clientId!==WEEK_NEW_CLIENT&&!S.clients[e.clientId])throw new Error("Job "+(i+1)+" needs an existing client or a new client for its address.");if(!SV.includes(e.service))throw new Error("Job "+(i+1)+" needs a service.");
-   if(!["any","deadline","exact"].includes(e.dateRequirement)||e.dateRequirement!=="any"&&!WeeklyPlanner.validDate(e.requiredDate))throw new Error("Job "+(i+1)+" needs a valid required date.");if(e.dateRequirement==="any")e.requiredDate=""});
-  p.snapshot=weekSnapshot(p);const first=WeeklyPlanner.suggest(p.entries,p.days,weekCounts(p));
+   if(!["any","deadline","exact"].includes(e.dateRequirement)||e.dateRequirement!=="any"&&!WeeklyPlanner.validDate(e.requiredDate))throw new Error("Job "+(i+1)+" needs a valid required date.");if(e.dateRequirement==="any")e.requiredDate="";
+   try{e.estimatedMinutes=parseEstimate(e.estimatedMinutes)}catch(err){throw new Error("Job "+(i+1)+": "+err.message)}});
+  p.snapshot=weekSnapshot(p);const first=WeeklyPlanner.suggest(p.entries,p.days,weekCounts(p),undefined,weekExistingWork(p).minutes);
   if(first.unassigned.length){$("#wk_problems").innerHTML=`<p><b>${first.unassigned.length} job${first.unassigned.length===1?"":"s"} cannot be placed.</b> Change its date requirement or choose more workdays, then try again. No addresses were sent.</p><ol>${first.unassigned.map(x=>`<li>Job ${x.index+1}: ${E(p.entries[x.index].location)} — ${E(x.reason)}</li>`).join("")}</ol>`;$("#wk_status").textContent="Some jobs do not fit the selected workdays or 100-stop daily route limit.";return}
   const inputs=(String(p.setup.start||"").trim()?[{raw:weekLocation(p.setup.start,"start"),label:"Start"}]:[]).concat(p.entries.map((e,i)=>({raw:e.location,label:"Job "+(i+1)}))),keys=new Map(),lookups=[];
   p.refs=inputs.map(x=>{const gps=coords(x.raw);if(gps)return Object.assign({},x,{point:gps});const k=importKey(x.raw);if(!keys.has(k)){keys.set(k,lookups.length);lookups.push(x.raw)}return Object.assign({},x,{lookup:keys.get(k)})});
@@ -747,7 +864,7 @@ function weekRenderSharing(){
  const p=weekPlan;if(!p)return;p.stage="share";const dup=p.duplicates.length;
  dlg(`<h2>Review what will be shared</h2><p class="m">Nothing has been sent yet. ${p.lookups.length?E(p.lookups.length)+" distinct street address"+(p.lookups.length===1?" will be sent":"es will be sent")+" to Geocodio in batches for lookup; you will review the matches.":"All locations are GPS coordinates, so no address lookup is needed."}</p>
  <p class="m">When you ask for suggestions, GPS coordinates and the optional start go to Simple Routing once per workday with at least two new stops, up to ${p.days.length} requests. Customer names, phone numbers, date requirements, job notes and CRM IDs are not sent, but anything typed in a location field is included. These requests use your provider quotas.</p>
- <p class="m">The daily split uses stop counts and straight-line proximity; the new-stop order uses road estimates, not live traffic. Without a start location, the first new stop on each day stays first. Existing jobs count toward the split but are not included in the new-stop driving orders or changed.</p>
+ <p class="m">The daily split uses entered work-time estimates, stop counts and straight-line proximity; missing estimates are not guessed. The new-stop order uses road estimates, not live traffic. Without a start location, the first new stop on each day stays first. Existing jobs count toward the split but are not included in the new-stop driving orders or changed.</p>
  ${dup?`<p><b>${dup} possible duplicate${dup===1?"":"s"} detected.</b> Repeated lines and addresses already in the CRM may still create new jobs or clients if you save. Review them in the final plan.</p>`:""}
  ${p.lookups.length?`<details><summary>Street addresses to look up (${p.lookups.length})</summary><ol>${p.lookups.map(a=>`<li>${E(a)}</li>`).join("")}</ol></details>`:""}
  <div class="bt"><button class="pri" id="wk_send" onclick="weekBegin()">${p.lookups.length?"Look up locations":"Share GPS points and suggest week"}</button><button id="wk_back" onclick="weekBack('entries')">Back to jobs</button><button onclick="closeD()">Close</button></div>
@@ -804,7 +921,7 @@ async function weekSuggest(){
  try{weekAssert(p);if(p.lookups.length&&!p.matchesOK)throw new Error("Review and resolve every address match first.");
   if(!Array.isArray(p.jobPoints)||p.jobPoints.length!==p.entries.length||!p.jobPoints.every(point)||(String(p.setup.start||"").trim()&&!point(p.startPoint)))throw new Error("Every location needs a valid reviewed match.")
  }catch(e){$("#wk_status").textContent=e.message;return}
- const result=WeeklyPlanner.suggest(p.entries,p.days,weekCounts(p),p.jobPoints);
+ const result=WeeklyPlanner.suggest(p.entries,p.days,weekCounts(p),p.jobPoints,weekExistingWork(p).minutes);
  if(result.unassigned.length){$("#wk_status").textContent="Some jobs no longer fit the selected days. Go back and adjust the dates; no jobs were added.";return}
  p.orders=Object.fromEntries(p.days.map(d=>[d,[]]));result.assignments.forEach((d,i)=>p.orders[d].push(i));p.dirty=new Set();weekSetBusy(true);
  try{if(!await weekOptimizeDays(p,seq,p.days)||!weekCurrent(seq,p))return;weekAssert(p);p.stage="preview";weekRenderPreview()}
@@ -812,11 +929,13 @@ async function weekSuggest(){
  finally{if(weekCurrent(seq,p))weekSetBusy(false)}
 }
 function weekRenderPreview(){
- const p=weekPlan;if(!p)return;p.stage="preview";const counts=weekCounts(p),dups=new Set(p.duplicates.map(x=>x.index));
- const sections=p.days.map(day=>{const rows=p.orders[day].map(i=>{const e=p.entries[i],choices=WeeklyPlanner.eligibleDays(e,p.days).map(d=>`<option value="${E(d)}"${d===day?" selected":""}>${E(weekDayName(d))}</option>`).join("");
-  return `<li><b>${E(e.location)}</b><br><span class="m">${E(e.clientId===WEEK_NEW_CLIENT?"New client named by address":cname(e.clientId))} · ${E(e.service)} · ${E(weekRuleText(e))}${dups.has(i)?" · Possible duplicate":""}</span><label>Move to a workday<select data-i="${i}" onchange="weekMove(this)">${choices}</select></label></li>`}).join("");
-  return `<section><h3>${E(weekDayName(day))}</h3><p class="m">${counts[day]} existing stop${counts[day]===1?"":"s"} · ${p.orders[day].length} new ${p.orders[day].length===1?"job":"jobs"}${p.dirty.has(day)?" · Needs re-optimization":""}</p>${rows?`<ol>${rows}</ol>`:'<p class="m">No new jobs suggested for this day.</p>'}</section>`}).join("");
- dlg(`<h2>Suggested workweek</h2><p class="m">Review every day and move jobs if needed. Existing stops stay as they are; the new stops below will be appended after them. Use each day's Route to optimize the combined list after saving. The split does not estimate job time, and road estimates do not include live traffic.</p>
+ const p=weekPlan;if(!p)return;p.stage="preview";const counts=weekCounts(p),work=weekExistingWork(p),dups=new Set(p.duplicates.map(x=>x.index));
+ const sections=p.days.map(day=>{let total=work.minutes[day],missing=work.missing[day];const rows=p.orders[day].map(i=>{const e=p.entries[i],estimate=storedEstimate(e.estimatedMinutes),choices=WeeklyPlanner.eligibleDays(e,p.days).map(d=>`<option value="${E(d)}"${d===day?" selected":""}>${E(weekDayName(d))}</option>`).join("");
+  if(estimate)total+=estimate;else missing++;
+  return `<li><b>${E(e.location)}</b><br><span class="m">${E(e.clientId===WEEK_NEW_CLIENT?"New client named by address":cname(e.clientId))} · ${E(e.service)} · ${E(weekRuleText(e))} · ${E(estimateText(estimate))}${dups.has(i)?" · Possible duplicate":""}</span><label>Move to a workday<select data-i="${i}" onchange="weekMove(this)">${choices}</select></label></li>`}).join("");
+  const known=counts[day]+p.orders[day].length-missing,summary=known?"Estimated work: "+estimateText(total)+(missing?"; "+missing+" without estimates":""):missing?"Work time unknown for "+missing+" job"+(missing===1?"":"s"):"No work estimated";
+  return `<section><h3>${E(weekDayName(day))}</h3><p class="m">${counts[day]} existing stop${counts[day]===1?"":"s"} · ${p.orders[day].length} new ${p.orders[day].length===1?"job":"jobs"} · ${E(summary)}${p.dirty.has(day)?" · Needs re-optimization":""}</p>${rows?`<ol>${rows}</ol>`:'<p class="m">No new jobs suggested for this day.</p>'}</section>`}).join("");
+ dlg(`<h2>Suggested workweek</h2><p class="m">Review every day and move jobs if needed. Existing stops stay as they are; the new stops below will be appended after them. Use each day's Route to optimize the combined list after saving. Work estimates exclude jobs without a time, travel and breaks; road estimates do not include live traffic.</p>
  ${p.duplicates.length?`<p><b>${p.duplicates.length} possible duplicate${p.duplicates.length===1?"":"s"} detected.</b> Check the marked jobs or clients before saving; repeated addresses may be separate work orders.</p>`:""}${sections}
  <div class="bt"><button class="pri" id="wk_reopt" onclick="weekReoptimize()"${p.dirty.size?"":" hidden"}>Re-optimize changed days</button><button class="pri" id="wk_save" onclick="weekSave()"${p.dirty.size?" disabled":""}>Save all jobs</button><button id="wk_back" onclick="weekBack('entries')">Back to edit jobs</button><button onclick="closeD()">Close</button></div>
  <p class="m" id="wk_status" role="status" aria-live="polite">${p.dirty.size?"Re-optimize the changed days before saving. This uses more routing requests.":"Nothing has been saved. Review the proposed days and order."}</p>`)
@@ -842,7 +961,7 @@ async function weekReoptimize(){
 function weekValidateOrders(p){
  if(p.dirty.size)throw new Error("Re-optimize changed days before saving.");const seen=new Set(),counts=weekCounts(p);
  p.days.forEach(day=>{const order=p.orders&&p.orders[day];if(!Array.isArray(order)||counts[day]+order.length>ROAD_STOP_LIMIT)throw new Error("A proposed day exceeds the 100-stop limit.");
-  order.forEach(i=>{if(!Number.isInteger(i)||i<0||i>=p.entries.length||seen.has(i)||!WeeklyPlanner.eligibleDays(p.entries[i],p.days).includes(day))throw new Error("The proposed week is incomplete or does not meet a date requirement.");seen.add(i)})});
+  order.forEach(i=>{if(!Number.isInteger(i)||i<0||i>=p.entries.length||seen.has(i)||!WeeklyPlanner.eligibleDays(p.entries[i],p.days).includes(day))throw new Error("The proposed week is incomplete or does not meet a date requirement.");if(p.entries[i].estimatedMinutes!=null&&!storedEstimate(p.entries[i].estimatedMinutes))throw new Error("An estimated work time is invalid. Go back and edit the job.");seen.add(i)})});
  if(seen.size!==p.entries.length)throw new Error("The proposed week does not include every job.")
 }
 function weekClientKey(location){const pt=coords(location);return pt?pt[0]+", "+pt[1]:importKey(location)}
@@ -852,7 +971,7 @@ function weekRecords(p){
  const clients=[],jobs=[],created=new Map();p.days.forEach(day=>{const last=routeTail(day),order=p.orders[day];if(!Number.isSafeInteger(last)||last>Number.MAX_SAFE_INTEGER-order.length)throw new Error("Existing route order is too large. Reorder the day before adding jobs.");
   order.forEach((index,i)=>{const e=p.entries[index];let client=e.clientId;
    if(client===WEEK_NEW_CLIENT){const k=weekClientKey(e.location);if(!created.has(k)){const id=nextId("clients");created.set(k,id);clients.push({id,name:e.location,contact:"",phone:"",email:"",type:p.setup.newType,stage:p.setup.newStage,props:e.location,notes:""})}client=created.get(k)}
-   jobs.push({id:nextId("jobs"),client,service:e.service,prop:e.location,date:day,dateRequirement:e.dateRequirement,requiredDate:e.dateRequirement==="any"?"":e.requiredDate,status:"Scheduled",repeat:"One-time",items:"",price:"",notes:"",ord:last+1+i})})});return {clients,jobs}
+   jobs.push({id:nextId("jobs"),client,service:e.service,prop:e.location,date:day,dateRequirement:e.dateRequirement,requiredDate:e.dateRequirement==="any"?"":e.requiredDate,estimatedMinutes:e.estimatedMinutes==null?null:e.estimatedMinutes,status:"Scheduled",repeat:"One-time",items:"",price:"",notes:"",ord:last+1+i})})});return {clients,jobs}
 }
 function weekStorageAvailable(batch){
  const probe="mib_week_probe_"+uid("");try{const next=Object.assign({},S,{clients:Object.assign({},S.clients),jobs:Object.assign({},S.jobs)}),nextPending=Object.assign({},pending);

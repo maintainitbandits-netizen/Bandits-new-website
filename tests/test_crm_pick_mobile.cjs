@@ -35,7 +35,7 @@ function installFakeCRM() {
     },
     from: () => ({
       select: async () => ({ data: [...rows.values()].map(row => JSON.parse(JSON.stringify(row))), error: null }),
-      upsert: async row => { rows.set(`${row.coll}/${row.id}`, row); window.__mock.writes.push(row); return { error: null }; },
+      upsert: async row => { if (window.__mock.blockWrites) return { error: { message: 'simulated offline' } }; rows.set(`${row.coll}/${row.id}`, row); window.__mock.writes.push(row); return { error: null }; },
       delete() { let coll; return { eq(k, v) { if (k === 'coll') { coll = v; return this; } rows.delete(`${coll}/${v}`); window.__mock.writes.push({ deleted: v }); return Promise.resolve({ error: null }); } }; },
     }),
     channel: () => ({ on(_e, _f, fn) { window.__mock.listener = fn; return this; }, subscribe(fn) { setTimeout(() => fn('SUBSCRIBED'), 0); return this; } }),
@@ -46,7 +46,12 @@ async function makeBrowser() {
   process.env.AWS_LAMBDA_JS_RUNTIME ||= 'nodejs22.x';
   const executablePath = await chromium.executablePath();
   process.env.LD_LIBRARY_PATH = `/tmp/al2023/lib:${process.env.LD_LIBRARY_PATH || ''}`;
-  return playwright.chromium.launch({ executablePath, args: chromium.args.filter(a => a !== '--single-process'), headless: true });
+  // The sandboxed Chromium binary can occasionally SIGSEGV at startup; retry
+  // that launcher failure only, never browser assertions or application errors.
+  for (let attempt = 0; ; attempt++) {
+    try { return await playwright.chromium.launch({ executablePath, args: chromium.args.filter(a => a !== '--single-process'), headless: true }); }
+    catch (error) { if (attempt >= 2 || !String(error).includes('SIGSEGV')) throw error; }
+  }
 }
 async function setup(browser, width) {
   const context = await browser.newContext({ viewport: { width, height: 760 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
@@ -181,6 +186,303 @@ test('single-stop and long GPS routes work on a phone without losing stops or ch
       assert.equal(second.searchParams.get('origin'), first.searchParams.get('destination'));
       assert.equal(second.searchParams.get('destination'), '30,-98');
       assert.equal(await page.evaluate(() => __mock.writes.length), 0);
+      assert.deepEqual(errors, []);
+    } finally { await context.close(); }
+  } finally { await browser.close(); }
+});
+
+test('next-stop mode separates navigation and completion, preserves other dates, repeats and pending sync', { skip: !canRun && 'Install browser dependencies externally' }, async () => {
+  const browser = await makeBrowser();
+  try {
+    for (const width of [320, 390]) {
+      const { context, page, requests, errors } = await setup(browser, width);
+      try {
+        await page.evaluate(() => {
+          Object.assign(S.jobs.j1, { repeat: 'Weekly', estimatedMinutes: 95, dateRequirement: 'deadline', requiredDate: '2026-11-04' });
+          __mock.rows.get('jobs/j1').data = JSON.parse(JSON.stringify(S.jobs.j1));
+        });
+        await page.getByRole('button', { name: 'Pick addresses to route' }).click();
+        await row(page, '100 Example Road').locator('input').check();
+        await page.locator('#pick_scope').selectOption('all');
+        await row(page, '700 Example Road').locator('input').check();
+        await page.getByRole('button', { name: 'Route selected addresses', exact: true }).click();
+        await page.getByRole('button', { name: 'Look up these locations' }).click();
+        await page.getByRole('button', { name: 'Matches look right — optimize' }).click();
+        await page.waitForSelector('#rr_next a');
+        await noOverflow(page, `${width} next stop`);
+        assert.match(await page.locator('#rr_next').innerText(), /Stop 1 of 2/);
+        assert.equal(new URL(await page.getByRole('link', { name: 'Navigate to next stop' }).getAttribute('href')).searchParams.get('destination'), '30.1,-97');
+        assert.equal(await page.evaluate(() => roadMapGuard()), true);
+        assert.equal(await page.evaluate(() => __mock.writes.length), 0);
+        page.once('dialog', d => d.dismiss());
+        await page.getByRole('button', { name: 'Mark done & next' }).click();
+        assert.equal(await page.evaluate(() => S.jobs.j1.status), 'Scheduled');
+        assert.equal(await page.evaluate(() => __mock.writes.length), 0);
+        await page.evaluate(() => { __mock.blockWrites = true; });
+        let firstConfirmation = '';
+        page.once('dialog', d => { firstConfirmation = d.message(); return d.accept(); });
+        await page.getByRole('button', { name: 'Mark done & next' }).click();
+        assert.match(firstConfirmation, /next repeating occurrence/i);
+        await page.waitForFunction(() => S.jobs.j1.status === 'Done' && Object.keys(pending).length > 0);
+        assert.equal(await page.evaluate(() => S.jobs.j1.date), '2026-11-04');
+        const repeat = await page.evaluate(() => Object.values(S.jobs).find(j => j.id !== 'j1' && j.prop === S.jobs.j1.prop));
+        assert.equal(repeat.date, '2026-11-11');
+        assert.equal(repeat.status, 'Scheduled');
+        assert.equal(repeat.estimatedMinutes, 95);
+        assert.equal(repeat.dateRequirement, undefined);
+        assert.match(await page.locator('#rr_next').innerText(), /Scheduled 2026-11-05.*did not reschedule/s);
+        assert.equal(await page.locator('#rr_original').isVisible(), false);
+        assert.equal(await page.evaluate(() => roadMapGuard()), false);
+        await page.getByRole('button', { name: 'Skip for now' }).click();
+        assert.match(await page.locator('#rr_status').innerText(), /Synced across devices/);
+        assert.match(await page.locator('#rr_next').innerText(), /Stop 2 of 2/);
+        await page.evaluate(() => { __mock.blockWrites = false; window.dispatchEvent(new Event('online')); });
+        await page.waitForFunction(() => document.querySelector('#st').textContent === 'Synced across devices');
+        assert.equal(await page.evaluate(() => roadMapGuard()), true);
+        let secondConfirmation = '';
+        page.once('dialog', d => { secondConfirmation = d.message(); return d.accept(); });
+        await page.getByRole('button', { name: 'Mark done & next' }).click();
+        assert.match(secondConfirmation, /scheduled for 2026-11-05.*date will not change/is);
+        await page.waitForFunction(() => document.querySelector('#st').textContent === 'Synced across devices');
+        assert.equal(await page.evaluate(() => S.jobs.j7.status), 'Done');
+        assert.equal(await page.evaluate(() => S.jobs.j7.date), '2026-11-05');
+        assert.match(await page.locator('#rr_next').innerText(), /No more stops/);
+        assert.ok(requests.length >= 2); assert.deepEqual(errors, []);
+      } finally { await context.close(); }
+    }
+  } finally { await browser.close(); }
+});
+
+test('next stop refuses stale jobs; skipping does not change any record', { skip: !canRun && 'Install browser dependencies externally' }, async () => {
+  const browser = await makeBrowser();
+  try {
+    const { context, page, errors } = await setup(browser, 320);
+    try {
+      await page.getByRole('button', { name: 'Pick addresses to route' }).click();
+      await row(page, '100 Example Road').locator('input').check();
+      await page.getByRole('button', { name: 'Route selected addresses', exact: true }).click();
+      await page.evaluate(() => { S.jobs.j1.prop = 'Changed fictional address, Austin, TX 78701'; });
+      assert.equal(await page.evaluate(() => roadMapGuard()), false);
+      await page.getByRole('button', { name: 'Mark done & next' }).click();
+      assert.match(await page.locator('#rr_status').innerText(), /route changed/i);
+      assert.equal(await page.evaluate(() => S.jobs.j1.status), 'Scheduled');
+      assert.equal(await page.evaluate(() => __mock.writes.length), 0);
+      await page.getByRole('button', { name: 'Back to picks' }).click();
+      await page.getByRole('button', { name: 'Close', exact: true }).click();
+      await page.getByRole('button', { name: 'Pick addresses to route' }).click();
+      await row(page, 'Changed fictional address').locator('input').check();
+      await page.getByRole('button', { name: 'Route selected addresses', exact: true }).click();
+      await page.getByRole('button', { name: 'Skip for now' }).click();
+      assert.match(await page.locator('#rr_next').innerText(), /Skipped jobs are still scheduled/);
+      assert.equal(await page.evaluate(() => S.jobs.j1.status), 'Scheduled');
+      assert.equal(await page.evaluate(() => __mock.writes.length), 0);
+      assert.deepEqual(errors, []);
+    } finally { await context.close(); }
+  } finally { await browser.close(); }
+});
+
+test('daily next-stop mode follows existing order without an optimization request', { skip: !canRun && 'Install browser dependencies externally' }, async () => {
+  const browser = await makeBrowser();
+  try {
+    const { context, page, requests, errors } = await setup(browser, 320);
+    try {
+      await page.evaluate(() => { S.jobs.missing.prop = '1200 Fictional Road, Austin, TX 78701'; __mock.rows.get('jobs/missing').data.prop = S.jobs.missing.prop; });
+      await page.getByRole('button', { name: 'Next stop for this day' }).click();
+      await noOverflow(page, '320 daily next stop');
+      assert.match(await page.locator('#rr_next').innerText(), /Stop 1 of 7/);
+      assert.match(await page.locator('#rr_next').innerText(), /100 Example Road/);
+      assert.equal(requests.length, 0); assert.equal(await page.evaluate(() => __mock.writes.length), 0);
+      await page.getByRole('button', { name: 'Skip for now' }).click();
+      assert.equal(await page.evaluate(() => S.jobs.j1.status), 'Scheduled');
+      assert.match(await page.locator('#rr_next').innerText(), /200 Example Road/);
+      page.once('dialog', d => d.accept());
+      await page.getByRole('button', { name: 'Mark done & next' }).click();
+      await page.waitForFunction(() => document.querySelector('#st').textContent === 'Synced across devices');
+      assert.equal(await page.evaluate(() => S.jobs.j2.status), 'Done');
+      assert.equal(await page.evaluate(() => S.jobs.j2.date), '2026-11-04');
+      assert.equal(requests.length, 0); assert.deepEqual(errors, []);
+    } finally { await context.close(); }
+  } finally { await browser.close(); }
+});
+
+test('due dashboard uses required dates, flags invalid requirements and edits estimates on a phone', { skip: !canRun && 'Install browser dependencies externally' }, async () => {
+  const browser = await makeBrowser();
+  try {
+    const { context, page, errors } = await setup(browser, 320);
+    try {
+      await page.evaluate(() => {
+        for (const id of ['fixed', 'late']) { delete S.jobs[id]; __mock.rows.delete(`jobs/${id}`); }
+        const d = today();
+        const cases = [
+          { id:'over', service:'Overdue fictional service', date:addD(d,-4), dateRequirement:'deadline', requiredDate:addD(d,-1) },
+          { id:'today', service:'Due today fictional service', date:d, dateRequirement:'exact', requiredDate:d },
+          { id:'future', service:'Upcoming fictional service', date:d, dateRequirement:'deadline', requiredDate:addD(d,2) },
+          { id:'invalid', service:'Missing date service', date:d, dateRequirement:'deadline', requiredDate:'' },
+          { id:'badtype', service:'Invalid rule service', date:d, dateRequirement:'mystery', requiredDate:d },
+          { id:'orphan', service:'Missing rule service', date:d, requiredDate:d },
+          { id:'complete', service:'Completed service', date:d, status:'Done', dateRequirement:'deadline', requiredDate:addD(d,-1) },
+          { id:'any', service:'Unrestricted service', date:d, dateRequirement:'any' },
+        ];
+        for (const item of cases) { const job = { client:'c1', prop:'Fictional Address, Austin, TX 78701', status:'Scheduled', ...item }; S.jobs[job.id] = job; __mock.rows.set(`jobs/${job.id}`, { coll:'jobs', id:job.id, data:JSON.parse(JSON.stringify(job)) }); }
+      });
+      await page.getByRole('button', { name: 'Due & overdue' }).click();
+      await noOverflow(page, '320 due dashboard');
+      const main = page.locator('#main');
+      assert.match(await main.innerText(), /Overdue \(1\)/);
+      assert.match(await main.innerText(), /Due today \(1\)/);
+      assert.match(await main.innerText(), /Upcoming \(1\)/);
+      assert.match(await main.innerText(), /Needs a valid requirement \(3\)/);
+      assert.doesNotMatch(await main.innerText(), /Completed service|Unrestricted service/);
+      const card = main.locator('.card', { hasText: 'Due today fictional service' });
+      await card.getByRole('button', { name: 'Edit job' }).click();
+      await page.locator('#j_minutes').fill('90');
+      await page.locator('#dlg').getByRole('button', { name: 'Save', exact: true }).click();
+      await page.waitForFunction(() => document.querySelector('#st').textContent === 'Synced across devices');
+      assert.equal(await page.evaluate(() => S.jobs.today.estimatedMinutes), 90);
+      assert.match(await main.innerText(), /1 hr 30 min work/);
+      assert.deepEqual(errors, []);
+    } finally { await context.close(); }
+  } finally { await browser.close(); }
+});
+
+test('multi-select lead deletion shows linked counts, requires confirmation and leaves unselected records', { skip: !canRun && 'Install browser dependencies externally' }, async () => {
+  const browser = await makeBrowser();
+  try {
+    for (const width of [320, 390]) {
+      const { context, page, errors } = await setup(browser, width);
+      try {
+        await page.evaluate(() => {
+          const client = { id:'keep', name:'Unselected client', stage:'Won', type:'Other / unknown', props:'', notes:'' };
+          const job = { id:'keepjob', client:'keep', status:'Scheduled', date:'2026-11-04', prop:'5 Fictional Road', service:'Mow' };
+          S.clients.keep = client; S.jobs.keepjob = job;
+          __mock.rows.set('clients/keep', {coll:'clients',id:'keep',data:JSON.parse(JSON.stringify(client))});
+          __mock.rows.set('jobs/keepjob', {coll:'jobs',id:'keepjob',data:JSON.parse(JSON.stringify(job))});
+        });
+        await page.getByRole('button', { name: 'Pipeline' }).click();
+        await page.getByRole('button', { name: 'Select leads to delete' }).click();
+        await noOverflow(page, `${width} lead selection`);
+        await page.locator('#lead_list label', { hasText:'Fictional Client' }).locator('input').check();
+        await page.locator('#lead_search').fill('Other Client');
+        await page.locator('#lead_list label', { hasText:'Other Client' }).locator('input').check();
+        assert.match(await page.locator('#lead_count').innerText(), /2 selected · 11 linked jobs/);
+        let cancelled = '';
+        page.once('dialog', d => { cancelled = d.message(); return d.dismiss(); });
+        await page.getByRole('button', { name:'Delete selected leads' }).click();
+        assert.match(cancelled, /2 leads AND 11 linked jobs/);
+        assert.match(cancelled, /photo files are NOT deleted/i);
+        assert.equal(await page.evaluate(() => __mock.writes.length), 0);
+        assert.equal(await page.evaluate(() => Object.keys(S.clients).length), 3);
+        let accepted = '';
+        page.once('dialog', d => { accepted = d.message(); return d.accept(); });
+        await page.getByRole('button', { name:'Delete selected leads' }).click();
+        assert.match(accepted, /2 leads AND 11 linked jobs/);
+        await page.waitForFunction(() => document.querySelector('#st').textContent === 'Synced across devices');
+        const remaining = await page.evaluate(() => ({ clients:Object.keys(S.clients), jobs:Object.keys(S.jobs), rows:[...__mock.rows.keys()] }));
+        assert.deepEqual(remaining.clients, ['keep']); assert.deepEqual(remaining.jobs, ['keepjob']);
+        assert.deepEqual(remaining.rows.sort(), ['clients/keep', 'jobs/keepjob']);
+        assert.deepEqual(errors, []);
+      } finally { await context.close(); }
+    }
+  } finally { await browser.close(); }
+});
+
+test('lead selection notices changed linked jobs and blocks deletion before confirmation', { skip: !canRun && 'Install browser dependencies externally' }, async () => {
+  const browser = await makeBrowser();
+  try {
+    const { context, page, errors } = await setup(browser, 320);
+    try {
+      await page.getByRole('button', { name:'Pipeline' }).click();
+      await page.getByRole('button', { name:'Select leads to delete' }).click();
+      await page.locator('#lead_list label', { hasText:'Fictional Client' }).locator('input').check();
+      await page.evaluate(() => { S.jobs.j1.service = 'Changed while selected'; });
+      await page.getByRole('button', { name:'Delete selected leads' }).click();
+      assert.match(await page.locator('#lead_status').innerText(), /linked jobs changed/i);
+      assert.equal(await page.evaluate(() => __mock.writes.length), 0);
+      assert.ok(await page.evaluate(() => !!S.clients.c1 && !!S.jobs.j1));
+      assert.deepEqual(errors, []);
+    } finally { await context.close(); }
+  } finally { await browser.close(); }
+});
+
+test('property removal and editing cannot silently redirect jobs using a default address', { skip: !canRun && 'Install browser dependencies externally' }, async () => {
+  const browser = await makeBrowser();
+  try {
+    const { context, page, errors } = await setup(browser, 320);
+    try {
+      await page.evaluate(() => {
+        S.clients.c1.props = '100 First Property, Austin, TX 78701\n200 Second Property, Austin, TX 78701';
+        S.jobs.j1.prop = '';
+        __mock.rows.get('clients/c1').data.props = S.clients.c1.props;
+        __mock.rows.get('jobs/j1').data.prop = '';
+      });
+      await page.getByRole('button', { name:'Properties' }).click();
+      const first = page.locator('#main .card', { hasText:'100 First Property' });
+      let warning = '';
+      page.once('dialog', d => { warning = d.message(); return d.accept(); });
+      await first.getByRole('button', { name:'Delete property' }).click();
+      assert.match(warning, /first property.*explicit address/i);
+      assert.match(await page.evaluate(() => S.clients.c1.props), /^100 First Property/);
+      await page.getByRole('button', { name:'Clients' }).click();
+      await page.locator('#cl .card', { hasText:'Fictional Client' }).click();
+      await page.locator('#c_props').fill('200 Second Property, Austin, TX 78701');
+      page.once('dialog', d => { warning = d.message(); return d.accept(); });
+      await page.locator('#dlg').getByRole('button', { name:'Save', exact:true }).click();
+      assert.match(warning, /first property.*explicit address/i);
+      assert.equal(await page.evaluate(() => jaddr(S.jobs.j1)), '100 First Property, Austin, TX 78701');
+      await page.locator('#dlg').getByRole('button', { name:'Cancel' }).click();
+      await page.getByRole('button', { name:'Jobs', exact:true }).click();
+      await page.evaluate(() => openJob('j1'));
+      await page.locator('#j_prop').fill('100 First Property, Austin, TX 78701');
+      await page.locator('#dlg').getByRole('button', { name:'Save', exact:true }).click();
+      await page.waitForFunction(() => document.querySelector('#st').textContent === 'Synced across devices');
+      await page.getByRole('button', { name:'Properties' }).click();
+      page.once('dialog', d => d.accept());
+      await page.locator('#main .card', { hasText:'100 First Property' }).getByRole('button', { name:'Delete property' }).click();
+      await page.waitForFunction(() => document.querySelector('#st').textContent === 'Synced across devices');
+      assert.equal(await page.evaluate(() => S.clients.c1.props), '200 Second Property, Austin, TX 78701');
+      assert.equal(await page.evaluate(() => jaddr(S.jobs.j1)), '100 First Property, Austin, TX 78701');
+      assert.deepEqual(errors, []);
+    } finally { await context.close(); }
+  } finally { await browser.close(); }
+});
+
+test('daily next-stop mode becomes stale if another scheduled stop is added', { skip: !canRun && 'Install browser dependencies externally' }, async () => {
+  const browser = await makeBrowser();
+  try {
+    const { context, page, errors } = await setup(browser, 320);
+    try {
+      await page.evaluate(() => { S.jobs.missing.prop = '1200 Fictional Road, Austin, TX 78701'; __mock.rows.get('jobs/missing').data.prop = S.jobs.missing.prop; });
+      await page.getByRole('button', { name:'Next stop for this day' }).click();
+      await page.evaluate(() => { S.jobs.newstop = { id:'newstop', client:'c1', date:rd, status:'Scheduled', service:'Mow', prop:'New fictional address, Austin, TX 78701' }; });
+      assert.equal(await page.evaluate(() => roadMapGuard()), false);
+      await page.getByRole('button', { name:'Mark done & next' }).click();
+      assert.match(await page.locator('#rr_status').innerText(), /day's stops changed/i);
+      assert.equal(await page.evaluate(() => S.jobs.j1.status), 'Scheduled');
+      assert.equal(await page.evaluate(() => __mock.writes.length), 0);
+      assert.deepEqual(errors, []);
+    } finally { await context.close(); }
+  } finally { await browser.close(); }
+});
+
+test('route job deletion is explicit, cancelable and warns that private photos remain', { skip: !canRun && 'Install browser dependencies externally' }, async () => {
+  const browser = await makeBrowser();
+  try {
+    const { context, page, errors } = await setup(browser, 320);
+    try {
+      const card = page.locator('#main .card', { hasText:'200 Example Road' });
+      let message = '';
+      page.once('dialog', d => { message = d.message(); return d.dismiss(); });
+      await card.getByRole('button', { name:'Delete job' }).click();
+      assert.match(message, /Delete the job for Other Client/);
+      assert.match(message, /photo files are NOT deleted from storage/i);
+      assert.equal(await page.evaluate(() => !!S.jobs.j2), true);
+      assert.equal(await page.evaluate(() => __mock.writes.length), 0);
+      page.once('dialog', d => d.accept());
+      await card.getByRole('button', { name:'Delete job' }).click();
+      await page.waitForFunction(() => document.querySelector('#st').textContent === 'Synced across devices');
+      assert.equal(await page.evaluate(() => !!S.jobs.j2), false);
+      assert.equal(await page.evaluate(() => __mock.rows.has('jobs/j2')), false);
+      assert.equal(await page.evaluate(() => !!S.clients.c2), true);
       assert.deepEqual(errors, []);
     } finally { await context.close(); }
   } finally { await browser.close(); }
