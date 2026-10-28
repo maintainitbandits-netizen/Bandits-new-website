@@ -50,6 +50,8 @@ class CRMStaticTests(unittest.TestCase):
         self.assertIn('Team sign in', self.source)
         self.assertIn('signInWithPassword', self.source)
         self.assertIn('@supabase/supabase-js@2.118.0/', self.source)
+        self.assertIn('<script src="/crm-week.js"></script>', self.source)
+        subprocess.run(['node', '--check', str(ROOT / 'frontend/public/crm-week.js')], check=True, capture_output=True, text=True)
         self.assertRegex(self.source, r'<main\s+id="main"\s*></main>')
         self.assertRegex(self.source, r'<div\s+class="stats"\s+id="stats"\s*></div>')
 
@@ -72,7 +74,7 @@ class CRMStaticTests(unittest.TestCase):
             self.assertEqual(rewrites[-1], {'source': '/(.*)', 'destination': '/index.html'})
             for source in ('/crm', '/crm/'):
                 self.assertIn({'source': source, 'destination': '/crm.html'}, rewrites[:-1])
-            for source in ('/crm', '/crm/', '/crm.html'):
+            for source in ('/crm', '/crm/', '/crm.html', '/crm-week.js'):
                 rule = next(rule for rule in config['headers'] if rule['source'] == source)
                 headers = {header['key'].lower(): header['value'].lower() for header in rule['headers']}
                 self.assertIn('noindex', headers['x-robots-tag'])
