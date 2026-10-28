@@ -98,7 +98,7 @@ export const SERVICE_AREAS_DETAIL = {
   'taylor': {
     name: 'Taylor',
     fullName: 'Taylor, TX',
-    intro: 'Taylor is experiencing a massive growth surge thanks to the Samsung semiconductor plant and surrounding development, and Maintain It Bandits LLC is ready to serve the wave of new homeowners moving into the area. We provide lawn mowing, landscaping, sod installation, pressure washing, gutter cleaning, and junk haul-off throughout Taylor TX.',
+    intro: 'Taylor is experiencing a massive growth surge thanks to the Samsung semiconductor plant and surrounding development, and Maintain It Bandits LLC is ready to serve the wave of new homeowners moving into the area. We provide lawn mowing, landscaping, sod installation, pressure washing, and junk haul-off throughout Taylor TX.',
     landmarks: 'We serve properties across Taylor near the historic downtown square, Murphy Park, and the new residential developments being built throughout the city. Taylor\'s rapid growth means many new lawns need establishment programs - sod installation, fertilization, and proper mowing schedules from the start.',
     zips: ['76574'],
     neighborhoods: ['Taylor Ranch','Mallard Park','Heritage Oaks','Legends of Taylor','Downtown Taylor','Mustang Creek Estates'],
@@ -445,35 +445,6 @@ export const SERVICE_SEO = {
       { q: 'How long does pressure washing take?', a: 'A standard driveway takes 45-90 minutes. Full exterior house washing takes 2-4 hours depending on size. We give you a time estimate when we quote.' },
       { q: 'Do I need to be home during pressure washing?', a: 'No. As long as we have access to the areas being washed and a water spigot, we can complete the job without you present.' },
       { q: 'How soon can I walk on the surface after washing?', a: 'Concrete and stone surfaces are safe to walk on once dry, typically 30-60 minutes. We let you know before we leave.' },
-    ],
-  },
-  'gutter-cleaning': {
-    metaTitle: 'Gutter Cleaning Austin TX | Clog Removal & Downspout Flush | Maintain It Bandits LLC',
-    metaDesc: 'Professional gutter cleaning in Austin TX. We clear clogs, flush downspouts & protect your home from water damage. Licensed & insured. Free estimates. Call (512) 518-1558.',
-    keywords: 'gutter cleaning Austin TX, gutter cleaning service Austin, clogged gutters Austin, gutter cleaning Round Rock Cedar Park, downspout cleaning Austin',
-    longContent: [
-      {
-        heading: 'Why Gutter Cleaning Matters in Austin',
-        body: 'Austin\'s oak trees drop massive amounts of leaves, pollen, and debris into gutters throughout the year. Add in pecan trees, cedar elm, and the occasional heavy storm and gutters clog fast. When gutters back up, water overflows directly against your foundation - the number one cause of foundation damage in Central Texas. A $150 gutter cleaning can prevent a $10,000 foundation repair.',
-      },
-      {
-        heading: 'What We Do During a Gutter Cleaning',
-        body: 'We remove all debris from gutters by hand, then flush the entire system with water to verify flow. We check every downspout for blockages and clear them completely. We inspect for loose hangers, leaking joints, and improper slope that causes pooling. All debris is bagged and removed from your property.',
-      },
-      {
-        heading: 'How Often Should Austin Homeowners Clean Gutters?',
-        body: 'Twice a year is the minimum for most Austin homes. We recommend once in late spring after cedar and oak pollen season, and once in late fall after leaf drop. Homes with large oak or pecan trees directly overhead may need three cleanings per year. After major storms we also offer one-time cleanup visits.',
-      },
-      {
-        heading: 'Signs Your Gutters Need Cleaning Right Now',
-        body: 'Water spilling over the sides during rain, plants growing from your gutters, staining or streaks on siding below the gutters, sagging gutter sections, or birds and pests congregating near your roofline are all signs your gutters are overdue for a cleaning.',
-      },
-    ],
-    faqs: [
-      { q: 'How much does gutter cleaning cost in Austin?', a: 'Most single-story homes run $99-$149. Two-story homes are $149-$199. Final price depends on linear footage and debris level. We quote before we start.' },
-      { q: 'Do you clean gutters on two-story homes?', a: 'Yes. We have the ladders and equipment to safely access two-story gutters throughout the Austin area.' },
-      { q: 'How long does gutter cleaning take?', a: 'Most single-story homes take 45-75 minutes. Two-story homes take 1-2 hours depending on size and debris level.' },
-      { q: 'Can you install gutter guards after cleaning?', a: 'We can recommend gutter guard options but focus on cleaning and maintenance. Ask us during your estimate visit.' },
     ],
   },
   'make-ready-services': {
