@@ -18,17 +18,14 @@ class SiteIntegrityTests(unittest.TestCase):
         # Legacy routes can shadow the higher-level redirects. Rewrites run
         # after redirects and the filesystem, so the SPA remains a fallback.
         self.assertNotIn('routes', self.config)
-        self.assertEqual(self.config['redirects'][0], {
-            'source': '/crm',
-            'destination': 'https://claude.ai/artifact/BZ3PKx8Dr3ogS8hJBuv4Bv',
-            'permanent': False,
-        })
+        self.assertFalse(any(rule['source'].rstrip('/') == '/crm' for rule in self.config['redirects']))
         self.assertEqual(self.config['rewrites'], [
             {'source': '/_/backend/(.*)', 'destination': '/backend/server.py'},
+            {'source': '/crm', 'destination': '/crm.html'},
+            {'source': '/crm/', 'destination': '/crm.html'},
             {'source': '/(.*)', 'destination': '/index.html'},
         ])
         headers = self.config['headers']
-        self.assertEqual(len(headers), 1)
         self.assertEqual(headers[0]['source'], '/(.*)')
         self.assertEqual({h['key']: h['value'] for h in headers[0]['headers']}, {
             'X-Content-Type-Options': 'nosniff',
@@ -36,6 +33,11 @@ class SiteIntegrityTests(unittest.TestCase):
             'Referrer-Policy': 'strict-origin-when-cross-origin',
             'Permissions-Policy': 'camera=(), microphone=(), geolocation=(self)',
         })
+        for source in ('/crm', '/crm/', '/crm.html'):
+            rule = next(rule for rule in headers if rule['source'] == source)
+            values = {h['key']: h['value'] for h in rule['headers']}
+            self.assertIn('noindex', values['X-Robots-Tag'])
+            self.assertIn('no-store', values['Cache-Control'])
 
     def test_frontend_project_redirects_match_repository_config(self):
         self.assertNotIn('routes', self.frontend_config)

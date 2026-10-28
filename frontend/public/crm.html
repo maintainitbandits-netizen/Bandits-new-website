@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="robots" content="noindex, nofollow">
+<title>Maintain It Bandits CRM</title>
+<style>
+:root{--bg:#f4f7f4;--cd:#fff;--tx:#1b261c;--mu:#667568;--ac:#2e7d32;--ac2:#e3f1e4;--bd:#d8e2d9;--rd:#c62828;--on:#fff;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#101611;--cd:#18211a;--tx:#e7efe8;--mu:#93a595;--ac:#66bb6a;--ac2:#1f3322;--bd:#2a382c;--rd:#ef5350;--on:#0c1a0e;color-scheme:dark}}
+:root[data-theme=dark]{--bg:#101611;--cd:#18211a;--tx:#e7efe8;--mu:#93a595;--ac:#66bb6a;--ac2:#1f3322;--bd:#2a382c;--rd:#ef5350;--on:#0c1a0e;color-scheme:dark}
+*{box-sizing:border-box}html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;padding:0 12px 40px}
+header{padding:12px 0 4px}h1{font-size:20px;margin:0}.sub{color:var(--mu);font-size:12px}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:10px 0}
+.stat{background:var(--cd);border:1px solid var(--bd);border-radius:10px;padding:8px 4px;text-align:center}
+.stat b{display:block;font-size:18px;color:var(--ac)}.stat span{font-size:10px;color:var(--mu)}
+.bar{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0}
+button,.btn{font:inherit;font-size:13px;border:1px solid var(--bd);background:var(--cd);color:var(--tx);border-radius:8px;padding:7px 10px;cursor:pointer;text-decoration:none;display:inline-block}
+button.pri,.btn.pri{background:var(--ac);color:var(--on);border-color:var(--ac)}button.dg{color:var(--rd)}
+.tabs{display:flex;gap:4px;overflow-x:auto;border-bottom:1px solid var(--bd);margin:8px 0 10px}
+.tabs button{border:0;border-bottom:3px solid transparent;border-radius:0;background:none;padding:8px 12px}
+.tabs button.on{border-color:var(--ac);color:var(--ac);font-weight:600}
+.board{display:flex;gap:10px;overflow-x:auto;padding-bottom:8px}.col{flex:0 0 78%;max-width:300px;background:var(--ac2);border-radius:10px;padding:8px}
+.col h3{margin:0 0 8px;font-size:14px;display:flex;justify-content:space-between}
+.card{background:var(--cd);border:1px solid var(--bd);border-radius:10px;padding:10px;margin-bottom:8px}
+.m{color:var(--mu);font-size:12px}.mv{display:flex;justify-content:space-between;margin-top:6px}
+.chip{font-size:11px;background:var(--ac2);color:var(--ac);border-radius:99px;padding:2px 8px;margin-right:4px}
+.chip.bad{background:#fdecea;color:var(--rd)}.row{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;align-items:center}
+.row a{font-size:13px;color:var(--ac)}.sp{display:flex;justify-content:space-between;gap:8px}
+input,select,textarea{width:100%;font:inherit;font-size:16px;background:var(--bg);color:var(--tx);border:1px solid var(--bd);border-radius:8px;padding:8px;margin:3px 0 8px}
+label{display:block;font-size:12px;color:var(--mu)}h2{font-size:17px;margin:0 0 8px}
+dialog{width:min(520px,94vw);max-height:90vh;border:1px solid var(--bd);border-radius:14px;background:var(--cd);color:var(--tx);padding:14px}
+dialog::backdrop{background:#0008}.bt{display:flex;gap:6px;flex-wrap:wrap}
+#login{position:fixed;inset:0;background:var(--bg);z-index:50;display:flex;align-items:center;justify-content:center;padding:20px}#login[hidden]{display:none}
+#doc{position:fixed;inset:0;background:var(--bg);overflow:auto;padding:calc(12px + env(safe-area-inset-top,0px)) 12px 30px;z-index:20}
+.sheet{background:#fff;color:#111;max-width:680px;margin:0 auto;padding:22px;border-radius:8px}.sheet .m{color:#555}
+.sheet table{width:100%;border-collapse:collapse;margin:10px 0}.sheet td,.sheet th{border-bottom:1px solid #ccc;padding:6px;text-align:left}.sheet .r{text-align:right}
+.tot{text-align:right;font-size:18px;font-weight:700}
+@media print{body>*:not(#doc){display:none!important}#doc{position:static;padding:0;background:#fff}.noprint{display:none!important}.sheet{padding:0;max-width:none}}
+</style></head><body>
+<header><h1>🌿 Maintain It Bandits</h1><div class="sub" id="st">Saved on this device</div></header>
+<div class="stats" id="stats"></div>
+<div class="bar"><button class="pri" onclick="openClient()">+ Client</button><button class="pri" onclick="openJob()">+ Job</button><button onclick="openRates()">Rates</button><button onclick="openBackup()">Backup</button><button onclick="logout()">Sign out</button></div>
+<div class="tabs" id="tabs"></div>
+<main id="main"></main>
+<div id="login"><div class="card" style="width:min(360px,100%)"><h2>🌿 Maintain It Bandits</h2><p class="m">Team sign in</p><input id="em" type="email" placeholder="Email" autocomplete="username"><input id="pw" type="password" placeholder="Password" autocomplete="current-password" onkeydown="if(event.key==='Enter')login()"><button class="pri" onclick="login()">Sign in</button><p id="lerr" class="m" style="color:var(--rd)"></p></div></div>
+<dialog id="dlg"></dialog>
+<div id="doc" hidden></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.min.js"></script>
+<script>
+const $=s=>document.querySelector(s),E=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const ST=["Lead","Quoted","Won","Recurring","Lost"],JS=["Scheduled","Done","Invoiced","Paid"],RP=["One-time","Weekly","Every 2 weeks","Monthly"],
+TY=["Property manager","Homeowner","Realtor / investor","STR host","Commercial"],
+SV=["Make-ready cleanup","Mow / edge / blow","Mulch / bed refresh","Trim / prune","Haul-off","Sod / seed","Pressure wash","Other"],TABS=["Pipeline","Clients","Properties","Route","Jobs"],
+DEF="Mow | 55\nMulch per yard | 85\nBed cleanup | 60\nTrim | 75\nHaul-off | 120\nPressure wash | 150\nMake-ready flat | 250";
+let S={clients:{},jobs:{},meta:{}},db=null,synced=false,tab="Pipeline",jf="Open",q="",pend=false,known={};
+const p2=n=>String(n).padStart(2,"0"),fd=d=>d.getFullYear()+"-"+p2(d.getMonth()+1)+"-"+p2(d.getDate()),today=()=>fd(new Date());
+let rd=today();
+const addD=(s,n,m)=>{const d=new Date(s+"T12:00:00");m?d.setMonth(d.getMonth()+1):d.setDate(d.getDate()+n);return fd(d)};
+const arr=o=>Object.values(o),money=n=>"$"+(+n||0).toLocaleString("en-US",{maximumFractionDigits:2}),uid=p=>p+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+const props=c=>(c&&c.props||"").split("\n").map(s=>s.trim()).filter(Boolean),same=(a,b)=>(a||"").trim().toLowerCase()==(b||"").trim().toLowerCase();
+const jobsOf=id=>arr(S.jobs).filter(j=>j.client==id),unp=js=>js.filter(j=>j.status=="Done"||j.status=="Invoiced").reduce((a,j)=>a+(+j.price||0),0);
+const nextJob=(id,pr)=>arr(S.jobs).filter(j=>j.client==id&&j.status=="Scheduled"&&(!pr||same(j.prop,pr))).sort((a,b)=>a.date>b.date?1:-1)[0];
+const cname=id=>(S.clients[id]||{}).name||"(deleted client)",jaddr=j=>j.prop||props(S.clients[j.client])[0]||"";
+const parseItems=t=>(t||"").split("\n").map(l=>l.split("|").map(s=>s.trim())).filter(a=>a[0]).map(a=>({d:a[0],q:parseFloat(a[1])||1,r:parseFloat(a[2])||0}));
+const total=t=>parseItems(t).reduce((a,i)=>a+i.q*i.r,0);
+const rates=()=>(S.meta.rates==null?DEF:S.meta.rates).split("\n").map(l=>l.split("|").map(s=>s.trim())).filter(a=>a[0]&&!isNaN(parseFloat(a[1]))).map(a=>[a[0],parseFloat(a[1])]);
+const sel=(l,v,id)=>`<select id="${id}">${l.map(o=>`<option${o==v?" selected":""}>${E(o)}</option>`).join("")}</select>`,F=(l,h)=>`<label>${l}${h}</label>`;
+/* storage + sync: retain unconfirmed edits locally until Supabase accepts them */
+let pending=Object.create(null),changes=Object.create(null),changeNo=0,hasSnapshot=false,channelReady=false,flushing=false,started=false,retryTimer=null,retryDelay=3000,storageOK=true,loadNo=0;
+try{const x=JSON.parse(localStorage.getItem("mib")||"null");if(x&&x.clients)S=Object.assign({clients:{},jobs:{},meta:{}},x)}catch(e){storageOK=false}
+try{const x=JSON.parse(localStorage.getItem("mib_pending_v1")||"{}");if(x&&typeof x==="object")Object.keys(x).forEach(k=>{const o=x[k];if(o&&["clients","jobs","meta"].includes(o.coll)&&typeof o.id==="string")pending[k]=o})}catch(e){storageOK=false}
+const key=(c,id)=>JSON.stringify([c,id]),clone=o=>JSON.parse(JSON.stringify(o)),mark=k=>{changes[k]=++changeNo};
+function applyPending(target,o){if(o.coll==="meta"){if(!o.deleted)target.meta=clone(o.data);return}if(!target[o.coll])return;if(o.deleted)delete target[o.coll][o.id];else target[o.coll][o.id]=clone(o.data)}
+Object.values(pending).forEach(o=>applyPending(S,o));
+let seenCloud=false;try{seenCloud=localStorage.getItem("mib_cloud_seen_v1")==="1"}catch(e){storageOK=false}
+let seed=Object.keys(pending).length||seenCloud?null:clone(S),seedNeeded=!!(seed&&(Object.keys(seed.clients).length||Object.keys(seed.jobs).length||Object.keys(seed.meta).length));
+function persist(){try{localStorage.setItem("mib_pending_v1",JSON.stringify(pending));localStorage.setItem("mib",JSON.stringify(S));if(hasSnapshot)localStorage.setItem("mib_cloud_seen_v1","1");storageOK=true}catch(e){storageOK=false}}
+function head(){synced=!!(db&&channelReady&&hasSnapshot&&!flushing&&!Object.keys(pending).length);$("#st").textContent=!storageOK&&Object.keys(pending).length?"Local storage unavailable — use Backup":synced?"Synced across devices":"Saved on this device"}
+const SB_URL="https://jvmvzfshgcekwocffdtv.supabase.co",SB_KEY="sb_publishable_vhNt3ZJkdWyyITrVwx3x4Q_leYix_Gq";
+const sb=supabase.createClient(SB_URL,SB_KEY);
+function scheduleFlush(delay=0){if(!db)return;if(retryTimer){if(delay)return;clearTimeout(retryTimer)}retryTimer=setTimeout(()=>{retryTimer=null;flush()},delay)}
+function queue(c,id,data,deleted=false){id=String(id);const k=key(c,id);pending[k]={coll:c,id,deleted,data:deleted?null:clone(data)};mark(k);persist();head();scheduleFlush()}
+function w(c,o){S[c][o.id]=o;queue(c,o.id,o)}
+function rm(c,id){delete S[c][id];queue(c,id,null,true)}
+function wm(){queue("meta","settings",S.meta)}
+const busy=()=>$("#dlg").open||!$("#doc").hidden||/INPUT|TEXTAREA|SELECT/.test((document.activeElement||{}).tagName||""),later=()=>busy()?pend=true:render();
+async function load(){const n=++loadNo,at=changeNo;let r;try{r=await sb.from("records").select("coll,id,data")}catch(e){r={error:e}}
+ if(n!==loadNo)return false;if(!r||r.error){hasSnapshot=false;head();return false}
+ if(seedNeeded){seedNeeded=false;if(!r.data.length){["clients","jobs"].forEach(c=>arr(seed[c]).forEach(o=>queue(c,o.id,o)));if(Object.keys(seed.meta).length)queue("meta","settings",seed.meta)}}
+ const next={clients:{},jobs:{},meta:{}};(r.data||[]).forEach(x=>{if(x.coll==="meta")next.meta=x.data;else if(next[x.coll])next[x.coll][x.id]=x.data});
+ Object.keys(changes).forEach(k=>{if(changes[k]<=at)return;const [c,id]=JSON.parse(k);if(c==="meta")next.meta=clone(S.meta);else if(S[c]&&Object.prototype.hasOwnProperty.call(S[c],id))next[c][id]=clone(S[c][id]);else if(next[c])delete next[c][id]});
+ Object.values(pending).forEach(o=>applyPending(next,o));S=next;hasSnapshot=true;persist();head();later();return true}
+async function flush(){if(!db||flushing)return;flushing=true;head();let failed=false;
+ try{while(Object.keys(pending).length){const k=Object.keys(pending)[0],o=pending[k];let r;try{r=o.deleted?await sb.from("records").delete().eq("coll",o.coll).eq("id",o.id):await sb.from("records").upsert({coll:o.coll,id:o.id,data:o.data,updated_at:new Date().toISOString()})}catch(e){r={error:e}}
+ if(!r||r.error){failed=true;hasSnapshot=false;break}if(pending[k]===o){delete pending[k];persist()}}
+ }finally{flushing=false;head()}
+ if(failed){scheduleFlush(retryDelay);retryDelay=Math.min(retryDelay*2,30000)}else{retryDelay=3000;if(Object.keys(pending).length)scheduleFlush();else await load();head()}}
+function onRt(p){const x=p.eventType==="DELETE"?p.old:p.new;if(!x||typeof x.coll!=="string"||typeof x.id!=="string")return;const c=x.coll,id=x.id,k=key(c,id);if(pending[k])return;mark(k);
+ if(p.eventType==="DELETE"){if(S[c])delete S[c][id]}else if(c==="meta")S.meta=x.data;else if(S[c])S[c][id]=x.data;
+ persist();later()}
+async function start(){if(started)return;started=true;$("#login").hidden=true;db=sb;render();load();
+ sb.channel("rec").on("postgres_changes",{event:"*",schema:"public",table:"records"},onRt).subscribe(s=>{channelReady=s==="SUBSCRIBED";head();if(channelReady){load();scheduleFlush()}});if(Object.keys(pending).length)scheduleFlush()}
+async function login(){$("#lerr").textContent="";try{const r=await sb.auth.signInWithPassword({email:$("#em").value.trim(),password:$("#pw").value});if(r.error){$("#lerr").textContent=r.error.message;return}start()}catch(e){$("#lerr").textContent="Could not sign in. Check your connection and try again."}}
+async function logout(){if(Object.keys(pending).length&&!confirm("Some changes have not synced. Use Backup to save a copy before signing out. Sign out and remove this device's unsynced copy?"))return;const r=await sb.auth.signOut();if(r&&r.error){alert("Could not sign out. Check your connection and try again.");return}try{localStorage.removeItem("mib");localStorage.removeItem("mib_pending_v1");localStorage.removeItem("mib_cloud_seen_v1")}catch(e){}location.reload()}
+async function boot(){try{const r=await sb.auth.getSession();if(r.data&&r.data.session)start()}catch(e){$("#lerr").textContent="Could not check your session. Check your connection and sign in."}}
+window.addEventListener("online",()=>{if(db){load();scheduleFlush()}});window.addEventListener("offline",()=>{channelReady=false;hasSnapshot=false;head()});
+/* render */
+function render(){pend=false;head();
+ const L=arr(S.clients),J=arr(S.jobs);
+ $("#stats").innerHTML=[[L.filter(c=>c.stage=="Lead"||c.stage=="Quoted").length,"Open leads"],[L.filter(c=>c.stage=="Recurring").length,"Recurring"],[J.filter(j=>j.status=="Scheduled").length,"Scheduled"],[money(unp(J)),"Unpaid"]].map(a=>`<div class="stat"><b>${a[0]}</b><span>${a[1]}</span></div>`).join("");
+ $("#tabs").innerHTML=TABS.map(t=>`<button class="${t==tab?"on":""}" onclick="tab='${t}';render()">${t}</button>`).join("");
+ $("#main").innerHTML=({Pipeline:vPipe,Clients:vClients,Properties:vProps,Route:vRoute,Jobs:vJobs})[tab]();
+ if(tab=="Clients")clist()}
+const sorted=o=>arr(o).sort((a,b)=>(a.name||"").localeCompare(b.name||""));
+function vPipe(){return`<div class="board">${ST.map((s,i)=>{const cs=sorted(S.clients).filter(c=>c.stage==s);
+ return`<div class="col"><h3>${s}<span class="m">${cs.length}</span></h3>${cs.map(c=>{const n=nextJob(c.id);
+ return`<div class="card" onclick="openClient('${c.id}')"><b>${E(c.name)}</b><div class="m">${E(props(c)[0]||"No address")}</div><div class="m">${n?"Next: "+E(n.date+" · "+n.service):"No job scheduled"}</div>
+ <div class="mv"><span>${i>0?`<button onclick="event.stopPropagation();mv('${c.id}',-1)">◀</button>`:""}</span><span>${i<4?`<button onclick="event.stopPropagation();mv('${c.id}',1)">▶</button>`:""}</span></div></div>`}).join("")||'<p class="m">Empty</p>'}</div>`}).join("")}</div>`}
+function mv(id,d){const c=S.clients[id];c.stage=ST[ST.indexOf(c.stage)+d];w("clients",c);render()}
+function vClients(){return`<input id="q" type="search" placeholder="Search clients…" value="${E(q)}" oninput="q=this.value;clist()"><div id="cl"></div>`}
+function clist(){const k=q.toLowerCase(),L=sorted(S.clients).filter(c=>!k||[c.name,c.contact,c.phone,c.email,c.props,c.notes,c.type].join(" ").toLowerCase().includes(k));
+ $("#cl").innerHTML=L.map(c=>{const js=jobsOf(c.id),u=unp(js);return`<div class="card" onclick="openClient('${c.id}')"><div class="sp"><b>${E(c.name)}</b><span><span class="chip">${E(c.stage)}</span></span></div>
+ <div class="m">${E(c.type)}${c.contact?" · "+E(c.contact):""}</div><div class="m">${js.length} job${js.length==1?"":"s"} · Unpaid ${money(u)}</div>
+ <div class="row">${c.phone?`<a href="tel:${E(c.phone)}" onclick="event.stopPropagation()">📞 Call</a>`:""}${c.email?`<a href="mailto:${E(c.email)}" onclick="event.stopPropagation()">✉️ Email</a>`:""}<a href="#" onclick="event.stopPropagation();event.preventDefault();openJob(null,{client:'${c.id}'})">+ Job</a></div></div>`}).join("")||'<p class="m">No clients yet. Tap + Client.</p>'}
+function vProps(){const h=sorted(S.clients).map(c=>{const ps=props(c);if(!ps.length)return"";return`<h3>${E(c.name)}</h3>`+ps.map(p=>{
+ const js=jobsOf(c.id).filter(j=>same(j.prop,p)),last=js.filter(j=>j.status!="Scheduled").sort((a,b)=>a.date<b.date?1:-1)[0],n=nextJob(c.id,p);
+ return`<div class="card"><b>${E(p)}</b><div class="m">Last service: ${last?E(last.date+" · "+last.service):"—"}</div><div class="m">Next: ${n?E(n.date+" · "+n.service):"—"}</div><div class="m">Unpaid ${money(unp(js))}</div>
+ <div class="row"><a href="#" onclick="event.preventDefault();openJob(null,{client:'${c.id}',prop:this.dataset.p})" data-p="${E(p)}">+ Job</a></div></div>`}).join("")}).join("");return h||'<p class="m">No properties yet. Add addresses to a client.</p>'}
+const A=a=>/\b\d{5}\b/.test(a)||/\bTX\b|Texas/i.test(a)?a:a+", Austin, TX",zip=a=>(String(a).match(/\b\d{5}\b/)||["99999"])[0];
+const dayJobs=()=>arr(S.jobs).filter(j=>j.date==rd&&(j.status=="Scheduled"||j.status=="Done")).sort((a,b)=>(a.ord==null?999:a.ord)-(b.ord==null?999:b.ord)||jaddr(a).localeCompare(jaddr(b)));
+function mapsUrl(L){const st=(S.meta.start||"").trim(),ad=L.map(jaddr).filter(Boolean).map(A).slice(0,10);if(!ad.length)return"";
+ const o=st?A(st):ad[0];let r=st?ad:ad.slice(1);if(!r.length)r=[o];const wp=r.slice(0,-1);
+ return"https://www.google.com/maps/dir/?api=1&origin="+encodeURIComponent(o)+"&destination="+encodeURIComponent(r[r.length-1])+(wp.length?"&waypoints="+encodeURIComponent(wp.join("|")):"")+"&travelmode=driving"}
+function vRoute(){const L=dayJobs(),u=mapsUrl(L);
+ return`<label>Date<input type="date" value="${rd}" onchange="rd=this.value||today();render()"></label><label>Start address (optional)<input value="${E(S.meta.start)}" placeholder="Shop or yard address" onchange="S.meta.start=this.value;wm()"></label>
+ <div class="sp"><b>${L.length} stop${L.length==1?"":"s"} · ${money(L.reduce((a,j)=>a+(+j.price||0),0))}</b><button onclick="byZip()">Group by ZIP</button></div>
+ ${u?`<p><a class="btn pri" href="${u}" target="_blank" rel="noopener">Open route in Google Maps</a>${L.length>10?'<span class="m"> First 10 stops only</span>':""}</p>`:""}
+ ${L.map((j,i)=>{const a=jaddr(j),c=S.clients[j.client]||{};return`<div class="card"><div class="sp"><b>${i+1}. ${E(cname(j.client))}</b><span><button onclick="mvStop('${j.id}',-1)">▲</button> <button onclick="mvStop('${j.id}',1)">▼</button></span></div>
+ <div class="m">${E(a||"No address")}</div><div class="m">${E(j.service)} · ${money(j.price)} · <span class="chip">${j.status}</span></div>
+ <div class="row">${a?`<a class="btn" href="https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(A(a))}" target="_blank" rel="noopener">Navigate</a>`:""}${c.phone?`<a class="btn" href="tel:${E(c.phone)}">Call</a>`:""}${j.status=="Scheduled"?`<button class="pri" onclick="setStatus('${j.id}','Done')">Mark Done</button>`:""}</div></div>`}).join("")||'<p class="m">No stops for this date.</p>'}`}
+function order(L){L.forEach((j,k)=>{if(j.ord!==k){j.ord=k;w("jobs",j)}});render()}
+function mvStop(id,d){const L=dayJobs(),i=L.findIndex(j=>j.id==id),k=i+d;if(k<0||k>=L.length)return;[L[i],L[k]]=[L[k],L[i]];order(L)}
+function byZip(){order(dayJobs().sort((a,b)=>zip(jaddr(a)).localeCompare(zip(jaddr(b)))))}
+function vJobs(){const od=today();let L=arr(S.jobs).filter(j=>jf=="All"||(jf=="Open"?j.status!="Paid":j.status==jf)).sort((a,b)=>a.date>b.date?1:-1);
+ return`<select onchange="jf=this.value;render()">${["Open",...JS,"All"].map(o=>`<option${o==jf?" selected":""}>${o}</option>`).join("")}</select>`+(L.map(j=>{const late=j.status=="Scheduled"&&j.date<od,nx=JS[JS.indexOf(j.status)+1];
+ return`<div class="card" onclick="openJob('${j.id}')"><div class="sp"><b>${E(cname(j.client))}</b><b>${money(j.price)}</b></div><div class="m">${E(j.service)}${j.prop?" · "+E(j.prop):""}</div>
+ <div class="m">${E(j.date)} <span class="chip">${j.status}</span>${late?'<span class="chip bad">Overdue</span>':""}${j.repeat&&j.repeat!="One-time"?`<span class="chip">${E(j.repeat)}</span>`:""}</div>
+ <div class="row">${nx?`<button onclick="event.stopPropagation();setStatus('${j.id}','${nx}')">→ ${nx}</button>`:""}<button onclick="event.stopPropagation();openDoc('${j.id}')">${j.status=="Scheduled"?"Quote":"Invoice"}</button></div></div>`}).join("")||'<p class="m">No jobs here.</p>')}
+/* jobs */
+function spawn(j){if(j.repeat&&j.repeat!="One-time"&&!j.spawned&&j.status!="Scheduled"){const n=Object.assign({},j,{id:uid("j"),date:addD(j.date,j.repeat=="Weekly"?7:14,j.repeat=="Monthly"),status:"Scheduled",spawned:false});delete n.ord;j.spawned=true;w("jobs",n);w("jobs",j)}}
+function setStatus(id,s){const j=S.jobs[id];j.status=s;w("jobs",j);spawn(j);render()}
+/* dialogs */
+const dlg=h=>{$("#dlg").innerHTML=h;if(!$("#dlg").open)$("#dlg").showModal()},closeD=()=>{$("#dlg").close();later()};
+$("#dlg").addEventListener("close",()=>{if(pend)setTimeout(later,0)});
+document.addEventListener("focusout",()=>setTimeout(()=>{if(pend&&!busy())render()},80));
+const bt=(id,key,del)=>`<div class="bt"><button class="pri" onclick="${key}('${id||""}')">Save</button>${id&&del?`<button class="dg" onclick="${del}('${id}')">Delete</button>`:""}<button onclick="closeD()">Cancel</button></div>`;
+function openClient(id){const c=id?S.clients[id]:{type:TY[0],stage:"Lead"},v=k=>E(c[k]);
+ dlg(`<h2>${id?"Edit":"New"} client</h2>`+F("Name",`<input id="c_name" value="${v("name")}">`)+F("Contact",`<input id="c_contact" value="${v("contact")}">`)+F("Phone",`<input id="c_phone" type="tel" value="${v("phone")}">`)+F("Email",`<input id="c_email" type="email" value="${v("email")}">`)+F("Type",sel(TY,c.type,"c_type"))+F("Stage",sel(ST,c.stage,"c_stage"))+F("Properties (one address or unit per line)",`<textarea id="c_props" rows="3">${v("props")}</textarea>`)+F("Notes (gate codes, mower access, pets)",`<textarea id="c_notes" rows="3">${v("notes")}</textarea>`)+bt(id,"saveClient","delClient"))}
+function saveClient(id){const n=$("#c_name").value.trim();if(!n){$("#c_name").focus();return}
+ w("clients",Object.assign({},S.clients[id]||{},{id:id||uid("c"),name:n,contact:$("#c_contact").value,phone:$("#c_phone").value,email:$("#c_email").value,type:$("#c_type").value,stage:$("#c_stage").value,props:$("#c_props").value,notes:$("#c_notes").value}));closeD();render()}
+function delClient(id){if(!confirm("Delete this client and all of their jobs?"))return;jobsOf(id).forEach(j=>rm("jobs",j.id));rm("clients",id);closeD();render()}
+const pl=cid=>props(S.clients[cid]).map(p=>`<option value="${E(p)}">`).join("");
+function openJob(id,pre){if(!arr(S.clients).length){alert("Add a client first.");openClient();return}pre=pre||{};
+ const j=id?S.jobs[id]:{client:pre.client||sorted(S.clients)[0].id,prop:pre.prop||"",service:SV[1],date:today(),status:"Scheduled",repeat:"One-time",items:"",price:""};
+ if(!id&&!j.prop)j.prop=props(S.clients[j.client])[0]||"";
+ dlg(`<h2>${id?"Edit":"New"} job</h2>`+F("Client",`<select id="j_client" onchange="jc()">${sorted(S.clients).map(c=>`<option value="${c.id}"${c.id==j.client?" selected":""}>${E(c.name)}</option>`).join("")}</select>`)+F("Service",sel(SV,j.service,"j_service"))+
+ F("Property / unit",`<input id="j_prop" list="pl" value="${E(j.prop)}"><datalist id="pl">${pl(j.client)}</datalist>`)+F("Date",`<input id="j_date" type="date" value="${E(j.date)}">`)+F("Status",sel(JS,j.status,"j_status"))+F("Repeat",sel(RP,j.repeat,"j_rep"))+
+ F("Line items (description | qty | rate)",`<textarea id="j_items" rows="4" oninput="calc()">${E(j.items)}</textarea>`)+`<select id="j_rate" onchange="addRate(this)"><option value="">Add from rate card…</option>${rates().map((r,i)=>`<option value="${i}">${E(r[0])} — ${money(r[1])}</option>`).join("")}</select>`+
+ F("Price ($)",`<input id="j_price" type="number" step="0.01" value="${E(j.price)}">`)+F("Notes",`<textarea id="j_notes" rows="2">${E(j.notes)}</textarea>`)+bt(id,"saveJob","delJob"))}
+function jc(){const c=S.clients[$("#j_client").value];$("#pl").innerHTML=pl(c&&c.id);if(!$("#j_prop").value)$("#j_prop").value=props(c)[0]||""}
+function calc(){const t=$("#j_items").value;if(t.trim())$("#j_price").value=+total(t).toFixed(2)}
+function addRate(s){const r=rates()[s.value];if(!r)return;const t=$("#j_items");t.value=(t.value.trim()?t.value.trim()+"\n":"")+r[0]+" | 1 | "+r[1];calc();s.value=""}
+function saveJob(id){const o=Object.assign({},S.jobs[id]||{},{id:id||uid("j"),client:$("#j_client").value,service:$("#j_service").value,prop:$("#j_prop").value.trim(),date:$("#j_date").value||today(),status:$("#j_status").value,repeat:$("#j_rep").value,items:$("#j_items").value,price:+$("#j_price").value||0,notes:$("#j_notes").value});
+ w("jobs",o);spawn(o);closeD();render()}
+function delJob(id){if(!confirm("Delete this job?"))return;rm("jobs",id);closeD();render()}
+function openRates(){dlg(`<h2>Rate card</h2><p class="m">One "name | price" per line. These are placeholder starter rates — replace them with your real pricing.</p><textarea id="rt" rows="9">${E(S.meta.rates==null?DEF:S.meta.rates)}</textarea><div class="bt"><button class="pri" onclick="S.meta.rates=$('#rt').value;wm();closeD()">Save</button><button onclick="closeD()">Cancel</button></div>`)}
+const copy=async t=>{try{await navigator.clipboard.writeText(t);return 1}catch(e){try{const a=document.createElement("textarea");a.value=t;document.body.appendChild(a);a.select();const ok=document.execCommand("copy");a.remove();return ok}catch(x){return 0}}};
+function openBackup(){dlg(`<h2>Backup</h2><p class="m">Copy this JSON somewhere safe. To restore, paste a backup here and tap Restore.</p><textarea id="bk" rows="10">${E(JSON.stringify({clients:S.clients,jobs:S.jobs,meta:S.meta}))}</textarea><div class="bt"><button class="pri" onclick="bcopy()">Copy</button><button class="dg" onclick="restore()">Restore</button><button onclick="closeD()">Close</button></div>`)}
+async function bcopy(){$("#bk").select();alert(await copy($("#bk").value)?"Copied.":"Copy failed — select the text and copy it manually.")}
+function restore(){let d;try{d=JSON.parse($("#bk").value);if(!d||typeof d.clients!="object"||typeof d.jobs!="object")throw 0}catch(e){alert("That doesn’t look like a valid backup.");return}
+ if(!confirm("Replace ALL current data with this backup?"))return;
+ ["clients","jobs"].forEach(c=>{Object.keys(S[c]).forEach(id=>{if(!d[c][id])rm(c,id)});Object.keys(d[c]).forEach(id=>{d[c][id].id=id;w(c,d[c][id])})});
+ S.meta=d.meta||{};wm();closeD();render()}
+/* quote / invoice */
+const lines=j=>parseItems(j.items).length?parseItems(j.items):[{d:j.service,q:1,r:+j.price||0}];
+function openDoc(id){const j=S.jobs[id],c=S.clients[j.client]||{},k=j.status=="Scheduled"?"Quote":"Invoice";
+ $("#doc").innerHTML=`<div class="sheet"><div class="bt noprint" style="margin-bottom:14px"><button onclick="dcopy('${id}')">Copy text</button><button class="pri" onclick="dprint()">Print / PDF</button><button onclick="$('#doc').hidden=true;later()">Close</button></div>
+ <h2 style="font-size:22px;margin:0">Maintain It Bandits</h2><div class="m">Lawn care &amp; landscaping · Austin, TX</div><h2 style="margin-top:16px">${k}</h2>
+ <div><b>Client:</b> ${E(c.name)}</div><div><b>Property:</b> ${E(j.prop||"—")}</div><div><b>Date:</b> ${E(j.date)}</div>
+ <table><tr><th>Description</th><th class="r">Qty</th><th class="r">Rate</th><th class="r">Amount</th></tr>${lines(j).map(i=>`<tr><td>${E(i.d)}</td><td class="r">${i.q}</td><td class="r">${money(i.r)}</td><td class="r">${money(i.q*i.r)}</td></tr>`).join("")}</table>
+ <div class="tot">Total: ${money(j.price)}</div>${j.notes?`<p><b>Notes:</b> ${E(j.notes)}</p>`:""}<p>Thank you for your business.</p></div>`;$("#doc").hidden=false;$("#doc").scrollTop=0}
+async function dcopy(id){const j=S.jobs[id],c=S.clients[j.client]||{},k=j.status=="Scheduled"?"Quote":"Invoice";
+ const t=["Maintain It Bandits — "+k,"Client: "+(c.name||""),"Property: "+(j.prop||"—"),"Date: "+j.date,"",...lines(j).map(i=>`${i.d} — ${i.q} x ${money(i.r)} = ${money(i.q*i.r)}`),"","Total: "+money(j.price),j.notes?"Notes: "+j.notes:"","","Thank you for your business."].join("\n");
+ alert(await copy(t)?"Copied.":"Copy failed.")}
+function dprint(){try{window.print()}catch(e){alert("Printing isn’t available here. Use Copy text instead.")}}
+boot();
+</script></body></html>
