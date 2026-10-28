@@ -100,7 +100,8 @@ class CRMStaticTests(unittest.TestCase):
         self.assertIn('table:"records"', self.source)
         self.assertIn('mib_pending_v1', self.source)
         self.assertIn('Some changes have not synced', self.source)
-        self.assertIn('Replace ALL current data with this backup?', self.source)
+        self.assertIn('Replace all current clients, jobs, saved estimates and settings with this backup?', self.source)
+        self.assertIn('This older backup has no saved estimates. Current estimates will be kept', self.source)
 
     def test_photo_controls_require_private_storage_and_do_not_use_public_urls(self):
         self.assertIn('mib_crm_photo_storage_private_v1', self.source)
