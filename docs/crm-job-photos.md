@@ -43,13 +43,28 @@ complete, do not upload real customer photos.
    Only use real customer photos once these checks pass.
 
 Photos upload over the internet directly to the configured Supabase Storage
-bucket. The phone converts them to JPEG; they are **not queued for offline
-upload**, so wait for each upload to finish. The regular **Backup → Copy** JSON
-contains CRM records, not photo files. Maintain a separate private backup of
-photos. Deleting a photo in the app removes it from Storage; deleting a job or
-client does **not** automatically remove its photos, so a storage administrator
-must review and clean up orphaned files if needed. Restore replaces CRM records
-and does not restore photo files.
+bucket. In a job's **Before / after photos** window, choose one or more files
+(up to 100 at a time) in the before or after section. The phone processes and
+uploads the selection one photo at a time, resizing and converting each to
+JPEG. You can still choose a single image or use the phone's camera when its
+picker offers that option. Keep the window open and stay online until the
+progress message says the batch has finished; photos are **not queued for
+offline upload**. Closing the window stops the remaining photos, though an
+upload already in progress may still finish.
+
+If a file cannot be prepared, it is listed as **Not sent** and other valid
+photos can continue. A connection, sync, job, or storage problem can stop the
+remaining batch. If an upload is **not confirmed**, it may already have been
+saved despite the missing response; refresh and view the photo list before
+choosing it again to avoid a duplicate. Review the named files that were not
+sent and select those again after the problem is fixed. The app does not
+silently retry an unconfirmed upload.
+
+The regular **Backup → Copy** JSON contains CRM records, not photo files.
+Maintain a separate private backup of photos. Deleting a photo in the app
+removes it from Storage; deleting a job or client does **not** automatically
+remove its photos, so a storage administrator must review and clean up orphaned
+files if needed. Restore replaces CRM records and does not restore photo files.
 
 ## Optional local RLS simulation
 
