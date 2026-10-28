@@ -102,7 +102,7 @@ function onRt(p){const x=p.eventType==="DELETE"?p.old:p.new;if(!x||typeof x.coll
 async function start(){if(started)return;started=true;$("#login").hidden=true;db=sb;render();load();
  sb.channel("rec").on("postgres_changes",{event:"*",schema:"public",table:"records"},onRt).subscribe(s=>{channelReady=s==="SUBSCRIBED";head();if(channelReady){load();scheduleFlush()}});if(Object.keys(pending).length)scheduleFlush()}
 async function login(){$("#lerr").textContent="";try{const r=await sb.auth.signInWithPassword({email:$("#em").value.trim(),password:$("#pw").value});if(r.error){$("#lerr").textContent=r.error.message;return}start()}catch(e){$("#lerr").textContent="Could not sign in. Check your connection and try again."}}
-async function logout(){if(Object.keys(pending).length&&!confirm("Some changes have not synced. Use Backup to save a copy before signing out. Sign out and remove this device's unsynced copy?"))return;const r=await sb.auth.signOut();if(r&&r.error){alert("Could not sign out. Check your connection and try again.");return}try{localStorage.removeItem("mib");localStorage.removeItem("mib_pending_v1");localStorage.removeItem("mib_cloud_seen_v1")}catch(e){}location.reload()}
+async function logout(){if(Object.keys(pending).length&&!confirm("Some changes have not synced. Use Backup to save a copy before signing out. Sign out and remove this device's unsynced copy?"))return;const r=await sb.auth.signOut();if(r&&r.error){alert("Could not sign out. Check your connection and try again.");return}clearGeo();try{localStorage.removeItem("mib");localStorage.removeItem("mib_pending_v1");localStorage.removeItem("mib_cloud_seen_v1")}catch(e){}location.reload()}
 async function boot(){try{const r=await sb.auth.getSession();if(r.data&&r.data.session)start()}catch(e){$("#lerr").textContent="Could not check your session. Check your connection and sign in."}}
 window.addEventListener("online",()=>{if(db){load();scheduleFlush()}});window.addEventListener("offline",()=>{channelReady=false;hasSnapshot=false;head()});
 /* render */
@@ -127,21 +127,46 @@ function vProps(){const h=sorted(S.clients).map(c=>{const ps=props(c);if(!ps.len
  const js=jobsOf(c.id).filter(j=>same(j.prop,p)),last=js.filter(j=>j.status!="Scheduled").sort((a,b)=>a.date<b.date?1:-1)[0],n=nextJob(c.id,p);
  return`<div class="card"><b>${E(p)}</b><div class="m">Last service: ${last?E(last.date+" · "+last.service):"—"}</div><div class="m">Next: ${n?E(n.date+" · "+n.service):"—"}</div><div class="m">Unpaid ${money(unp(js))}</div>
  <div class="row"><a href="#" onclick="event.preventDefault();openJob(null,{client:'${c.id}',prop:this.dataset.p})" data-p="${E(p)}">+ Job</a></div></div>`}).join("")}).join("");return h||'<p class="m">No properties yet. Add addresses to a client.</p>'}
-const A=a=>/\b\d{5}\b/.test(a)||/\bTX\b|Texas/i.test(a)?a:a+", Austin, TX",zip=a=>(String(a).match(/\b\d{5}\b/)||["99999"])[0];
+const A=a=>/^-?\d+(\.\d+)?,\s*-?\d+(\.\d+)?$/.test(a.trim())||/\b\d{5}\b/.test(a)||/\bTX\b|Texas/i.test(a)?a:a+", Austin, TX",zip=a=>(String(a).match(/\b\d{5}\b/)||["99999"])[0];
 const dayJobs=()=>arr(S.jobs).filter(j=>j.date==rd&&(j.status=="Scheduled"||j.status=="Done")).sort((a,b)=>(a.ord==null?999:a.ord)-(b.ord==null?999:b.ord)||jaddr(a).localeCompare(jaddr(b)));
-function mapsUrl(L){const st=(S.meta.start||"").trim(),ad=L.map(jaddr).filter(Boolean).map(A).slice(0,10);if(!ad.length)return"";
- const o=st?A(st):ad[0];let r=st?ad:ad.slice(1);if(!r.length)r=[o];const wp=r.slice(0,-1);
+const addable=()=>arr(S.jobs).filter(j=>j.status=="Scheduled"&&j.date!=rd).sort((a,b)=>a.date>b.date?1:-1);
+function mapsUrl(L){const st=(S.meta.start||"").trim(),limit=st&&S.meta.round?9:10,ad=L.map(jaddr).filter(Boolean).map(A).slice(0,limit);if(!ad.length)return"";
+ const o=st?A(st):ad[0];let r=st?ad:ad.slice(1);if(st&&S.meta.round)r=ad.concat([o]);if(!r.length)r=[o];const wp=r.slice(0,-1);
  return"https://www.google.com/maps/dir/?api=1&origin="+encodeURIComponent(o)+"&destination="+encodeURIComponent(r[r.length-1])+(wp.length?"&waypoints="+encodeURIComponent(wp.join("|")):"")+"&travelmode=driving"}
-function vRoute(){const L=dayJobs(),u=mapsUrl(L);
- return`<label>Date<input type="date" value="${rd}" onchange="rd=this.value||today();render()"></label><label>Start address (optional)<input value="${E(S.meta.start)}" placeholder="Shop or yard address" onchange="S.meta.start=this.value;wm()"></label>
- <div class="sp"><b>${L.length} stop${L.length==1?"":"s"} · ${money(L.reduce((a,j)=>a+(+j.price||0),0))}</b><button onclick="byZip()">Group by ZIP</button></div>
- ${u?`<p><a class="btn pri" href="${u}" target="_blank" rel="noopener">Open route in Google Maps</a>${L.length>10?'<span class="m"> First 10 stops only</span>':""}</p>`:""}
+function vRoute(){const L=dayJobs(),u=mapsUrl(L),ad=addable(),start=!!(S.meta.start||"").trim(),round=start&&!!S.meta.round,limit=round?9:10,count=L.filter(j=>jaddr(j)).length,mapped=Math.min(count,limit),waypoints=round?mapped:Math.max(0,mapped-(start?1:2));
+ return`<label>Date<input type="date" value="${rd}" onchange="rd=this.value||today();render()"></label>
+ <label>Start location<input value="${E(S.meta.start)}" placeholder="Shop, yard or home address" onchange="S.meta.start=this.value;wm();render()"></label>
+ <div class="row"><button onclick="useLoc()">📍 Use my location</button><label style="display:flex;gap:6px;align-items:center;margin:0"><input type="checkbox" style="width:auto;margin:0" ${S.meta.round?"checked":""} onchange="S.meta.round=this.checked;wm();render()"> Return to start</label></div>
+ ${S.meta.round&&!start?'<p class="m">Add a start location to return to it.</p>':""}
+ <select onchange="addStop(this.value)"><option value="">+ Move a scheduled job to this day…</option>${ad.map(j=>`<option value="${j.id}">${E(j.date+" · "+cname(j.client)+" · "+(jaddr(j)||j.service))}</option>`).join("")}</select>
+ <div class="row" style="margin:0 0 8px"><button onclick="openJob(null,{date:rd})">+ New job on this day</button></div>
+ <div class="sp"><b>${L.length} stop${L.length==1?"":"s"} · ${money(L.reduce((a,j)=>a+(+j.price||0),0))}</b><span><button onclick="byZip()">Group by ZIP</button> <button class="pri" onclick="opt()">Auto-pick route</button></span></div>
+ <p class="m" id="rmsg"></p><p class="m">The start location is shared with your team. Auto-pick currently works with GPS coordinates only; street-address stops can be ordered manually.</p>
+ ${u?`<p><a class="btn pri" href="${u}" target="_blank" rel="noopener">Open route in Google Maps</a>${count>limit?`<span class="m"> First ${limit} mapped stops only.</span>`:""}${waypoints>3?'<span class="m"> Check every stop in Google Maps; mobile browsers may omit some.</span>':""}</p>`:""}
  ${L.map((j,i)=>{const a=jaddr(j),c=S.clients[j.client]||{};return`<div class="card"><div class="sp"><b>${i+1}. ${E(cname(j.client))}</b><span><button onclick="mvStop('${j.id}',-1)">▲</button> <button onclick="mvStop('${j.id}',1)">▼</button></span></div>
  <div class="m">${E(a||"No address")}</div><div class="m">${E(j.service)} · ${money(j.price)} · <span class="chip">${j.status}</span></div>
  <div class="row">${a?`<a class="btn" href="https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(A(a))}" target="_blank" rel="noopener">Navigate</a>`:""}${c.phone?`<a class="btn" href="tel:${E(c.phone)}">Call</a>`:""}${j.status=="Scheduled"?`<button class="pri" onclick="setStatus('${j.id}','Done')">Mark Done</button>`:""}</div></div>`}).join("")||'<p class="m">No stops for this date.</p>'}`}
 function order(L){L.forEach((j,k)=>{if(j.ord!==k){j.ord=k;w("jobs",j)}});render()}
 function mvStop(id,d){const L=dayJobs(),i=L.findIndex(j=>j.id==id),k=i+d;if(k<0||k>=L.length)return;[L[i],L[k]]=[L[k],L[i]];order(L)}
 function byZip(){order(dayJobs().sort((a,b)=>zip(jaddr(a)).localeCompare(zip(jaddr(b)))))}
+function addStop(id){if(!id)return;const j=S.jobs[id];if(!j||j.status!=="Scheduled"){rmsg("That job is no longer scheduled. Refresh the route and try again.");return}j.ord=dayJobs().length;j.date=rd;w("jobs",j);render()}
+const rmsg=t=>{const m=$("#rmsg");if(m)m.textContent=t};
+function useLoc(){if(!navigator.geolocation){rmsg("Location isn’t available on this device.");return}
+ navigator.geolocation.getCurrentPosition(p=>{S.meta.start=p.coords.latitude.toFixed(5)+","+p.coords.longitude.toFixed(5);wm();render()},()=>rmsg("Couldn’t get your location. Type the start address instead."))}
+function clearGeo(){try{localStorage.removeItem("mibgeo")}catch(e){}}
+const point=p=>Array.isArray(p)&&p.length===2&&p.every(Number.isFinite)&&Math.abs(p[0])<=90&&Math.abs(p[1])<=180;
+function coords(a){const m=String(a||"").trim().match(/^(-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?)$/);if(!m)return null;const p=[+m[1],+m[2]];return point(p)?p:null}
+const hv=(a,b)=>{const t=x=>x*Math.PI/180,dl=t(b[0]-a[0]),dn=t(b[1]-a[1]),h=Math.sin(dl/2)**2+Math.cos(t(a[0]))*Math.cos(t(b[0]))*Math.sin(dn/2)**2;return 7917.6*Math.asin(Math.sqrt(Math.max(0,Math.min(1,h))))};
+function tsp(s,P,round=false){const n=P.length,pt=x=>x<0?s:P[x],d=(a,b)=>hv(pt(a),pt(b));let o=[],u=new Set(P.keys()),c=-1;
+ while(u.size){let b=-1,bd=1e9;u.forEach(j=>{const x=d(c,j);if(x<bd){bd=x;b=j}});o.push(b);u.delete(b);c=b}
+ for(let imp=1,it=0;imp&&it<60;it++){imp=0;for(let i=0;i<n-1;i++)for(let k=i+1;k<n;k++){const p=i?o[i-1]:-1,next=k<n-1?o[k+1]:(round?-1:null),x=d(p,o[k])+(next===null?0:d(o[i],next))-d(p,o[i])-(next===null?0:d(o[k],next));if(x<-1e-9){o.splice(i,k-i+1,...o.slice(i,k+1).reverse());imp=1}}}
+ return o}
+function opt(){const L=dayJobs();if(L.length<2){rmsg("Add at least 2 stops first.");return}
+ const st=(S.meta.start||"").trim(),start=st?coords(st):null;if(st&&!start){rmsg("Auto-pick needs GPS coordinates for the start. Tap Use my location or leave it blank.");return}
+ const pts=L.map(j=>[j,coords(jaddr(j))]);if(pts.some(x=>!x[1])){rmsg("Auto-pick needs GPS coordinates for every stop. Arrange street-address stops manually.");return}
+ let first=null,s=start;if(!s){first=pts.shift();s=first[1]}
+ const o=tsp(s,pts.map(x=>x[1]),!!start&&!!S.meta.round),res=(first?[first[0]]:[]).concat(o.map(i=>pts[i][0]));
+ order(res);rmsg("Route ordered by approximate straight-line distance. Check drive times in Google Maps.")}
 function vJobs(){const od=today();let L=arr(S.jobs).filter(j=>jf=="All"||(jf=="Open"?j.status!="Paid":j.status==jf)).sort((a,b)=>a.date>b.date?1:-1);
  return`<select onchange="jf=this.value;render()">${["Open",...JS,"All"].map(o=>`<option${o==jf?" selected":""}>${o}</option>`).join("")}</select>`+(L.map(j=>{const late=j.status=="Scheduled"&&j.date<od,nx=JS[JS.indexOf(j.status)+1];
  return`<div class="card" onclick="openJob('${j.id}')"><div class="sp"><b>${E(cname(j.client))}</b><b>${money(j.price)}</b></div><div class="m">${E(j.service)}${j.prop?" · "+E(j.prop):""}</div>
@@ -162,7 +187,7 @@ function saveClient(id){const n=$("#c_name").value.trim();if(!n){$("#c_name").fo
 function delClient(id){if(!confirm("Delete this client and all of their jobs?"))return;jobsOf(id).forEach(j=>rm("jobs",j.id));rm("clients",id);closeD();render()}
 const pl=cid=>props(S.clients[cid]).map(p=>`<option value="${E(p)}">`).join("");
 function openJob(id,pre){if(!arr(S.clients).length){alert("Add a client first.");openClient();return}pre=pre||{};
- const j=id?S.jobs[id]:{client:pre.client||sorted(S.clients)[0].id,prop:pre.prop||"",service:SV[1],date:today(),status:"Scheduled",repeat:"One-time",items:"",price:""};
+ const j=id?S.jobs[id]:{client:pre.client||sorted(S.clients)[0].id,prop:pre.prop||"",service:SV[1],date:pre.date||today(),status:"Scheduled",repeat:"One-time",items:"",price:""};
  if(!id&&!j.prop)j.prop=props(S.clients[j.client])[0]||"";
  dlg(`<h2>${id?"Edit":"New"} job</h2>`+F("Client",`<select id="j_client" onchange="jc()">${sorted(S.clients).map(c=>`<option value="${c.id}"${c.id==j.client?" selected":""}>${E(c.name)}</option>`).join("")}</select>`)+F("Service",sel(SV,j.service,"j_service"))+
  F("Property / unit",`<input id="j_prop" list="pl" value="${E(j.prop)}"><datalist id="pl">${pl(j.client)}</datalist>`)+F("Date",`<input id="j_date" type="date" value="${E(j.date)}">`)+F("Status",sel(JS,j.status,"j_status"))+F("Repeat",sel(RP,j.repeat,"j_rep"))+
