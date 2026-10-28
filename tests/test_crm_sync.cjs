@@ -156,6 +156,7 @@ function makeDevice(server, initialStorage = {}, options = {}) {
     navigator: options.navigator || {}, location: { reload() {} }, TextEncoder,
     URL: options.URL || { createObjectURL: () => 'blob:fictional-photo', revokeObjectURL() {} },
     supabase: { createClient: () => client },
+    WeeklyPlanner: require('../frontend/public/crm-week.js'),
     fetch: options.fetch,
     alert() {}, confirm: options.confirm || (() => false),
     setTimeout(fn, ms) { const timer = setTimeout(() => { timers.delete(timer); fn(); }, ms); timers.add(timer); return timer; },
@@ -1241,6 +1242,231 @@ test('driving routes reject duplicate or mismatched CRM job identifiers', () => 
     seedRoute(device); device.exec('db=sb;hasSnapshot=true;synced=true');
     device.exec("S.jobs.near.id='far';openRoadRoute()");
     assert.match(device.element('#rmsg').textContent, /invalid or duplicate IDs/);
+    assert.equal(device.exec('Object.keys(pending).length'), 0);
+  } finally { device.dispose(); }
+});
+
+// Weekly planning exercises the real CRM state/outbox with fictional services.
+const weekEngine = require('../frontend/public/crm-week.js');
+function futureMonday() {
+  const d = new Date(); const local = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  return weekEngine.defaultMonday(weekEngine.addDays(local, 7));
+}
+function weeklySeed(server, monday) {
+  const client = record('Fictional weekly client', 'c-week');
+  const old = { id: 'old-week', client: client.id, date: monday, status: 'Scheduled', service: 'Mow / edge / blow', prop: '9 Existing Example St, Austin, TX 78701', ord: 2 };
+  server.rows.set('clients/c-week', { coll: 'clients', id: client.id, data: client });
+  server.rows.set('jobs/old-week', { coll: 'jobs', id: old.id, data: old });
+}
+function weeklySetup(device, monday, text) {
+  device.exec(`openWeekPlanner();weekPlan.setup.monday=${JSON.stringify(monday)};weekPlan.setup.flags=[true,true,true,true,true,false,false];weekPlan.setup.clientId='c-week';weekPlan.setup.text=${JSON.stringify(text)};weekReviewJobs();weekReviewSharing()`);
+}
+function weeklyFakeProvider(requests) {
+  return async (_url, options) => {
+    assert.equal(options.headers.Authorization, 'Bearer fictional.jwt.token');
+    const body = JSON.parse(options.body); requests.push(body);
+    if (body.action === 'geocode') return fakeRoadResponse({ matches: fakeMatches(body.addresses) });
+    const order = Array.from({ length: body.stops.length }, (_, i) => i);
+    if (body.fixedFirst) order.splice(1, order.length - 1, ...order.slice(1).reverse()); else order.reverse();
+    return fakeRoadResponse({ order });
+  };
+}
+
+test('weekly new jobs and constraints sync to a second device without changing existing jobs', async () => {
+  const server = new FakeServer(), monday = futureMonday(), tuesday = weekEngine.addDays(monday, 1), thursday = weekEngine.addDays(monday, 3), requests = [];
+  weeklySeed(server, monday); const originalJob = clone(server.rows.get('jobs/old-week').data);
+  const first = makeDevice(server, {}, { confirm: () => true, fetch: weeklyFakeProvider(requests) }), second = makeDevice(server);
+  try {
+    await Promise.all([first.login(), second.login()]); first.client.auth.getSession = async () => fakeSession();
+    const text = [
+      `100 Example St, Austin, TX 78701 | exact ${tuesday}`,
+      `200 Example St, Austin, TX 78701 | due ${thursday}`,
+      '300 Example St, Austin, TX 78701',
+      '300 Example St, Austin, TX 78701',
+      '400 Example St, Austin, TX 78701',
+      '500 Example St, Austin, TX 78701',
+    ].join('\n');
+    weeklySetup(first, monday, text);
+    assert.equal(first.exec('weekPlan.stage'), 'share'); assert.equal(requests.length, 0);
+    assert.equal(first.exec('Object.keys(S.jobs).length'), 1);
+    await first.exec('weekBegin()'); assert.equal(first.exec('weekPlan.stage'), 'matches');
+    assert.equal(requests[0].addresses.length, 5);
+    await first.exec('weekSuggest()'); assert.equal(first.exec('weekPlan.stage'), 'preview');
+    assert.equal(first.exec('Object.keys(S.jobs).length'), 1);
+    first.exec('weekSave()'); assert.equal(first.exec('weekPlan.stage'), 'saved');
+    assert.match(first.element('#wk_status').textContent, /Added 6 jobs/);
+    await wait(240);
+    const jobs = clone(second.exec('Object.values(S.jobs)'));
+    assert.equal(jobs.length, 7);
+    assert.deepEqual(jobs.find(j => j.id === 'old-week'), originalJob);
+    const fixed = jobs.find(j => j.prop.startsWith('100 Example'));
+    assert.equal(fixed.date, tuesday); assert.equal(fixed.dateRequirement, 'exact'); assert.equal(fixed.requiredDate, tuesday);
+    const due = jobs.find(j => j.prop.startsWith('200 Example'));
+    assert.ok(due.date <= thursday && due.date >= monday); assert.equal(due.dateRequirement, 'deadline');
+    assert.equal(jobs.filter(j => j.prop.startsWith('300 Example')).length, 2);
+    assert.equal(second.exec('synced'), true);
+    assert.ok(requests.filter(x => x.action === 'optimize').every(x => !JSON.stringify(x).includes('Example')));
+  } finally { first.dispose(); second.dispose(); }
+});
+
+test('a CRM change while a weekly lookup is running prevents both preview and saving', async () => {
+  const server = new FakeServer(), monday = futureMonday(); weeklySeed(server, monday); let resolveFetch;
+  const device = makeDevice(server, {}, { confirm: () => true, fetch: async (_url, options) => {
+    const addresses = JSON.parse(options.body).addresses;
+    return new Promise(resolve => { resolveFetch = () => resolve(fakeRoadResponse({ matches: fakeMatches(addresses) })); });
+  } });
+  try {
+    await device.login(); device.client.auth.getSession = async () => fakeSession();
+    weeklySetup(device, monday, '100 Example St, Austin, TX 78701\n200 Example St, Austin, TX 78701');
+    const pendingRequest = device.exec('weekBegin()'); await wait(0);
+    device.exec("S.jobs['old-week'].prop='Changed Example St'"); resolveFetch(); await pendingRequest;
+    assert.match(device.element('#wk_status').textContent, /CRM changed/i);
+    assert.equal(device.exec('weekPlan.stage'), 'share');
+    assert.equal(device.exec('Object.keys(S.jobs).length'), 1);
+    assert.equal(device.exec('Object.keys(pending).length'), 0);
+  } finally { device.dispose(); }
+});
+
+test('changed CRM data after final confirmation, insufficient storage, and bad daily orders fail safely', async () => {
+  for (const mode of ['confirm-change', 'storage', 'bad-order']) {
+    const server = new FakeServer(), monday = futureMonday(), requests = []; weeklySeed(server, monday);
+    let device;
+    device = makeDevice(server, {}, { confirm: () => { if (mode === 'confirm-change') device.exec("S.jobs['old-week'].prop='Changed during confirmation'"); return true; },
+      fetch: async (url, options) => {
+        const body = JSON.parse(options.body);
+        if (mode === 'bad-order' && body.action === 'optimize') { requests.push(body); return fakeRoadResponse({ order: body.stops.map(() => 0) }); }
+        return weeklyFakeProvider(requests)(url, options);
+      } });
+    try {
+      await device.login(); device.client.auth.getSession = async () => fakeSession();
+      // All three exact-day jobs force a multi-stop optimize request.
+      const text = [1, 2, 3].map(i => `${i} Example St, Austin, TX 78701 | exact ${monday}`).join('\n');
+      weeklySetup(device, monday, text); await device.exec('weekBegin()'); await device.exec('weekSuggest()');
+      if (mode === 'bad-order') assert.match(device.element('#wk_status').textContent, /incomplete/i);
+      else {
+        assert.equal(device.exec('weekPlan.stage'), 'preview');
+        if (mode === 'storage') device.exec("const origSet=localStorage.setItem;localStorage.setItem=(k,v)=>{if(k.startsWith('mib_week_probe_'))throw new Error('full');return origSet(k,v)}");
+        device.exec('weekSave()');
+        assert.match(device.element('#wk_status').textContent, mode === 'storage' ? /storage/i : /CRM changed/i);
+      }
+      assert.equal(device.exec('Object.keys(S.jobs).length'), 1);
+      assert.equal(device.exec('Object.keys(pending).length'), 0);
+    } finally { device.dispose(); }
+  }
+});
+
+test('date requirements prevent a job from being moved beyond its deadline or off its exact day', async () => {
+  const server = new FakeServer(), monday = futureMonday(), tuesday = weekEngine.addDays(monday, 1); weeklySeed(server, monday);
+  const device = makeDevice(server, {}, { confirm: () => true });
+  try {
+    await device.login();
+    device.exec(`S.jobs.fixed={id:'fixed',client:'c-week',date:${JSON.stringify(monday)},status:'Scheduled',service:'Other',prop:'30,-97',dateRequirement:'exact',requiredDate:${JSON.stringify(monday)}};rd=${JSON.stringify(tuesday)};addStop('fixed')`);
+    assert.equal(device.exec('S.jobs.fixed.date'), monday); assert.match(device.element('#rmsg').textContent, /must be done on/i);
+    device.exec(`S.jobs.due={id:'due',client:'c-week',date:${JSON.stringify(monday)},status:'Scheduled',service:'Other',prop:'30,-97',dateRequirement:'deadline',requiredDate:${JSON.stringify(monday)}};addStop('due')`);
+    assert.equal(device.exec('S.jobs.due.date'), monday); assert.match(device.element('#rmsg').textContent, /due by/i);
+    assert.equal(device.exec('Object.keys(pending).length'), 0);
+  } finally { device.dispose(); }
+});
+
+test('weekly address lookup batches more than 101 distinct locations without saving or routing', async () => {
+  const server = new FakeServer(), monday = futureMonday(), requests = []; weeklySeed(server, monday);
+  const device = makeDevice(server, {}, { confirm: () => true, fetch: weeklyFakeProvider(requests) });
+  try {
+    await device.login(); device.client.auth.getSession = async () => fakeSession();
+    const text = Array.from({ length: 155 }, (_, i) => `${1000 + i} Example St, Austin, TX 78701`).join('\n');
+    weeklySetup(device, monday, text);
+    assert.equal(device.exec('weekPlan.stage'), 'share'); assert.equal(requests.length, 0);
+    await device.exec('weekBegin()');
+    assert.equal(device.exec('weekPlan.stage'), 'matches');
+    assert.deepEqual(requests.map(x => [x.action, x.addresses.length]), [['geocode', 101], ['geocode', 54]]);
+    assert.equal(device.exec('weekPlan.jobPoints.length'), 155);
+    assert.equal(device.exec('Object.keys(S.jobs).length'), 1);
+    assert.equal(device.exec('Object.keys(pending).length'), 0);
+  } finally { device.dispose(); }
+});
+
+test('weekly save cancellation and a failure on the second daily route add no jobs', async () => {
+  for (const mode of ['cancel', 'second-route']) {
+    const server = new FakeServer(), monday = futureMonday(), tuesday = weekEngine.addDays(monday, 1), requests = []; weeklySeed(server, monday);
+    const device = makeDevice(server, {}, { confirm: () => mode !== 'cancel', fetch: async (url, options) => {
+      const body = JSON.parse(options.body), routeCount = requests.filter(r => r.action === 'optimize').length;
+      if (mode === 'second-route' && body.action === 'optimize' && routeCount === 1) {
+        requests.push(body); return fakeRoadResponse({ error: 'Simple Routing daily limit reached.' }, 429);
+      }
+      return weeklyFakeProvider(requests)(url, options);
+    } });
+    try {
+      await device.login(); device.client.auth.getSession = async () => fakeSession();
+      const text = [
+        `1 Example St, Austin, TX 78701 | exact ${monday}`,
+        `2 Example St, Austin, TX 78701 | exact ${monday}`,
+        `3 Example St, Austin, TX 78701 | exact ${tuesday}`,
+        `4 Example St, Austin, TX 78701 | exact ${tuesday}`,
+      ].join('\n');
+      weeklySetup(device, monday, text); await device.exec('weekBegin()'); await device.exec('weekSuggest()');
+      if (mode === 'cancel') { assert.equal(device.exec('weekPlan.stage'), 'preview'); device.exec('weekSave()'); }
+      else { assert.equal(requests.filter(r => r.action === 'optimize').length, 2); assert.match(device.element('#wk_status').textContent, /limit/i); }
+      assert.equal(device.exec('Object.keys(S.jobs).length'), 1);
+      assert.equal(device.exec('Object.keys(pending).length'), 0);
+    } finally { device.dispose(); }
+  }
+});
+
+test('job editor preserves hard date rules unless the user explicitly changes them', async () => {
+  const server = new FakeServer(), monday = futureMonday(), tuesday = weekEngine.addDays(monday, 1); weeklySeed(server, monday);
+  const device = makeDevice(server);
+  try {
+    await device.login();
+    device.exec(`S.jobs.fixed={id:'fixed',client:'c-week',date:${JSON.stringify(monday)},status:'Scheduled',service:'Other',prop:'30,-97',dateRequirement:'exact',requiredDate:${JSON.stringify(monday)}};openJob('fixed')`);
+    for (const [selector, value] of Object.entries({ '#j_client': 'c-week', '#j_service': 'Other', '#j_prop': '30,-97', '#j_date': tuesday, '#j_rule': 'exact', '#j_required': monday, '#j_status': 'Scheduled', '#j_rep': 'One-time' })) device.element(selector).value = value;
+    device.exec("saveJob('fixed')"); assert.equal(device.exec('S.jobs.fixed.date'), monday); assert.equal(device.exec('Object.keys(pending).length'), 0);
+    device.element('#j_required').value = tuesday;
+    device.exec("saveJob('fixed')"); assert.equal(device.exec('S.jobs.fixed.date'), tuesday); assert.equal(device.exec('S.jobs.fixed.requiredDate'), tuesday);
+  } finally { device.dispose(); }
+});
+
+test('a week can create clients for distinct addresses and sync them before their jobs', async () => {
+  const server = new FakeServer(), monday = futureMonday(), requests = [], confirmations = [];
+  const first = makeDevice(server, {}, { confirm: text => { confirmations.push(text); return true; }, fetch: weeklyFakeProvider(requests) }), second = makeDevice(server);
+  try {
+    await Promise.all([first.login(), second.login()]); first.client.auth.getSession = async () => fakeSession();
+    const text = [
+      `123 Example St, Austin, TX 78701 | exact ${monday}`,
+      `123 Example St, Austin, TX 78701 | exact ${monday}`,
+      `456 Example St, Austin, TX 78701 | exact ${monday}`,
+    ].join('\n');
+    first.exec(`openWeekPlanner();weekPlan.setup.monday=${JSON.stringify(monday)};weekPlan.setup.flags=[true,true,true,true,true,false,false];weekPlan.setup.clientId=WEEK_NEW_CLIENT;weekPlan.setup.newType='Property manager';weekPlan.setup.newStage='Won';weekPlan.setup.text=${JSON.stringify(text)};weekReviewJobs();weekReviewSharing()`);
+    assert.equal(first.exec('weekPlan.stage'), 'share'); assert.equal(first.exec('weekPlan.duplicates.length'), 1);
+    assert.equal(first.exec('Object.keys(S.clients).length'), 0); assert.equal(first.exec('Object.keys(S.jobs).length'), 0);
+    await first.exec('weekBegin()'); assert.equal(requests[0].addresses.length, 2);
+    await first.exec('weekSuggest()'); first.exec('weekSave()');
+    assert.match(confirmations.at(-1), /3 new scheduled jobs and 2 new clients/);
+    assert.match(first.element('#wk_status').textContent, /Added 3 jobs and 2 new clients/);
+    await wait(220);
+    const clients = clone(second.exec('Object.values(S.clients)')), jobs = clone(second.exec('Object.values(S.jobs)'));
+    assert.equal(clients.length, 2); assert.equal(jobs.length, 3);
+    assert.ok(clients.every(c => c.type === 'Property manager' && c.stage === 'Won'));
+    const pair = jobs.filter(j => j.prop.startsWith('123 Example'));
+    assert.equal(pair.length, 2); assert.equal(pair[0].client, pair[1].client);
+    assert.ok(jobs.every(j => clients.some(c => c.id === j.client)));
+    assert.equal(second.exec('synced'), true);
+  } finally { first.dispose(); second.dispose(); }
+});
+
+test('new-client duplicate detection and combined storage checks protect existing data', async () => {
+  const server = new FakeServer(), monday = futureMonday(), requests = [];
+  const existing = record('Fictional client', 'c-existing'); existing.props = '123 Example St, Austin, TX 78701';
+  server.rows.set('clients/c-existing', { coll: 'clients', id: existing.id, data: existing });
+  const device = makeDevice(server, {}, { confirm: () => true, fetch: weeklyFakeProvider(requests) });
+  try {
+    await device.login(); device.client.auth.getSession = async () => fakeSession();
+    const text = `123 Example St, Austin, TX 78701 | exact ${monday}`;
+    device.exec(`openWeekPlanner();weekPlan.setup.monday=${JSON.stringify(monday)};weekPlan.setup.flags=[true,true,true,true,true,false,false];weekPlan.setup.clientId=WEEK_NEW_CLIENT;weekPlan.setup.text=${JSON.stringify(text)};weekReviewJobs();weekReviewSharing()`);
+    assert.equal(device.exec('weekPlan.duplicates.length'), 1);
+    await device.exec('weekBegin()'); await device.exec('weekSuggest()');
+    device.exec("const setBefore=localStorage.setItem;localStorage.setItem=(k,v)=>{if(k.startsWith('mib_week_probe_'))throw new Error('full');return setBefore(k,v)};weekSave()");
+    assert.match(device.element('#wk_status').textContent, /storage/i);
+    assert.equal(device.exec('Object.keys(S.clients).length'), 1); assert.equal(device.exec('Object.keys(S.jobs).length'), 0);
     assert.equal(device.exec('Object.keys(pending).length'), 0);
   } finally { device.dispose(); }
 });

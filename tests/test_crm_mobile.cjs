@@ -12,6 +12,7 @@ try {
   bundledChromium = require('@sparticuz/chromium').default;
 } catch (_) {}
 const html = fs.readFileSync(path.join(__dirname, '../frontend/public/crm.html'), 'utf8');
+const weekScript = fs.readFileSync(path.join(__dirname, '../frontend/public/crm-week.js'), 'utf8');
 
 function installFakeSupabase() {
   const clients = [
@@ -80,6 +81,7 @@ test('new CRM flows fit small screens and use only fictional mock data', { skip:
       await page.route('**/*', route => {
         const url = route.request().url();
         if (url === 'https://crm.test/crm.html') return route.fulfill({ status: 200, contentType: 'text/html', body: html });
+        if (url === 'https://crm.test/crm-week.js') return route.fulfill({ status: 200, contentType: 'application/javascript', body: weekScript });
         if (url.startsWith('https://cdn.jsdelivr.net/npm/@supabase/')) return route.fulfill({ status: 200, contentType: 'application/javascript', body: '// Fake client was injected before page load.' });
         if (url === 'https://crm.test/api/crm-route') {
           const request = route.request();
