@@ -40,7 +40,7 @@ dialog::backdrop{background:#0008}.bt{display:flex;gap:6px;flex-wrap:wrap}
 </style></head><body>
 <header><h1>🌿 Maintain It Bandits</h1><div class="sub" id="st">Saved on this device</div></header>
 <div class="stats" id="stats"></div>
-<div class="bar"><button class="pri" onclick="openClient()">+ Client</button><button class="pri" onclick="openJob()">+ Job</button><button onclick="openRates()">Rates</button><button onclick="openBackup()">Backup</button><button onclick="logout()">Sign out</button></div>
+<div class="bar"><button class="pri" onclick="openClient()">+ Client</button><button class="pri" onclick="openJob()">+ Job</button><button onclick="openImport()">Import addresses</button><button onclick="openRates()">Rates</button><button onclick="openBackup()">Backup</button><button onclick="logout()">Sign out</button></div>
 <div class="tabs" id="tabs"></div>
 <main id="main"></main>
 <div id="login"><div class="card" style="width:min(360px,100%)"><h2>🌿 Maintain It Bandits</h2><p class="m">Team sign in</p><input id="em" type="email" placeholder="Email" autocomplete="username"><input id="pw" type="password" placeholder="Password" autocomplete="current-password" onkeydown="if(event.key==='Enter')login()"><button class="pri" onclick="login()">Sign in</button><p id="lerr" class="m" style="color:var(--rd)"></p></div></div>
@@ -50,7 +50,7 @@ dialog::backdrop{background:#0008}.bt{display:flex;gap:6px;flex-wrap:wrap}
 <script>
 const $=s=>document.querySelector(s),E=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const ST=["Lead","Quoted","Won","Recurring","Lost"],JS=["Scheduled","Done","Invoiced","Paid"],RP=["One-time","Weekly","Every 2 weeks","Monthly"],
-TY=["Property manager","Homeowner","Realtor / investor","STR host","Commercial"],
+TY=["Property manager","Homeowner","Realtor / investor","STR host","Commercial","Other / unknown"],
 SV=["Make-ready cleanup","Mow / edge / blow","Mulch / bed refresh","Trim / prune","Haul-off","Sod / seed","Pressure wash","Other"],TABS=["Pipeline","Clients","Properties","Route","Jobs"],
 DEF="Mow | 55\nMulch per yard | 85\nBed cleanup | 60\nTrim | 75\nHaul-off | 120\nPressure wash | 150\nMake-ready flat | 250";
 let S={clients:{},jobs:{},meta:{}},db=null,synced=false,tab="Pipeline",jf="Open",q="",pend=false,known={};
@@ -82,6 +82,7 @@ const sb=supabase.createClient(SB_URL,SB_KEY);
 function scheduleFlush(delay=0){if(!db)return;if(retryTimer){if(delay)return;clearTimeout(retryTimer)}retryTimer=setTimeout(()=>{retryTimer=null;flush()},delay)}
 function queue(c,id,data,deleted=false){id=String(id);const k=key(c,id);pending[k]={coll:c,id,deleted,data:deleted?null:clone(data)};mark(k);persist();head();scheduleFlush()}
 function w(c,o){S[c][o.id]=o;queue(c,o.id,o)}
+function wBatch(c,records){if(!records.length)return;records.forEach(o=>{const id=String(o.id),k=key(c,id);S[c][id]=o;pending[k]={coll:c,id,deleted:false,data:clone(o)};mark(k)});persist();head();scheduleFlush()}
 function rm(c,id){delete S[c][id];queue(c,id,null,true)}
 function wm(){queue("meta","settings",S.meta)}
 const busy=()=>$("#dlg").open||!$("#doc").hidden||/INPUT|TEXTAREA|SELECT/.test((document.activeElement||{}).tagName||""),later=()=>busy()?pend=true:render();
@@ -200,6 +201,167 @@ function saveJob(id){const o=Object.assign({},S.jobs[id]||{},{id:id||uid("j"),cl
  w("jobs",o);spawn(o);closeD();render()}
 function delJob(id){if(!confirm("Delete this job?"))return;rm("jobs",id);closeD();render()}
 function openRates(){dlg(`<h2>Rate card</h2><p class="m">One "name | price" per line. These are placeholder starter rates — replace them with your real pricing.</p><textarea id="rt" rows="9">${E(S.meta.rates==null?DEF:S.meta.rates)}</textarea><div class="bt"><button class="pri" onclick="S.meta.rates=$('#rt').value;wm();closeD()">Save</button><button onclick="closeD()">Cancel</button></div>`)}
+/* Address import: review first, add only, and use the existing sync outbox. */
+const IMPORT_LIMIT=1000,IMPORT_FILE_LIMIT=1024*1024,IMPORT_ADDRESS_LIMIT=500;
+let importPreview=null,importReadSeq=0;
+const importKey=a=>a.trim().replace(/\s+/g," ").toLowerCase();
+function importAddress(value,row){
+ const a=String(value==null?"":value).replace(/\r\n|\r|\n/g,", ").replace(/[ \t]+/g," ").trim();
+ if(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/.test(a))throw new Error("Address "+row+" contains an unsupported control character.");
+ if(a.length>IMPORT_ADDRESS_LIMIT)throw new Error("Address "+row+" is too long. Use at most "+IMPORT_ADDRESS_LIMIT+" characters per address.");
+ return a
+}
+function importLines(text){
+ text=String(text||"").replace(/^\uFEFF/,"");
+ if(text.length>IMPORT_FILE_LIMIT)throw new Error("This list is too large. Use a file smaller than 1 MB.");
+ if(text.includes("\t"))throw new Error("Paste one complete address per line. For spreadsheet columns, upload a CSV with an Address column.");
+ const lines=text.split(/\r\n|\r|\n/).map((s,i)=>importAddress(s,i+1)).filter(Boolean);
+ if(lines.length>IMPORT_LIMIT)throw new Error("Import up to "+IMPORT_LIMIT+" addresses at a time. Split this list into smaller batches.");
+ return lines
+}
+function importCSV(text){
+ text=String(text||"").replace(/^\uFEFF/,"");
+ if(text.length>IMPORT_FILE_LIMIT)throw new Error("This CSV is too large. Use a file smaller than 1 MB.");
+ let rows=[],row=[],field="",quoted=false,afterQuote=false;
+ const endField=()=>{row.push(field);field="";afterQuote=false};
+ const endRow=()=>{endField();rows.push(row);row=[]};
+ for(let i=0;i<text.length;i++){
+  const c=text[i];
+  if(quoted){if(c==='"'){if(text[i+1]==='"'){field+='"';i++}else{quoted=false;afterQuote=true}}else field+=c;continue}
+  if(c===","){endField();continue}
+  if(c==="\r"||c==="\n"){if(c==="\r"&&text[i+1]==="\n")i++;endRow();continue}
+  if(c==='"'){if(afterQuote||field.trim())throw new Error("CSV has an invalid quote. Put double quotes around addresses containing commas.");field="";quoted=true;continue}
+  if(afterQuote){if(c===" "||c==="\t")continue;throw new Error("CSV has text after a closing quote.")}
+  field+=c
+ }
+ if(quoted)throw new Error("CSV has an unclosed quote. Check the file and try again.");
+ if(field.length||row.length||afterQuote)endRow();
+ rows=rows.filter(r=>r.some(v=>v.trim()));
+ if(!rows.length)return [];
+ const headers=rows[0].map(v=>v.trim().toLowerCase().replace(/[\/_.-]+/g," ").replace(/\s+/g," "));
+ const names=["address","full address","property address","service address","street address"];
+ const matches=headers.map((v,i)=>names.includes(v)?i:-1).filter(i=>i>=0);
+ if(matches.length>1)throw new Error("CSV has more than one address column. Keep one full Address column and try again.");
+ let index=0,data=rows;
+ if(matches.length){
+  index=matches[0];data=rows.slice(1);if(data.some(r=>r.length>headers.length))throw new Error("A CSV row has extra columns. Put quotes around addresses containing commas.");
+  const parts=["address 1","address line 1","address 2","address line 2","street","street 1","street 2","street name","street number","apartment","apt","unit","suite","city","town","municipality","state","province","state province","zip","zip code","zipcode","postal code","postcode","city state zip","country","county"];
+  const partColumns=headers.map((h,i)=>i!==index&&parts.includes(h)?i:-1).filter(i=>i>=0);
+  if(data.some(r=>partColumns.some(i=>(r[i]||"").trim())))throw new Error("This CSV has address parts in separate columns. Combine street, city, state and ZIP into one complete Address column, then remove the separate address columns and try again.")
+ }else if(rows.some(r=>r.length!==1))throw new Error("For a CSV with multiple columns, add an Address header containing the complete address.");
+ if(data.length>IMPORT_LIMIT)throw new Error("Import up to "+IMPORT_LIMIT+" addresses at a time. Split this file into smaller batches.");
+ return data.map((r,i)=>{const a=importAddress(r[index],i+(matches.length?2:1));if(!a)throw new Error("A CSV row is missing its address. Fix or remove that row and try again.");return a})
+}
+function openImport(){
+ importReadSeq++;importPreview=null;
+ const clients=sorted(S.clients).map(c=>`<option value="${E(c.id)}">${E(c.name)}</option>`).join("");
+ const types=TY.map(t=>`<option${t==="Other / unknown"?" selected":""}>${E(t)}</option>`).join("");
+ const stages=ST.map(t=>`<option${t==="Lead"?" selected":""}>${E(t)}</option>`).join("");
+ const services=SV.map(t=>`<option>${E(t)}</option>`).join("");
+ const field=(label,id,html)=>`<div class="fg"><label for="${id}">${E(label)}</label>${html}</div>`;
+ dlg(`<h2>Import addresses</h2><p class="m">Add up to 1,000 addresses at a time; files must be 1 MB or smaller. This adds records; it does not replace your CRM. Make a backup first.</p>
+ ${field("What should these addresses create?","imp_mode",`<select id="imp_mode" onchange="importModeChanged()"><option value="">Choose an option…</option><option value="properties">Properties for one existing client</option><option value="clients">One new client per address</option><option value="jobs">Scheduled jobs for a selected day</option></select>`)}
+ <div id="imp_client_group" hidden>${field("Existing client","imp_client",`<select id="imp_client" onchange="importInvalidate()"><option value="">Choose a client…</option>${clients}</select>`)}</div>
+ <div id="imp_new_group" hidden>${field("New client type","imp_type",`<select id="imp_type" onchange="importInvalidate()">${types}</select>`)}${field("New client stage","imp_stage",`<select id="imp_stage" onchange="importInvalidate()">${stages}</select>`)}<p class="m">Each new client will be named by its address until you edit it.</p></div>
+ <div id="imp_job_group" hidden>${field("Job date","imp_date",`<input id="imp_date" type="date" value="${E(rd)}" onchange="importInvalidate()">`)}${field("Service","imp_service",`<select id="imp_service" onchange="importInvalidate()"><option value="">Choose a service…</option>${services}</select>`)}<p class="m">Jobs are scheduled once with no price set; add prices later. They appear on the selected day's route.</p></div>
+ ${field("Paste one complete address per line","imp_text",`<textarea id="imp_text" rows="6" placeholder="123 Example St, Austin, TX 78701\n456 Example Ave, Austin, TX 78702" oninput="importInvalidate()"></textarea>`)}
+ ${field("Or choose a CSV or TXT file","imp_file",`<input id="imp_file" type="file" accept=".csv,.txt,text/csv,text/plain" onchange="importFile(this)">`)}
+ <p class="m">CSV files need a column named Address containing the complete address. Combine separate street, city, state and ZIP columns first; unrelated columns are ignored. Export Excel or Sheets files as CSV. Files are read on this device; added records sync to your CRM. Import from one device at a time.</p>
+ <label style="display:flex;gap:6px;align-items:center"><input id="imp_skip" type="checkbox" style="width:auto;margin:0" checked onchange="importInvalidate()"> Skip addresses already in the selected destination</label>
+ <p class="m">Duplicates are compared ignoring case and extra spaces; different abbreviations may not match. For new clients, this checks all clients' properties. For jobs, it checks scheduled jobs with the same client, date and service.</p>
+ <div class="bt"><button onclick="reviewImport()">Review import</button><button onclick="closeD()">Close</button></div>
+ <p class="m" id="imp_status" role="status" aria-live="polite"></p><div id="imp_preview"></div>
+ <div class="bt"><button id="imp_apply" class="pri" hidden onclick="confirmImport()">Add addresses</button></div>`)
+}
+function importInvalidate(){
+ importReadSeq++;importPreview=null;const p=$("#imp_preview"),b=$("#imp_apply"),s=$("#imp_status");
+ if(p)p.innerHTML="";if(b)b.hidden=true;if(s)s.textContent=""
+}
+function importModeChanged(){
+ const m=$("#imp_mode").value;$("#imp_client_group").hidden=m!=="properties"&&m!=="jobs";
+ $("#imp_new_group").hidden=m!=="clients";$("#imp_job_group").hidden=m!=="jobs";importInvalidate()
+}
+async function importFile(input){
+ const f=input.files&&input.files[0];if(!f)return;input.value="";importInvalidate();const seq=importReadSeq;$("#imp_status").textContent="Reading file on this device…";
+ try{
+  if(f.size>IMPORT_FILE_LIMIT)throw new Error("This file is too large. Choose a CSV or TXT file smaller than 1 MB.");
+  if(!/\.(csv|txt)$/i.test(f.name||""))throw new Error("Choose a .csv or .txt file. Export Excel or Sheets files as CSV first.");
+  const text=await f.text();if(seq!==importReadSeq||!$("#imp_text"))return;
+  const list=/\.csv$/i.test(f.name)?importCSV(text):importLines(text);if(!list.length)throw new Error("No addresses were found in this file.");
+  if($("#imp_text").value.trim()&&!confirm("Replace the pasted address list with this file?")){input.value="";$("#imp_status").textContent="Kept the pasted list; no CRM records changed.";return}
+  if(seq!==importReadSeq||!$("#imp_text"))return;
+  $("#imp_text").value=list.join("\n");$("#imp_status").textContent="Loaded "+list.length+" address"+(list.length===1?"":"es")+". Review before adding."
+ }catch(e){if(seq===importReadSeq&&$("#imp_status"))$("#imp_status").textContent=e.message||"Could not read that file.";input.value=""}
+}
+function importPlan(){
+ if(!db||!hasSnapshot)throw new Error("Connect and wait for your CRM to load before importing.");
+ const mode=$("#imp_mode").value;if(!["properties","clients","jobs"].includes(mode))throw new Error("Choose what the addresses should create.");
+ const addresses=importLines($("#imp_text").value);if(!addresses.length)throw new Error("Paste addresses or choose a CSV or TXT file first.");
+ const clientId=mode==="clients"?"":$("#imp_client").value;
+ if(mode!=="clients"&&!S.clients[clientId])throw new Error("Choose an existing client.");
+ let type="",stage="",date="",service="";
+ if(mode==="clients"){type=$("#imp_type").value;stage=$("#imp_stage").value;if(!TY.includes(type)||!ST.includes(stage))throw new Error("Choose a valid client type and stage.")}
+ if(mode==="jobs"){
+  date=$("#imp_date").value;service=$("#imp_service").value;
+  const d=/^\d{4}-\d{2}-\d{2}$/.test(date)?new Date(date+"T12:00:00"):null;
+  if(!d||isNaN(d.getTime())||fd(d)!==date)throw new Error("Choose a valid job date.");
+  if(!SV.includes(service))throw new Error("Choose a service for the jobs.")
+ }
+ const skipExisting=!!$("#imp_skip").checked,seen=new Set(),unique=[],repeated=[];
+ addresses.forEach(a=>{const k=importKey(a);if(seen.has(k))repeated.push(a);else{seen.add(k);unique.push(a)}});
+ const existing=new Set();
+ if(mode==="properties")props(S.clients[clientId]).forEach(a=>existing.add(importKey(a)));
+ else if(mode==="clients")arr(S.clients).forEach(c=>props(c).forEach(a=>existing.add(importKey(a))));
+ else arr(S.jobs).filter(j=>j.client===clientId&&j.date===date&&j.status==="Scheduled"&&j.service===service).forEach(j=>{const a=jaddr(j);if(a)existing.add(importKey(a))});
+ const already=[],entries=unique.filter(a=>{if(existing.has(importKey(a))){already.push(a);return !skipExisting}return true});
+ return {mode,clientId,type,stage,date,service,skipExisting,addresses,entries,repeated,already}
+}
+function importDescription(p){const one=p.entries.length===1;return p.mode==="properties"?(one?"property":"properties"):p.mode==="clients"?(one?"client":"clients"):(one?"scheduled job":"scheduled jobs")}
+function previewAddresses(label,items){return items.length?`<details${items.length<=5?" open":""}><summary>${E(label)} (${items.length}${items.length>5?"; tap to show all":""})</summary><ul>${items.map(a=>`<li>${E(a)}</li>`).join("")}</ul></details>`:""}
+function reviewImport(){
+ try{
+  const p=importPlan();importPreview=p;$("#imp_apply").hidden=!p.entries.length;
+  const target=p.clientId?` for ${E(cname(p.clientId))}`:"";
+  const settings=p.mode==="jobs"?`<p class="m">${E(p.date)} · ${E(p.service)} · one-time</p>`:p.mode==="clients"?`<p class="m">${E(p.type)} · ${E(p.stage)}</p>`:"";
+  const summary=`<p><b>${p.entries.length}</b> ${importDescription(p)}${target} will be added. ${p.repeated.length} repeated in the list will be skipped. ${p.already.length} already in the destination will ${p.skipExisting?"be skipped":"be added because skipping is off"}.</p>`;
+  $("#imp_preview").innerHTML=summary+settings+previewAddresses("To add",p.entries)+previewAddresses("Repeated in this list (skipped)",p.repeated)+previewAddresses(p.skipExisting?"Already in destination (skipped)":"Already in destination (will be added)",p.already);
+  $("#imp_status").textContent=p.entries.length?"Review the list, then tap Add addresses.":"There are no new addresses to add.";
+  if(typeof $("#imp_preview").scrollIntoView==="function")$("#imp_preview").scrollIntoView({block:"start"})
+ }catch(e){importPreview=null;$("#imp_apply").hidden=true;$("#imp_preview").innerHTML="";$("#imp_status").textContent=e.message||"Could not review the list."}
+}
+function importRecords(p){
+ const coll=p.mode==="jobs"?"jobs":"clients",reserved=new Set(Object.keys(S[coll]));
+ const nextId=prefix=>{const base=typeof crypto!=="undefined"&&typeof crypto.randomUUID==="function"?prefix+crypto.randomUUID().replace(/-/g,""):uid(prefix)+Math.random().toString(36).slice(2,10);let id=base,n=1;while(reserved.has(id))id=base+"_"+n++;reserved.add(id);return id};
+ if(p.mode==="properties"){
+  const c=S.clients[p.clientId],old=typeof c.props==="string"?c.props:"",sep=old&&!/[\r\n]$/.test(old)?"\n":"";
+  return {coll,records:[Object.assign({},c,{props:old+sep+p.entries.join("\n")})]}
+ }
+ if(p.mode==="clients")return {coll,records:p.entries.map(a=>({id:nextId("c"),name:a,contact:"",phone:"",email:"",type:p.type,stage:p.stage,props:a,notes:""}))};
+ return {coll,records:p.entries.map(a=>({id:nextId("j"),client:p.clientId,service:p.service,prop:a,date:p.date,status:"Scheduled",repeat:"One-time",items:"",price:"",notes:""}))}
+}
+function importStorageAvailable(coll,records){
+ const probe="mib_import_probe_"+uid("");
+ try{
+  const nextCollection=Object.assign({},S[coll]),nextPending=Object.assign({},pending);
+  records.forEach(o=>{const id=String(o.id);nextCollection[id]=o;nextPending[key(coll,id)]={coll,id,deleted:false,data:o}});
+  const next=Object.assign({},S);next[coll]=nextCollection;
+  const future=JSON.stringify(next).length+JSON.stringify(nextPending).length;
+  const current=(localStorage.getItem("mib")||"").length+(localStorage.getItem("mib_pending_v1")||"").length;
+  localStorage.setItem(probe,"x".repeat(Math.max(0,future-current)+1024));localStorage.removeItem(probe);return true
+ }catch(e){try{localStorage.removeItem(probe)}catch(x){}return false}
+}
+function confirmImport(){
+ if(!importPreview){$("#imp_status").textContent="Review the import before adding addresses.";return}
+ let p;try{p=importPlan()}catch(e){importPreview=null;$("#imp_apply").hidden=true;$("#imp_status").textContent=e.message||"Could not review the list.";return}
+ if(JSON.stringify(p)!==JSON.stringify(importPreview)){importPreview=null;$("#imp_apply").hidden=true;$("#imp_preview").innerHTML="";$("#imp_status").textContent="The list or CRM changed. Review the import again before adding.";return}
+ if(!p.entries.length)return;
+ if(!confirm("Add "+p.entries.length+" "+importDescription(p)+"? Existing records will not be replaced."))return;
+ try{const latest=importPlan();if(JSON.stringify(latest)!==JSON.stringify(p)){importPreview=null;$("#imp_apply").hidden=true;$("#imp_preview").innerHTML="";$("#imp_status").textContent="The list or CRM changed. Review the import again before adding.";return}p=latest}catch(e){importPreview=null;$("#imp_apply").hidden=true;$("#imp_status").textContent=e.message||"Could not review the list.";return}
+ const batch=importRecords(p);if(!importStorageAvailable(batch.coll,batch.records)){$("#imp_status").textContent="Not enough device storage to safely save this import. Free space or use a smaller batch.";return}
+ importPreview=null;$("#imp_apply").hidden=true;wBatch(batch.coll,batch.records);$("#imp_preview").innerHTML="";
+ $("#imp_status").textContent=!storageOK?"The changes are in memory but could not be saved on this device. Use Backup now and keep this page open until synced.":"Added "+p.entries.length+" "+importDescription(p)+". Keep this page open until it says Synced across devices.";
+ render()
+}
 const copy=async t=>{try{await navigator.clipboard.writeText(t);return 1}catch(e){try{const a=document.createElement("textarea");a.value=t;document.body.appendChild(a);a.select();const ok=document.execCommand("copy");a.remove();return ok}catch(x){return 0}}};
 function openBackup(){dlg(`<h2>Backup</h2><p class="m">Copy this JSON somewhere safe. To restore, paste a backup here and tap Restore.</p><textarea id="bk" rows="10">${E(JSON.stringify({clients:S.clients,jobs:S.jobs,meta:S.meta}))}</textarea><div class="bt"><button class="pri" onclick="bcopy()">Copy</button><button class="dg" onclick="restore()">Restore</button><button onclick="closeD()">Close</button></div>`)}
 async function bcopy(){$("#bk").select();alert(await copy($("#bk").value)?"Copied.":"Copy failed — select the text and copy it manually.")}
