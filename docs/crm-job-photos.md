@@ -60,11 +60,13 @@ choosing it again to avoid a duplicate. Review the named files that were not
 sent and select those again after the problem is fixed. The app does not
 silently retry an unconfirmed upload.
 
-The regular **Backup → Copy** JSON contains CRM records, not photo files.
-Maintain a separate private backup of photos. Deleting a photo in the app
-removes it from Storage; deleting a job or client does **not** automatically
-remove its photos, so a storage administrator must review and clean up orphaned
-files if needed. Restore replaces CRM records and does not restore photo files.
+The regular **Backup → Copy** JSON contains CRM records, including saved
+estimates, but not photo files. Maintain a separate private backup of photos.
+Deleting a photo in the app removes it from Storage; deleting a job or client
+does **not** automatically remove its photos, so a storage administrator must
+review and clean up orphaned files if needed. Restore does not restore photo
+files. Older CRM backups without estimates keep current estimates; see
+[CRM daily operations](crm-operations.md#backups-and-restore) for details.
 
 ## Optional local RLS simulation
 

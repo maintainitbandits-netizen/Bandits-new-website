@@ -1969,3 +1969,265 @@ test('a required date without a rule remains visible for correction and cannot b
     assert.equal(device.exec('Object.keys(pending).length'), 0);
   } finally { device.dispose(); }
 });
+
+// Customer-price estimates and job quotes: all records below are fictional.
+function priceEstimate(id, client = 'c1', name = 'Fictional Client') {
+  return { id, client, clientName: name, service: 'Mow / edge / blow', property: '123 Example Road, Austin, TX', date: '2026-11-01', status: 'Draft',
+    lines: [{ description: 'Fictional work', quantityMilli: 1000, unitCents: 12500 }], totalCents: 12500,
+    notes: 'Customer-visible note', teamNotes: 'Private team note' };
+}
+function seedPrice(server, coll, data) { server.rows.set(`${coll}/${data.id}`, { coll, id: data.id, data: clone(data) }); }
+function fillPriceEstimate(device, { client = 'c1', status = 'Draft', property = '123 Example Road, Austin, TX', date = '2026-11-01', notes = 'Customer-visible note', teamNotes = 'Private team note' } = {}) {
+  for (const [field, value] of Object.entries({ es_client: client, es_service: 'Mow / edge / blow', es_date: date, es_status: status, es_property: property, es_notes: notes, es_team_notes: teamNotes })) device.element('#' + field).value = value;
+  device.exec('estimateClientChanged()');
+}
+
+test('price estimate calculations validate decimals and round each line in integer cents', () => {
+  const device = makeDevice(new FakeServer());
+  try {
+    const parsed = clone(device.exec(`estimateParseRows([
+      {description:'Mulch',quantity:'2.5',rate:'19.99'},
+      {description:'Seed',quantity:'.5',rate:'.10'}])`));
+    assert.equal(parsed.totalCents, 5003);
+    assert.deepEqual(parsed.lines.map(line => [line.quantityMilli, line.unitCents]), [[2500, 1999], [500, 10]]);
+    const extreme = device.exec(`estimateSum([{description:'Large',quantityMilli:999999999,unitCents:9000501}])`);
+    assert.equal(extreme, Number((999999999n * 9000501n + 500n) / 1000n));
+    for (const row of [
+      { description: 'Work', quantity: '0', rate: '1' },
+      { description: 'Work', quantity: '-1', rate: '1' },
+      { description: 'Work', quantity: '1.0001', rate: '1' },
+      { description: 'Work', quantity: '1', rate: '-2' },
+      { description: 'Work', quantity: '1', rate: '1.001' },
+      { description: 'Work', quantity: '1e3', rate: '1' },
+      { description: 'Work', quantity: '999999999', rate: '999999999' },
+      { description: 'Work | hidden', quantity: '1', rate: '1' },
+      { description: '', quantity: '1', rate: '1' },
+    ]) assert.throws(() => device.exec(`estimateParseRows(${JSON.stringify([row])})`));
+    assert.throws(() => device.exec(`estimateStored(${JSON.stringify({ ...priceEstimate('e-bad'), totalCents: 1 })})`), /total needs review/i);
+  } finally { device.dispose(); }
+});
+
+test('a customer estimate survives a failed save and reload, syncs, and hides private notes in copy and print', async () => {
+  const server = new FakeServer();
+  seedPrice(server, 'clients', record('Fictional <Client>', 'c1'));
+  const clipboard = [], alerts = [];
+  const options = { navigator: { clipboard: { writeText: async text => clipboard.push(text) } }, alert: message => alerts.push(message) };
+  const first = makeDevice(server, {}, options), second = makeDevice(server);
+  let reloaded;
+  try {
+    await Promise.all([first.login(), second.login()]);
+    second.exec(`tab='Estimates';render()`);
+    first.exec('openEstimate()'); fillPriceEstimate(first, { notes: 'Customer <visible>\nsecond line', teamNotes: 'Private team-only secret' });
+    first.exec(`estimateDraft.rows=[{description:'<img src=x>',quantity:'2.5',rate:'19.99'},{description:'Seed',quantity:'.5',rate:'.10'}]`);
+    server.failWrites = true;
+    first.exec('saveEstimate()');
+    await wait(30);
+    const id = first.exec('Object.keys(S.estimates)[0]');
+    assert.ok(id); assert.equal(first.exec(`S.estimates[${JSON.stringify(id)}].totalCents`), 5003);
+    assert.match(first.storage.get('mib_pending_v1'), /Private team-only secret/);
+    assert.notEqual(first.element('#st').textContent, 'Synced across devices');
+    const persisted = Object.fromEntries(first.storage); first.dispose(); server.failWrites = false;
+    reloaded = makeDevice(server, persisted, options); await reloaded.login(); await wait(100);
+    assert.equal(server.rows.get(`estimates/${id}`).data.totalCents, 5003);
+    assert.equal(second.exec(`S.estimates[${JSON.stringify(id)}].clientName`), 'Fictional <Client>');
+    assert.match(second.element('#est_saved').innerHTML, /Fictional &lt;Client&gt;/);
+    reloaded.exec(`viewEstimate(${JSON.stringify(id)})`);
+    const doc = reloaded.element('#doc').innerHTML;
+    assert.match(doc, /&lt;img src=x&gt;/); assert.match(doc, /Customer &lt;visible&gt;<br>second line/);
+    assert.match(doc, /\$50\.03/); assert.doesNotMatch(doc, /Private team-only secret|<img src=x>/);
+    await reloaded.exec('copyEstimateDocument()');
+    assert.match(clipboard.at(-1), /Customer <visible>/); assert.match(clipboard.at(-1), /Total: \$50\.03/);
+    assert.doesNotMatch(clipboard.at(-1), /Private team-only secret/);
+    reloaded.exec(`S.estimates[${JSON.stringify(id)}].notes='Changed elsewhere'`);
+    await reloaded.exec('copyEstimateDocument()');
+    assert.equal(clipboard.length, 1); assert.match(alerts.at(-1), /changed or was deleted/i);
+  } finally { first.dispose(); second.dispose(); if (reloaded) reloaded.dispose(); }
+});
+
+test('saved estimate edits reject stale data, invalid fields and insufficient local storage', async () => {
+  const server = new FakeServer(); seedPrice(server, 'clients', record('Fictional Client', 'c1')); seedPrice(server, 'estimates', priceEstimate('e1'));
+  const device = makeDevice(server);
+  try {
+    await device.login(); device.exec(`openEstimate('e1')`); fillPriceEstimate(device);
+    device.exec(`S.estimates.e1.notes='Changed remotely';saveEstimate()`);
+    assert.match(device.element('#es_error').textContent, /changed.*reopen/i); assert.equal(device.exec('S.estimates.e1.notes'), 'Changed remotely');
+    device.exec(`openEstimate('e1')`); fillPriceEstimate(device); device.element('#es_date').value = '2026-02-30'; device.exec('saveEstimate()');
+    assert.match(device.element('#es_error').textContent, /valid estimate date/i);
+    device.element('#es_date').value = '2026-11-01'; device.exec(`estimateDraft.rows[0].rate='-1';saveEstimate()`);
+    assert.match(device.element('#es_error').textContent, /rate needs a number/i);
+    device.exec(`estimateDraft.rows[0].rate='125.00'`);
+    const original = device.context.localStorage.setItem;
+    device.context.localStorage.setItem = (key, value) => { if (key.startsWith('mib_import_probe_')) throw new Error('quota'); return original(key, value); };
+    device.exec('saveEstimate()'); assert.match(device.element('#es_error').textContent, /not enough device storage/i);
+    assert.equal(device.exec('S.estimates.e1.notes'), 'Changed remotely');
+  } finally { device.dispose(); }
+});
+
+test('existing jobs expose a quote without changing their normal invoice behavior', async () => {
+  const server = new FakeServer(); seedPrice(server, 'clients', record('Fictional Client', 'c1'));
+  seedPrice(server, 'jobs', { id: 'job-done', client: 'c1', service: 'Mow', prop: '123 Example Road', date: '2026-11-02', status: 'Done', items: 'Mow | 1 | 55', price: 55, notes: 'Job note' });
+  const clipboard = [], device = makeDevice(server, {}, { navigator: { clipboard: { writeText: async text => clipboard.push(text) } } });
+  try {
+    await device.login(); device.exec(`tab='Estimates';render()`);
+    assert.match(device.element('#est_jobs').innerHTML, /View quote/);
+    device.exec(`openDoc('job-done','quote')`); assert.match(device.element('#doc').innerHTML, />Quote<\/h2>/);
+    await device.exec(`dcopy('job-done','Quote')`); assert.match(clipboard.at(-1), /^Maintain It Bandits — Quote/);
+    device.exec(`openDoc('job-done')`); assert.match(device.element('#doc').innerHTML, />Invoice<\/h2>/);
+    await device.exec(`dcopy('job-done','Invoice')`); assert.match(clipboard.at(-1), /^Maintain It Bandits — Invoice/);
+    assert.equal(server.rows.get('jobs/job-done').data.status, 'Done');
+  } finally { device.dispose(); }
+});
+
+test('scheduling is explicit, syncs a fresh job, preserves the estimate, and prevents duplicate jobs', async () => {
+  const server = new FakeServer(); seedPrice(server, 'clients', record('Fictional Client', 'c1')); seedPrice(server, 'estimates', priceEstimate('e1'));
+  const warnings = [], alerts = [], first = makeDevice(server, {}, { confirm: text => { warnings.push(text); return true; }, alert: text => alerts.push(text) }), second = makeDevice(server);
+  try {
+    await Promise.all([first.login(), second.login()]);
+    first.exec(`scheduleEstimate('e1')`); assert.equal(first.exec('Object.keys(S.jobs).length'), 0);
+    first.element('#es_job_date').value = '2026-11-10'; first.element('#es_job_property').value = '123 Example Road';
+    server.failWrites = true; first.exec('createJobFromEstimate()');
+    const firstId = first.exec('Object.keys(S.jobs)[0]'); assert.ok(firstId); assert.match(firstId, /^j/);
+    assert.match(warnings[0], /Create a scheduled job/); assert.equal(first.exec('S.estimates.e1.status'), 'Draft');
+    const job = clone(first.exec(`S.jobs[${JSON.stringify(firstId)}]`));
+    assert.equal(job.status, 'Scheduled'); assert.equal(job.date, '2026-11-10'); assert.equal(job.price, 125);
+    assert.equal(job.sourceEstimateId, 'e1'); assert.equal(job.notes, 'Customer-visible note'); assert.equal(job.teamNotes, undefined);
+    assert.match(first.storage.get('mib_pending_v1'), /sourceEstimateId/);
+    server.failWrites = false; first.client.reconnect(); await wait(130);
+    assert.equal(second.exec(`S.jobs[${JSON.stringify(firstId)}].sourceEstimateId`), 'e1');
+    first.exec(`scheduleEstimate('e1')`); assert.match(alerts.at(-1), /already has a linked job/i);
+    // Deleting the first job must not recycle its ID or reattach its orphaned photos.
+    const photoPath = `jobs/${firstId}/before/fictional.jpg`; server.photoObjects.set(photoPath, 'fictional');
+    first.exec(`rm('jobs',${JSON.stringify(firstId)})`); await wait(100);
+    first.exec(`scheduleEstimate('e1')`); first.element('#es_job_date').value = '2026-11-11'; first.element('#es_job_property').value = '123 Example Road'; first.exec('createJobFromEstimate()');
+    const nextId = first.exec('Object.keys(S.jobs)[0]'); assert.ok(nextId); assert.notEqual(nextId, firstId); assert.equal(server.photoObjects.get(photoPath), 'fictional');
+  } finally { first.dispose(); second.dispose(); }
+});
+
+test('scheduling blocks stale, orphaned, unsynced, or concurrently linked estimates', async () => {
+  const server = new FakeServer(); seedPrice(server, 'clients', record('Fictional Client', 'c1')); seedPrice(server, 'estimates', priceEstimate('e1'));
+  const alerts = []; let device, changeAtConfirm = false;
+  device = makeDevice(server, {}, { alert: text => alerts.push(text), confirm: () => { if (changeAtConfirm) device.exec(`S.estimates.e1.notes='Changed while confirming'`); return true; } });
+  try {
+    await device.login(); device.exec(`scheduleEstimate('e1')`); device.element('#es_job_date').value = '2026-11-10'; device.element('#es_job_property').value = '123 Example Road';
+    changeAtConfirm = true; device.exec('createJobFromEstimate()'); assert.equal(device.exec('Object.keys(S.jobs).length'), 0);
+    assert.match(device.element('#es_job_error').textContent, /changed.*review/i);
+    changeAtConfirm = false; device.exec(`scheduleEstimate('e1')`); device.element('#es_job_date').value = '2026-11-10'; device.element('#es_job_property').value = '123 Example Road';
+    device.exec(`S.jobs.other={id:'other',sourceEstimateId:'e1'};createJobFromEstimate()`);
+    assert.match(device.element('#es_job_error').textContent, /already has a linked job/i); assert.equal(device.exec('Object.keys(S.jobs).length'), 1);
+    device.exec(`delete S.jobs.other;delete S.clients.c1;scheduleEstimate('e1')`); assert.match(alerts.at(-1), /client was deleted/i);
+    device.exec(`synced=false;scheduleEstimate('e1')`); assert.match(alerts.at(-1), /Synced across devices/i);
+  } finally { device.dispose(); }
+});
+
+test('client deletion requires a choice; kept estimates retain details and can be reassigned', async () => {
+  const server = new FakeServer(); seedPrice(server, 'clients', record('Fictional Client', 'c1')); seedPrice(server, 'clients', record('Replacement Client', 'c2'));
+  seedPrice(server, 'estimates', priceEstimate('e1')); seedPrice(server, 'jobs', { id: 'j1', client: 'c1', date: '2026-11-10', status: 'Scheduled' });
+  server.photoObjects.set('jobs/j1/before/fictional.jpg', 'fictional');
+  const warnings = []; let allow = false;
+  const first = makeDevice(server, {}, { confirm: text => { warnings.push(text); return allow; } }), second = makeDevice(server);
+  try {
+    await Promise.all([first.login(), second.login()]); first.exec(`delClient('c1')`);
+    assert.match(first.element('#dlg').innerHTML, /Choose keep or delete/); first.exec('confirmClientDeletion()');
+    assert.match(first.element('#client_delete_status').textContent, /Choose whether to keep or delete/i); assert.ok(first.exec('S.clients.c1'));
+    first.element('#client_estimate_choice').value = 'keep'; first.exec('confirmClientDeletion()'); assert.ok(first.exec('S.clients.c1'));
+    assert.match(warnings.at(-1), /KEEP 1 saved estimate.*including customer details/i); assert.match(warnings.at(-1), /1 linked job/);
+    allow = true; server.failWrites = true; first.exec('confirmClientDeletion()'); await wait(35);
+    assert.equal(first.exec('S.clients.c1'), undefined); assert.equal(first.exec('S.jobs.j1'), undefined); assert.equal(first.exec('S.estimates.e1.clientName'), 'Fictional Client');
+    assert.equal(server.photoObjects.size, 1); assert.match(first.storage.get('mib_pending_v1'), /deleted/);
+    server.failWrites = false; first.client.reconnect(); await wait(130);
+    assert.equal(second.exec('S.clients.c1'), undefined); assert.equal(second.exec('S.estimates.e1.clientName'), 'Fictional Client');
+    second.exec(`tab='Estimates';render()`); assert.match(second.element('#est_saved').innerHTML, /Client deleted \(estimate kept\)/);
+    second.exec(`viewEstimate('e1')`); assert.match(second.element('#doc').innerHTML, /Fictional Client/);
+    first.exec(`openEstimate('e1')`); fillPriceEstimate(first, { client: 'c2' }); first.exec('saveEstimate()'); await wait(110);
+    assert.equal(second.exec('S.estimates.e1.client'), 'c2'); assert.equal(second.exec('S.estimates.e1.clientName'), 'Replacement Client');
+  } finally { first.dispose(); second.dispose(); }
+});
+
+test('client and multi-lead deletion can explicitly delete estimates and reject stale choices', async () => {
+  const server = new FakeServer(); seedPrice(server, 'clients', record('Lead One', 'c1')); seedPrice(server, 'clients', record('Lead Two', 'c2'));
+  seedPrice(server, 'estimates', priceEstimate('e1', 'c1', 'Lead One')); seedPrice(server, 'estimates', priceEstimate('e2', 'c2', 'Lead Two'));
+  const warnings = []; let device, change = false;
+  device = makeDevice(server, {}, { confirm: text => { warnings.push(text); if (change) device.exec(`S.estimates.e1.notes='Changed while confirming'`); return true; } });
+  try {
+    await device.login(); device.exec(`delClient('c1')`); device.element('#client_estimate_choice').value = 'delete'; change = true; device.exec('confirmClientDeletion()');
+    assert.match(device.element('#client_delete_status').textContent, /changed.*review/i); assert.ok(device.exec('S.clients.c1')); assert.ok(device.exec('S.estimates.e1'));
+    change = false; device.exec('openLeadDeletion();leadSelectShown()'); assert.match(device.element('#lead_count').textContent, /2 selected.*2 saved estimates/);
+    device.exec('deleteSelectedLeads()'); assert.match(device.element('#lead_status').textContent, /Choose whether to keep or delete/i);
+    assert.equal(device.exec('Object.keys(S.clients).length'), 2);
+    device.element('#lead_estimate_choice').value = 'delete'; device.exec('deleteSelectedLeads()');
+    assert.match(warnings.at(-1), /DELETE 2 saved estimates/); assert.equal(device.exec('Object.keys(S.clients).length'), 0); assert.equal(device.exec('Object.keys(S.estimates).length'), 0);
+    await wait(120); assert.equal(server.rows.has('estimates/e1'), false); assert.equal(server.rows.has('estimates/e2'), false);
+  } finally { device.dispose(); }
+});
+
+test('multi-lead selection preserves a deliberate keep choice for all selected estimates', async () => {
+  const server = new FakeServer(); seedPrice(server, 'clients', record('Lead One', 'c1')); seedPrice(server, 'clients', record('Lead Two', 'c2'));
+  seedPrice(server, 'estimates', priceEstimate('e1', 'c1', 'Lead One')); seedPrice(server, 'estimates', priceEstimate('e2', 'c2', 'Lead Two'));
+  const warnings = [], device = makeDevice(server, {}, { confirm: text => { warnings.push(text); return true; } });
+  try {
+    await device.login(); device.exec('openLeadDeletion();leadSelectShown()'); device.element('#lead_estimate_choice').value = 'keep'; device.exec('deleteSelectedLeads()');
+    assert.match(warnings.at(-1), /KEEP 2 saved estimates/); assert.equal(device.exec('Object.keys(S.clients).length'), 0); assert.equal(device.exec('Object.keys(S.estimates).length'), 2);
+    await wait(100); assert.equal(server.rows.has('estimates/e1'), true); assert.equal(server.rows.has('estimates/e2'), true);
+  } finally { device.dispose(); }
+});
+
+test('backup includes estimates; older restores keep them and new restores replace them only after confirmation', async () => {
+  const server = new FakeServer(); seedPrice(server, 'clients', record('Fictional Client', 'c1')); seedPrice(server, 'estimates', priceEstimate('e1'));
+  const warnings = [], alerts = []; let allow = false;
+  const device = makeDevice(server, {}, { confirm: text => { warnings.push(text); return allow; }, alert: text => alerts.push(text) });
+  try {
+    await device.login(); device.exec('openBackup()'); assert.match(device.element('#dlg').innerHTML, /&quot;estimates&quot;/);
+    const old = { clients: { c2: record('Restored Client', 'c2') }, jobs: {}, meta: {} };
+    device.element('#bk').value = JSON.stringify(old); device.exec('restore()'); assert.ok(device.exec('S.clients.c1')); assert.match(warnings.at(-1), /older backup.*Current estimates will be kept/i);
+    allow = true; device.exec('restore()'); assert.equal(device.exec('S.clients.c1'), undefined); assert.ok(device.exec('S.estimates.e1'));
+    device.exec(`viewEstimate('e1')`); assert.match(device.element('#doc').innerHTML, /Fictional Client/); await wait(100);
+    const full = { clients: { c2: record('Restored Client', 'c2') }, jobs: {}, estimates: { e2: priceEstimate('e2', 'c2', 'Restored Client') }, meta: {} };
+    device.element('#bk').value = JSON.stringify(full); device.exec('restore()'); assert.match(warnings.at(-1), /clients, jobs, saved estimates and settings/i);
+    assert.equal(device.exec('S.estimates.e1'), undefined); assert.ok(device.exec('S.estimates.e2')); await wait(110);
+    assert.equal(server.rows.has('estimates/e1'), false); assert.equal(server.rows.has('estimates/e2'), true);
+    device.element('#bk').value = JSON.stringify({ clients: {}, jobs: {}, estimates: null }); device.exec('restore()');
+    assert.match(alerts.at(-1), /valid backup/i); assert.ok(device.exec('S.estimates.e2'));
+  } finally { device.dispose(); }
+});
+
+test('client changes while editing and linked jobs block accidental customer reassignment', async () => {
+  const server = new FakeServer(); seedPrice(server, 'clients', record('Fictional Client', 'c1')); seedPrice(server, 'clients', record('Other Client', 'c2'));
+  seedPrice(server, 'estimates', priceEstimate('e1')); seedPrice(server, 'jobs', { id: 'j1', client: 'c1', sourceEstimateId: 'e1', date: '2026-11-10', status: 'Scheduled' });
+  const device = makeDevice(server);
+  try {
+    await device.login(); device.exec(`openEstimate('e1')`); fillPriceEstimate(device);
+    device.exec(`S.clients.c1.name='Changed remotely';saveEstimate()`);
+    assert.match(device.element('#es_error').textContent, /selected client changed/i); assert.equal(device.exec('S.estimates.e1.clientName'), 'Fictional Client');
+    device.exec(`S.clients.c1.name='Fictional Client';openEstimate('e1')`); fillPriceEstimate(device, { client: 'c2' }); device.exec('saveEstimate()');
+    assert.match(device.element('#es_error').textContent, /linked jobs for another client/i); assert.equal(device.exec('S.estimates.e1.client'), 'c1');
+    device.exec(`S.jobs.j1.client='c2';saveEstimate()`); assert.equal(device.exec('S.estimates.e1.client'), 'c2');
+  } finally { device.dispose(); }
+});
+
+test('deleting an estimate requires confirmation and leaves linked jobs and photos intact', async () => {
+  const server = new FakeServer(); seedPrice(server, 'clients', record('Fictional Client', 'c1')); seedPrice(server, 'estimates', priceEstimate('e1'));
+  seedPrice(server, 'jobs', { id: 'j1', client: 'c1', sourceEstimateId: 'e1', date: '2026-11-10', status: 'Scheduled', price: 125 });
+  server.photoObjects.set('jobs/j1/before/fictional.jpg', 'fictional');
+  const warnings = []; let allow = false;
+  const device = makeDevice(server, {}, { confirm: text => { warnings.push(text); return allow; } });
+  try {
+    await device.login(); device.exec(`deleteEstimate('e1')`); assert.ok(device.exec('S.estimates.e1')); assert.match(warnings.at(-1), /1 linked job will remain unchanged/);
+    allow = true; server.failWrites = true; device.exec(`deleteEstimate('e1')`); await wait(30);
+    assert.equal(device.exec('S.estimates.e1'), undefined); assert.ok(device.exec('S.jobs.j1')); assert.equal(server.photoObjects.size, 1);
+    assert.match(device.storage.get('mib_pending_v1'), /estimates/); server.failWrites = false; device.client.reconnect(); await wait(110);
+    assert.equal(server.rows.has('estimates/e1'), false); assert.equal(server.rows.has('jobs/j1'), true); assert.equal(server.photoObjects.size, 1);
+  } finally { device.dispose(); }
+});
+
+test('local-only estimates seed an empty cloud and stale fetches do not erase later edits', async () => {
+  const server = new FakeServer(), cached = { clients: {}, jobs: {}, estimates: { e1: priceEstimate('e1') }, meta: {} };
+  const first = makeDevice(server, { mib: JSON.stringify(cached) }), second = makeDevice(server);
+  try {
+    await first.login(); await wait(110); assert.equal(server.rows.get('estimates/e1').data.clientName, 'Fictional Client');
+    await second.login(); assert.equal(second.exec('S.estimates.e1.totalCents'), 12500);
+    server.selectDelay = 60; first.exec('load()');
+    first.exec(`w('estimates',Object.assign({},S.estimates.e1,{notes:'Edited during load'}))`);
+    await wait(160); assert.equal(first.exec('S.estimates.e1.notes'), 'Edited during load');
+    assert.equal(second.exec('S.estimates.e1.notes'), 'Edited during load');
+  } finally { first.dispose(); second.dispose(); }
+});
