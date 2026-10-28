@@ -137,7 +137,7 @@ function makeDevice(server, initialStorage = {}, options = {}) {
   const elements = new Map();
   const element = selector => {
     if (!elements.has(selector)) elements.set(selector, {
-      hidden: selector === '#doc', open: false, value: '', textContent: '', innerHTML: '',
+      hidden: ['#doc', '#rr_opt', '#rr_save'].includes(selector), open: false, value: '', textContent: '', innerHTML: '',
       addEventListener() {}, showModal() { this.open = true; }, close() { this.open = false; },
     });
     return elements.get(selector);
@@ -1037,5 +1037,210 @@ test('new manually entered jobs are appended after a previously ordered route', 
     })) device.element(selector).value = value;
     device.exec('saveJob("")');
     assert.deepEqual(Array.from(device.exec('dayJobs().map(j=>j.prop)')), ['Far Example Road', 'Near Example Road', 'Middle Example Road', 'New Example Road']);
+  } finally { device.dispose(); }
+});
+
+// Road-routing UI tests use only fictional locations and a fake same-origin API.
+const fakeSession = () => ({ data: { session: { access_token: 'fictional.jwt.token' } }, error: null });
+const fakeRoadResponse = (data, status = 200) => ({ ok: status >= 200 && status < 300, status, json: async () => data });
+const fakeMatches = addresses => addresses.map((address, i) => ({
+  formatted: address + ', Austin, TX 78701', location: [30.1 + i * 0.1, -97], accuracy: 1, accuracyType: 'rooftop', ambiguous: false,
+}));
+
+test('driving route requires consent, match review and save, then syncs only job order', async () => {
+  const server = new FakeServer(); seedCrew(server); const requests = [];
+  const first = makeDevice(server, {}, { confirm: () => true, fetch: async (url, options) => {
+    assert.equal(url, '/api/crm-route'); assert.equal(options.cache, 'no-store');
+    assert.equal(options.headers.Authorization, 'Bearer fictional.jwt.token');
+    const body = JSON.parse(options.body); requests.push(body);
+    if (body.action === 'geocode') return fakeRoadResponse({ matches: fakeMatches(body.addresses) });
+    assert.equal(body.action, 'optimize'); return fakeRoadResponse({ order: [1, 2, 0] });
+  } });
+  const second = makeDevice(server);
+  try {
+    await Promise.all([first.login(), second.login()]); first.client.auth.getSession = async () => fakeSession();
+    first.exec("rd='2026-11-04';tab='Route';S.meta.start='30,-97';openRoadRoute()");
+    assert.equal(requests.length, 0);
+    assert.match(first.element('#dlg').innerHTML, /Nothing has been sent yet/);
+    assert.match(first.element('#dlg').innerHTML, /customer names, phone numbers and notes are not sent/);
+    await first.exec('roadBegin()');
+    assert.equal(requests.length, 1); assert.deepEqual(Object.keys(requests[0]).sort(), ['action', 'addresses']);
+    assert.deepEqual(requests[0].addresses, ['Far Example Road', 'Near Example Road', 'Middle Example Road']);
+    assert.doesNotMatch(JSON.stringify(requests[0]), /Example client|555-0100|fictional\.jwt/);
+    assert.match(first.element('#rr_preview').innerHTML, /Review address matches/);
+    assert.equal(first.element('#rr_opt').hidden, false);
+    assert.deepEqual(Array.from(first.exec('dayJobs().map(j=>j.id)')), ['far', 'near', 'mid']);
+    await first.exec('roadOptimize()');
+    assert.equal(requests.length, 2); assert.deepEqual(Object.keys(requests[1]).sort(), ['action', 'fixedFirst', 'returnToStart', 'start', 'stops']);
+    assert.doesNotMatch(JSON.stringify(requests[1]), /Example|Road|555/);
+    assert.match(first.element('#rr_preview').innerHTML, /Proposed driving order/);
+    assert.match(first.element('#rr_status').textContent, /not saved yet/);
+    assert.deepEqual(Array.from(first.exec('dayJobs().map(j=>j.id)')), ['far', 'near', 'mid']);
+    first.exec('roadSave()');
+    assert.deepEqual(Array.from(first.exec('dayJobs().map(j=>j.id)')), ['near', 'mid', 'far']);
+    assert.match(first.element('#rr_status').textContent, /Route order saved/);
+    await wait(150); second.exec("rd='2026-11-04'");
+    assert.deepEqual(Array.from(second.exec('dayJobs().map(j=>j.id)')), ['near', 'mid', 'far']);
+    assert.equal(second.exec('S.jobs.mid.client'), 'c2');
+    assert.equal(second.exec('S.jobs.mid.date'), '2026-11-04');
+    assert.equal(second.exec('Object.keys(S.jobs).length'), 3);
+  } finally { first.dispose(); second.dispose(); }
+});
+
+test('duplicate addresses share a lookup but remain separate jobs in the optimized route', async () => {
+  const server = new FakeServer(), state = seedCrew(server), requests = [];
+  state.jobs.mid.prop = state.jobs.far.prop;
+  server.rows.set('jobs/mid', { coll: 'jobs', id: 'mid', data: clone(state.jobs.mid) });
+  const device = makeDevice(server, {}, { confirm: () => true, fetch: async (_url, options) => {
+    const body = JSON.parse(options.body); requests.push(body);
+    return body.action === 'geocode' ? fakeRoadResponse({ matches: fakeMatches(body.addresses) }) : fakeRoadResponse({ order: [2, 0, 1] });
+  } });
+  try {
+    await device.login(); device.client.auth.getSession = async () => fakeSession();
+    device.exec("rd='2026-11-04';S.meta.start='30,-97';openRoadRoute()");
+    await device.exec('roadBegin()'); assert.equal(requests[0].addresses.length, 2);
+    assert.match(device.element('#rr_preview').innerHTML, /Second example/);
+    await device.exec('roadOptimize()'); assert.equal(requests[1].stops.length, 3);
+    device.exec('roadSave()');
+    assert.deepEqual(Array.from(device.exec('dayJobs().map(j=>j.id)')), ['mid', 'far', 'near']);
+  } finally { device.dispose(); }
+});
+
+test('GPS-only routes skip geocoding, and without a start keep the first stop fixed', async () => {
+  const server = new FakeServer(); const state = seedCrew(server), requests = [];
+  state.jobs.far.prop = '30.3,-97'; state.jobs.near.prop = '30.1,-97'; state.jobs.mid.prop = '30.2,-97';
+  for (const [id, data] of Object.entries(state.jobs)) server.rows.set(`jobs/${id}`, { coll: 'jobs', id, data: clone(data) });
+  const device = makeDevice(server, {}, { confirm: () => true, fetch: async (_url, options) => {
+    const body = JSON.parse(options.body); requests.push(body); return fakeRoadResponse({ order: [0, 2, 1] });
+  } });
+  try {
+    await device.login(); device.client.auth.getSession = async () => fakeSession();
+    device.exec("rd='2026-11-04';openRoadRoute()");
+    assert.match(device.element('#dlg').innerHTML, /current first stop stays first/);
+    await device.exec('roadBegin()');
+    assert.equal(requests.length, 1); assert.equal(requests[0].action, 'optimize');
+    assert.deepEqual(requests[0].start, [30.3, -97]); assert.equal(requests[0].fixedFirst, true);
+    device.exec('roadSave()'); assert.deepEqual(Array.from(device.exec('dayJobs().map(j=>j.id)')), ['far', 'mid', 'near']);
+  } finally { device.dispose(); }
+});
+
+test('unmatched or uncertain address results require attention and do not silently route', async () => {
+  const server = new FakeServer(); seedCrew(server); let requests = 0;
+  const device = makeDevice(server, {}, { fetch: async (_url, options) => {
+    requests++; const addresses = JSON.parse(options.body).addresses, matches = fakeMatches(addresses);
+    matches[0].formatted = '<img src=x onerror=alert(1)>'; matches[0].ambiguous = true; matches[1] = { location: null };
+    return fakeRoadResponse({ matches });
+  } });
+  try {
+    await device.login(); device.client.auth.getSession = async () => fakeSession();
+    device.exec("rd='2026-11-04';S.meta.start='30,-97';openRoadRoute()");
+    await device.exec('roadBegin()');
+    assert.equal(requests, 1); assert.equal(device.element('#rr_opt').hidden, true);
+    assert.match(device.element('#rr_preview').innerHTML, /uncertain match/);
+    assert.match(device.element('#rr_preview').innerHTML, /&lt;img/);
+    assert.doesNotMatch(device.element('#rr_preview').innerHTML, /<img/);
+    assert.match(device.element('#rr_status').textContent, /not found/);
+    await device.exec('roadOptimize()'); device.exec('roadSave()');
+    assert.equal(requests, 1); assert.equal(device.exec('Object.keys(pending).length'), 0);
+  } finally { device.dispose(); }
+});
+
+test('a route changed during a lookup is not previewed or saved', async () => {
+  const server = new FakeServer(); seedCrew(server); let resolveFetch;
+  const device = makeDevice(server, {}, { fetch: async (_url, options) => {
+    const body = JSON.parse(options.body);
+    return new Promise(resolve => { resolveFetch = () => resolve(fakeRoadResponse({ matches: fakeMatches(body.addresses) })); });
+  } });
+  try {
+    await device.login(); device.client.auth.getSession = async () => fakeSession();
+    device.exec("rd='2026-11-04';S.meta.start='30,-97';openRoadRoute()");
+    const ongoing = device.exec('roadBegin()'); await wait(0);
+    device.exec("S.jobs.far.prop='Changed Example Road'"); resolveFetch(); await ongoing;
+    assert.match(device.element('#rr_status').textContent, /route changed/i);
+    assert.equal(device.exec('roadPlan.order'), null);
+    assert.equal(device.exec('S.jobs.far.ord'), 0); assert.equal(device.exec('Object.keys(pending).length'), 0);
+  } finally { device.dispose(); }
+});
+
+test('a route changed after optimization or during confirmation cannot be saved', async () => {
+  const server = new FakeServer(); seedCrew(server);
+  const device = makeDevice(server, {}, { confirm: () => { device.exec("S.jobs.far.prop='Changed during confirmation'"); return true; },
+    fetch: async (_url, options) => {
+      const body = JSON.parse(options.body);
+      return body.action === 'geocode' ? fakeRoadResponse({ matches: fakeMatches(body.addresses) }) : fakeRoadResponse({ order: [1, 2, 0] });
+    } });
+  try {
+    await device.login(); device.client.auth.getSession = async () => fakeSession();
+    device.exec("rd='2026-11-04';S.meta.start='30,-97';openRoadRoute()");
+    await device.exec('roadBegin()'); await device.exec('roadOptimize()'); device.exec('roadSave()');
+    assert.match(device.element('#rr_status').textContent, /route changed/i);
+    assert.deepEqual(Array.from(device.exec('dayJobs().map(j=>j.ord)')), [0, 1, 2]);
+    assert.equal(device.exec('Object.keys(pending).length'), 0);
+  } finally { device.dispose(); }
+});
+
+test('quota errors and incomplete routes do not reorder any jobs', async () => {
+  for (const failingAction of ['geocode', 'optimize']) {
+    const server = new FakeServer(); seedCrew(server);
+    const device = makeDevice(server, {}, { fetch: async (_url, options) => {
+      const body = JSON.parse(options.body);
+      if (body.action === failingAction) return failingAction === 'geocode' ? fakeRoadResponse({ error: 'Geocodio daily limit reached.' }, 429) : fakeRoadResponse({ order: [1, 1, 0] });
+      return fakeRoadResponse({ matches: fakeMatches(body.addresses) });
+    } });
+    try {
+      await device.login(); device.client.auth.getSession = async () => fakeSession();
+      device.exec("rd='2026-11-04';S.meta.start='30,-97';openRoadRoute()");
+      await device.exec('roadBegin()'); if (failingAction === 'optimize') await device.exec('roadOptimize()');
+      assert.match(device.element('#rr_status').textContent, /limit|incomplete/i);
+      device.exec('roadSave()');
+      assert.deepEqual(Array.from(device.exec('dayJobs().map(j=>j.id)')), ['far', 'near', 'mid']);
+      assert.equal(device.exec('Object.keys(pending).length'), 0);
+    } finally { device.dispose(); }
+  }
+});
+
+test('driving routes reject unsynced, missing, invalid or too many locations before opening', async () => {
+  const device = makeDevice(new FakeServer());
+  try {
+    seedRoute(device); device.exec('openRoadRoute()');
+    assert.match(device.element('#rmsg').textContent, /Synced across devices/);
+    device.exec('db=sb;hasSnapshot=true;synced=true');
+    device.exec("S.jobs.near.prop='91,-97';openRoadRoute()");
+    assert.match(device.element('#rmsg').textContent, /invalid|out of range/);
+    device.exec("S.jobs.near.prop='';S.clients.c1.props='';openRoadRoute()");
+    assert.match(device.element('#rmsg').textContent, /location to every stop/);
+    device.exec("S.jobs.near.prop='Near Example Road';S.meta.start='';S.meta.round=true;openRoadRoute()");
+    assert.match(device.element('#rmsg').textContent, /Add a start location/);
+    device.exec("S.meta.round=false;for(let i=0;i<101;i++)S.jobs['x'+i]={id:'x'+i,client:'c1',date:rd,status:'Scheduled',prop:'30,-97'};openRoadRoute()");
+    assert.match(device.element('#rmsg').textContent, /100 stops/);
+  } finally { device.dispose(); }
+});
+
+test('a high-scoring city or street-centroid match is blocked as too imprecise', async () => {
+  const server = new FakeServer(); seedCrew(server); let requests = 0;
+  const device = makeDevice(server, {}, { fetch: async (_url, options) => {
+    requests++; const matches = fakeMatches(JSON.parse(options.body).addresses);
+    matches[0].accuracy = 1; matches[0].accuracyType = 'place';
+    return fakeRoadResponse({ matches });
+  } });
+  try {
+    await device.login(); device.client.auth.getSession = async () => fakeSession();
+    device.exec("rd='2026-11-04';S.meta.start='30,-97';openRoadRoute()");
+    await device.exec('roadBegin()');
+    assert.equal(device.element('#rr_opt').hidden, true);
+    assert.match(device.element('#rr_preview').innerHTML, /Too imprecise/);
+    assert.match(device.element('#rr_status').textContent, /too imprecise/);
+    await device.exec('roadOptimize()');
+    assert.equal(requests, 1); assert.equal(device.exec('Object.keys(pending).length'), 0);
+  } finally { device.dispose(); }
+});
+
+test('driving routes reject duplicate or mismatched CRM job identifiers', () => {
+  const device = makeDevice(new FakeServer());
+  try {
+    seedRoute(device); device.exec('db=sb;hasSnapshot=true;synced=true');
+    device.exec("S.jobs.near.id='far';openRoadRoute()");
+    assert.match(device.element('#rmsg').textContent, /invalid or duplicate IDs/);
+    assert.equal(device.exec('Object.keys(pending).length'), 0);
   } finally { device.dispose(); }
 });
