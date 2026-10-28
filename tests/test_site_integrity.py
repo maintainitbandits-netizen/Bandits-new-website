@@ -20,7 +20,7 @@ class SiteIntegrityTests(unittest.TestCase):
         self.assertNotIn('routes', self.config)
         self.assertEqual(self.config['redirects'][0], {
             'source': '/crm',
-            'destination': 'https://claude.ai/artifact/KbXS55eqMUxaybJFokKLq7',
+            'destination': 'https://claude.ai/artifact/BZ3PKx8Dr3ogS8hJBuv4Bv',
             'permanent': False,
         })
         self.assertEqual(self.config['rewrites'], [
