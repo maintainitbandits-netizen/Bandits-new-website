@@ -130,27 +130,35 @@ function vProps(){const h=sorted(S.clients).map(c=>{const ps=props(c);if(!ps.len
  <div class="row"><a href="#" onclick="event.preventDefault();openJob(null,{client:'${c.id}',prop:this.dataset.p})" data-p="${E(p)}">+ Job</a></div></div>`}).join("")}).join("");return h||'<p class="m">No properties yet. Add addresses to a client.</p>'}
 const A=a=>/^-?\d+(\.\d+)?,\s*-?\d+(\.\d+)?$/.test(a.trim())||/\b\d{5}\b/.test(a)||/\bTX\b|Texas/i.test(a)?a:a+", Austin, TX",zip=a=>(String(a).match(/\b\d{5}\b/)||["99999"])[0];
 const dayJobs=()=>arr(S.jobs).filter(j=>j.date==rd&&(j.status=="Scheduled"||j.status=="Done")).sort((a,b)=>(a.ord==null?999:a.ord)-(b.ord==null?999:b.ord)||jaddr(a).localeCompare(jaddr(b)));
+const routeTail=date=>arr(S.jobs).filter(j=>j.date===date&&(j.status==="Scheduled"||j.status==="Done")).reduce((n,j)=>Math.max(n,j.ord==null?999:(Number.isFinite(+j.ord)?+j.ord:999)),-1);
 const addable=()=>arr(S.jobs).filter(j=>j.status=="Scheduled"&&j.date!=rd).sort((a,b)=>a.date>b.date?1:-1);
 function mapsUrl(L){const st=(S.meta.start||"").trim(),limit=st&&S.meta.round?9:10,ad=L.map(jaddr).filter(Boolean).map(A).slice(0,limit);if(!ad.length)return"";
  const o=st?A(st):ad[0];let r=st?ad:ad.slice(1);if(st&&S.meta.round)r=ad.concat([o]);if(!r.length)r=[o];const wp=r.slice(0,-1);
  return"https://www.google.com/maps/dir/?api=1&origin="+encodeURIComponent(o)+"&destination="+encodeURIComponent(r[r.length-1])+(wp.length?"&waypoints="+encodeURIComponent(wp.join("|")):"")+"&travelmode=driving"}
+function enRouteText(c){
+ const raw=String(c&&c.phone||"").trim();if(!/^\+?[\d\s().-]+$/.test(raw))return "";
+ const digits=raw.replace(/\D/g,"");if(digits.length<7||digits.length>15)return "";
+ const number=(raw[0]==="+"?"+":"")+digits,ua=navigator.userAgent||"",ios=/iPhone|iPad|iPod/i.test(ua)||(/Macintosh/i.test(ua)&&navigator.maxTouchPoints>1);
+ const body="Hi! This is Maintain It Bandits. We're on our way to your property now.";
+ return "sms:"+number+(ios?"&":"?")+"body="+encodeURIComponent(body)
+}
 function vRoute(){const L=dayJobs(),u=mapsUrl(L),ad=addable(),start=!!(S.meta.start||"").trim(),round=start&&!!S.meta.round,limit=round?9:10,count=L.filter(j=>jaddr(j)).length,mapped=Math.min(count,limit),waypoints=round?mapped:Math.max(0,mapped-(start?1:2));
  return`<label>Date<input type="date" value="${rd}" onchange="rd=this.value||today();render()"></label>
  <label>Start location<input value="${E(S.meta.start)}" placeholder="Shop, yard or home address" onchange="S.meta.start=this.value;wm();render()"></label>
  <div class="row"><button onclick="useLoc()">📍 Use my location</button><label style="display:flex;gap:6px;align-items:center;margin:0"><input type="checkbox" style="width:auto;margin:0" ${S.meta.round?"checked":""} onchange="S.meta.round=this.checked;wm();render()"> Return to start</label></div>
  ${S.meta.round&&!start?'<p class="m">Add a start location to return to it.</p>':""}
  <select onchange="addStop(this.value)"><option value="">+ Move a scheduled job to this day…</option>${ad.map(j=>`<option value="${j.id}">${E(j.date+" · "+cname(j.client)+" · "+(jaddr(j)||j.service))}</option>`).join("")}</select>
- <div class="row" style="margin:0 0 8px"><button onclick="openJob(null,{date:rd})">+ New job on this day</button></div>
+ <div class="row" style="margin:0 0 8px"><button onclick="openJob(null,{date:rd})">+ New job on this day</button><button onclick="openRouteOrder()">Paste or upload route order</button></div>
  <div class="sp"><b>${L.length} stop${L.length==1?"":"s"} · ${money(L.reduce((a,j)=>a+(+j.price||0),0))}</b><span><button onclick="byZip()">Group by ZIP</button> <button class="pri" onclick="opt()">Auto-pick route</button></span></div>
- <p class="m" id="rmsg"></p><p class="m">The start location is shared with your team. Auto-pick currently works with GPS coordinates only; street-address stops can be ordered manually.</p>
+ <p class="m" id="rmsg"></p><p class="m">House addresses work for Google Maps and manual ordering. Auto-pick uses GPS coordinates only. Your start location is shared with your team. Text en route opens a draft in your messaging app; you tap Send.</p>
  ${u?`<p><a class="btn pri" href="${u}" target="_blank" rel="noopener">Open route in Google Maps</a>${count>limit?`<span class="m"> First ${limit} mapped stops only.</span>`:""}${waypoints>3?'<span class="m"> Check every stop in Google Maps; mobile browsers may omit some.</span>':""}</p>`:""}
- ${L.map((j,i)=>{const a=jaddr(j),c=S.clients[j.client]||{};return`<div class="card"><div class="sp"><b>${i+1}. ${E(cname(j.client))}</b><span><button onclick="mvStop('${j.id}',-1)">▲</button> <button onclick="mvStop('${j.id}',1)">▼</button></span></div>
+ ${L.map((j,i)=>{const a=jaddr(j),c=S.clients[j.client]||{},sms=enRouteText(c);return`<div class="card"><div class="sp"><b>${i+1}. ${E(cname(j.client))}</b><span><button onclick="mvStop('${j.id}',-1)">▲</button> <button onclick="mvStop('${j.id}',1)">▼</button></span></div>
  <div class="m">${E(a||"No address")}</div><div class="m">${E(j.service)} · ${money(j.price)} · <span class="chip">${j.status}</span></div>
- <div class="row">${a?`<a class="btn" href="https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(A(a))}" target="_blank" rel="noopener">Navigate</a>`:""}${c.phone?`<a class="btn" href="tel:${E(c.phone)}">Call</a>`:""}${j.status=="Scheduled"?`<button class="pri" onclick="setStatus('${j.id}','Done')">Mark Done</button>`:""}</div></div>`}).join("")||'<p class="m">No stops for this date.</p>'}`}
+ <div class="row">${a?`<a class="btn" href="https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(A(a))}" target="_blank" rel="noopener">Navigate</a>`:""}${c.phone?`<a class="btn" href="tel:${E(c.phone)}">Call</a>`:""}${sms?`<a class="btn" href="${E(sms)}">Text en route</a>`:'<span class="m">Add a valid client phone number to text.</span>'}<button data-job="${E(j.id)}" onclick="openJobPhotos(this.dataset.job)">Before / after photos</button>${j.status=="Scheduled"?`<button class="pri" onclick="setStatus('${j.id}','Done')">Mark Done</button>`:""}</div></div>`}).join("")||'<p class="m">No stops for this date.</p>'}`}
 function order(L){L.forEach((j,k)=>{if(j.ord!==k){j.ord=k;w("jobs",j)}});render()}
 function mvStop(id,d){const L=dayJobs(),i=L.findIndex(j=>j.id==id),k=i+d;if(k<0||k>=L.length)return;[L[i],L[k]]=[L[k],L[i]];order(L)}
 function byZip(){order(dayJobs().sort((a,b)=>zip(jaddr(a)).localeCompare(zip(jaddr(b)))))}
-function addStop(id){if(!id)return;const j=S.jobs[id];if(!j||j.status!=="Scheduled"){rmsg("That job is no longer scheduled. Refresh the route and try again.");return}j.ord=dayJobs().length;j.date=rd;w("jobs",j);render()}
+function addStop(id){if(!id)return;const j=S.jobs[id];if(!j||j.status!=="Scheduled"){rmsg("That job is no longer scheduled. Refresh the route and try again.");return}const tail=routeTail(rd);if(!Number.isSafeInteger(tail)||tail>=Number.MAX_SAFE_INTEGER){rmsg("Reorder this route before moving another stop to it.");return}j.ord=tail+1;j.date=rd;w("jobs",j);render()}
 const rmsg=t=>{const m=$("#rmsg");if(m)m.textContent=t};
 function useLoc(){if(!navigator.geolocation){rmsg("Location isn’t available on this device.");return}
  navigator.geolocation.getCurrentPosition(p=>{S.meta.start=p.coords.latitude.toFixed(5)+","+p.coords.longitude.toFixed(5);wm();render()},()=>rmsg("Couldn’t get your location. Type the start address instead."))}
@@ -172,34 +180,35 @@ function vJobs(){const od=today();let L=arr(S.jobs).filter(j=>jf=="All"||(jf=="O
  return`<select onchange="jf=this.value;render()">${["Open",...JS,"All"].map(o=>`<option${o==jf?" selected":""}>${o}</option>`).join("")}</select>`+(L.map(j=>{const late=j.status=="Scheduled"&&j.date<od,nx=JS[JS.indexOf(j.status)+1];
  return`<div class="card" onclick="openJob('${j.id}')"><div class="sp"><b>${E(cname(j.client))}</b><b>${money(j.price)}</b></div><div class="m">${E(j.service)}${j.prop?" · "+E(j.prop):""}</div>
  <div class="m">${E(j.date)} <span class="chip">${j.status}</span>${late?'<span class="chip bad">Overdue</span>':""}${j.repeat&&j.repeat!="One-time"?`<span class="chip">${E(j.repeat)}</span>`:""}</div>
- <div class="row">${nx?`<button onclick="event.stopPropagation();setStatus('${j.id}','${nx}')">→ ${nx}</button>`:""}<button onclick="event.stopPropagation();openDoc('${j.id}')">${j.status=="Scheduled"?"Quote":"Invoice"}</button></div></div>`}).join("")||'<p class="m">No jobs here.</p>')}
+ <div class="row">${nx?`<button onclick="event.stopPropagation();setStatus('${j.id}','${nx}')">→ ${nx}</button>`:""}<button onclick="event.stopPropagation();openDoc('${j.id}')">${j.status=="Scheduled"?"Quote":"Invoice"}</button><button data-job="${E(j.id)}" onclick="event.stopPropagation();openJobPhotos(this.dataset.job)">Before / after photos</button></div></div>`}).join("")||'<p class="m">No jobs here.</p>')}
 /* jobs */
 function spawn(j){if(j.repeat&&j.repeat!="One-time"&&!j.spawned&&j.status!="Scheduled"){const n=Object.assign({},j,{id:uid("j"),date:addD(j.date,j.repeat=="Weekly"?7:14,j.repeat=="Monthly"),status:"Scheduled",spawned:false});delete n.ord;j.spawned=true;w("jobs",n);w("jobs",j)}}
 function setStatus(id,s){const j=S.jobs[id];j.status=s;w("jobs",j);spawn(j);render()}
 /* dialogs */
-const dlg=h=>{$("#dlg").innerHTML=h;if(!$("#dlg").open)$("#dlg").showModal()},closeD=()=>{$("#dlg").close();later()};
-$("#dlg").addEventListener("close",()=>{if(pend)setTimeout(later,0)});
+const dlg=h=>{clearPhotoView();$("#dlg").innerHTML=h;if(!$("#dlg").open)$("#dlg").showModal()},closeD=()=>{$("#dlg").close();later()};
+$("#dlg").addEventListener("close",()=>{clearPhotoView();if(pend)setTimeout(later,0)});
 document.addEventListener("focusout",()=>setTimeout(()=>{if(pend&&!busy())render()},80));
 const bt=(id,key,del)=>`<div class="bt"><button class="pri" onclick="${key}('${id||""}')">Save</button>${id&&del?`<button class="dg" onclick="${del}('${id}')">Delete</button>`:""}<button onclick="closeD()">Cancel</button></div>`;
 function openClient(id){const c=id?S.clients[id]:{type:TY[0],stage:"Lead"},v=k=>E(c[k]);
- dlg(`<h2>${id?"Edit":"New"} client</h2>`+F("Name",`<input id="c_name" value="${v("name")}">`)+F("Contact",`<input id="c_contact" value="${v("contact")}">`)+F("Phone",`<input id="c_phone" type="tel" value="${v("phone")}">`)+F("Email",`<input id="c_email" type="email" value="${v("email")}">`)+F("Type",sel(TY,c.type,"c_type"))+F("Stage",sel(ST,c.stage,"c_stage"))+F("Properties (one address or unit per line)",`<textarea id="c_props" rows="3">${v("props")}</textarea>`)+F("Notes (gate codes, mower access, pets)",`<textarea id="c_notes" rows="3">${v("notes")}</textarea>`)+bt(id,"saveClient","delClient"))}
+ dlg(`<h2>${id?"Edit":"New"} client</h2>`+F("Name",`<input id="c_name" value="${v("name")}">`)+F("Contact",`<input id="c_contact" value="${v("contact")}">`)+F("Phone",`<input id="c_phone" type="tel" value="${v("phone")}">`)+F("Email",`<input id="c_email" type="email" value="${v("email")}">`)+F("Type",sel(TY,c.type,"c_type"))+F("Stage",sel(ST,c.stage,"c_stage"))+F("Properties (one address, unit or GPS coordinate per line)",`<textarea id="c_props" rows="3">${v("props")}</textarea>`)+F("Notes (gate codes, mower access, pets)",`<textarea id="c_notes" rows="3">${v("notes")}</textarea>`)+bt(id,"saveClient","delClient"))}
 function saveClient(id){const n=$("#c_name").value.trim();if(!n){$("#c_name").focus();return}
  w("clients",Object.assign({},S.clients[id]||{},{id:id||uid("c"),name:n,contact:$("#c_contact").value,phone:$("#c_phone").value,email:$("#c_email").value,type:$("#c_type").value,stage:$("#c_stage").value,props:$("#c_props").value,notes:$("#c_notes").value}));closeD();render()}
-function delClient(id){if(!confirm("Delete this client and all of their jobs?"))return;jobsOf(id).forEach(j=>rm("jobs",j.id));rm("clients",id);closeD();render()}
+function delClient(id){if(!confirm("Delete this client and all of their jobs? Their photos will no longer be visible here but are not automatically deleted from storage."))return;jobsOf(id).forEach(j=>rm("jobs",j.id));rm("clients",id);closeD();render()}
 const pl=cid=>props(S.clients[cid]).map(p=>`<option value="${E(p)}">`).join("");
 function openJob(id,pre){if(!arr(S.clients).length){alert("Add a client first.");openClient();return}pre=pre||{};
  const j=id?S.jobs[id]:{client:pre.client||sorted(S.clients)[0].id,prop:pre.prop||"",service:SV[1],date:pre.date||today(),status:"Scheduled",repeat:"One-time",items:"",price:""};
  if(!id&&!j.prop)j.prop=props(S.clients[j.client])[0]||"";
  dlg(`<h2>${id?"Edit":"New"} job</h2>`+F("Client",`<select id="j_client" onchange="jc()">${sorted(S.clients).map(c=>`<option value="${c.id}"${c.id==j.client?" selected":""}>${E(c.name)}</option>`).join("")}</select>`)+F("Service",sel(SV,j.service,"j_service"))+
- F("Property / unit",`<input id="j_prop" list="pl" value="${E(j.prop)}"><datalist id="pl">${pl(j.client)}</datalist>`)+F("Date",`<input id="j_date" type="date" value="${E(j.date)}">`)+F("Status",sel(JS,j.status,"j_status"))+F("Repeat",sel(RP,j.repeat,"j_rep"))+
+ F("Property / unit (address or GPS coordinates)",`<input id="j_prop" list="pl" value="${E(j.prop)}" placeholder="Street address or latitude, longitude"><datalist id="pl">${pl(j.client)}</datalist>`)+F("Date",`<input id="j_date" type="date" value="${E(j.date)}">`)+F("Status",sel(JS,j.status,"j_status"))+F("Repeat",sel(RP,j.repeat,"j_rep"))+
  F("Line items (description | qty | rate)",`<textarea id="j_items" rows="4" oninput="calc()">${E(j.items)}</textarea>`)+`<select id="j_rate" onchange="addRate(this)"><option value="">Add from rate card…</option>${rates().map((r,i)=>`<option value="${i}">${E(r[0])} — ${money(r[1])}</option>`).join("")}</select>`+
  F("Price ($)",`<input id="j_price" type="number" step="0.01" value="${E(j.price)}">`)+F("Notes",`<textarea id="j_notes" rows="2">${E(j.notes)}</textarea>`)+bt(id,"saveJob","delJob"))}
 function jc(){const c=S.clients[$("#j_client").value];$("#pl").innerHTML=pl(c&&c.id);if(!$("#j_prop").value)$("#j_prop").value=props(c)[0]||""}
 function calc(){const t=$("#j_items").value;if(t.trim())$("#j_price").value=+total(t).toFixed(2)}
 function addRate(s){const r=rates()[s.value];if(!r)return;const t=$("#j_items");t.value=(t.value.trim()?t.value.trim()+"\n":"")+r[0]+" | 1 | "+r[1];calc();s.value=""}
 function saveJob(id){const o=Object.assign({},S.jobs[id]||{},{id:id||uid("j"),client:$("#j_client").value,service:$("#j_service").value,prop:$("#j_prop").value.trim(),date:$("#j_date").value||today(),status:$("#j_status").value,repeat:$("#j_rep").value,items:$("#j_items").value,price:+$("#j_price").value||0,notes:$("#j_notes").value});
+ if(!id&&(o.status==="Scheduled"||o.status==="Done")){const tail=routeTail(o.date);if(Number.isSafeInteger(tail)&&tail<Number.MAX_SAFE_INTEGER)o.ord=tail+1}
  w("jobs",o);spawn(o);closeD();render()}
-function delJob(id){if(!confirm("Delete this job?"))return;rm("jobs",id);closeD();render()}
+function delJob(id){if(!confirm("Delete this job? Its photos will no longer be visible here but are not automatically deleted from storage."))return;rm("jobs",id);closeD();render()}
 function openRates(){dlg(`<h2>Rate card</h2><p class="m">One "name | price" per line. These are placeholder starter rates — replace them with your real pricing.</p><textarea id="rt" rows="9">${E(S.meta.rates==null?DEF:S.meta.rates)}</textarea><div class="bt"><button class="pri" onclick="S.meta.rates=$('#rt').value;wm();closeD()">Save</button><button onclick="closeD()">Cancel</button></div>`)}
 /* Address import: review first, add only, and use the existing sync outbox. */
 const IMPORT_LIMIT=1000,IMPORT_FILE_LIMIT=1024*1024,IMPORT_ADDRESS_LIMIT=500;
@@ -211,15 +220,21 @@ function importAddress(value,row){
  if(a.length>IMPORT_ADDRESS_LIMIT)throw new Error("Address "+row+" is too long. Use at most "+IMPORT_ADDRESS_LIMIT+" characters per address.");
  return a
 }
-function importLines(text){
+function importGPS(value,row){
+ const a=importAddress(value,row);if(!a)return "";const p=coords(a);
+ if(!p)throw new Error("Location "+row+" needs valid decimal latitude, longitude, for example 30.2672, -97.7431.");
+ return p[0]+", "+p[1]
+}
+function importLines(text,format="address"){
  text=String(text||"").replace(/^\uFEFF/,"");
  if(text.length>IMPORT_FILE_LIMIT)throw new Error("This list is too large. Use a file smaller than 1 MB.");
- if(text.includes("\t"))throw new Error("Paste one complete address per line. For spreadsheet columns, upload a CSV with an Address column.");
- const lines=text.split(/\r\n|\r|\n/).map((s,i)=>importAddress(s,i+1)).filter(Boolean);
+ if(text.includes("\t"))throw new Error("Paste one complete address per line, or one GPS pair per line. For spreadsheet columns, upload a CSV instead.");
+ const parse=format==="gps"?importGPS:importAddress;
+ const lines=text.split(/\r\n|\r|\n/).map((s,i)=>parse(s,i+1)).filter(Boolean);
  if(lines.length>IMPORT_LIMIT)throw new Error("Import up to "+IMPORT_LIMIT+" addresses at a time. Split this list into smaller batches.");
  return lines
 }
-function importCSV(text){
+function importCSV(text,format="address"){
  text=String(text||"").replace(/^\uFEFF/,"");
  if(text.length>IMPORT_FILE_LIMIT)throw new Error("This CSV is too large. Use a file smaller than 1 MB.");
  let rows=[],row=[],field="",quoted=false,afterQuote=false;
@@ -238,6 +253,7 @@ function importCSV(text){
  if(field.length||row.length||afterQuote)endRow();
  rows=rows.filter(r=>r.some(v=>v.trim()));
  if(!rows.length)return [];
+ if(format==="gps")return importGpsRows(rows);
  const headers=rows[0].map(v=>v.trim().toLowerCase().replace(/[\/_.-]+/g," ").replace(/\s+/g," "));
  const names=["address","full address","property address","service address","street address"];
  const matches=headers.map((v,i)=>names.includes(v)?i:-1).filter(i=>i>=0);
@@ -252,6 +268,17 @@ function importCSV(text){
  if(data.length>IMPORT_LIMIT)throw new Error("Import up to "+IMPORT_LIMIT+" addresses at a time. Split this file into smaller batches.");
  return data.map((r,i)=>{const a=importAddress(r[index],i+(matches.length?2:1));if(!a)throw new Error("A CSV row is missing its address. Fix or remove that row and try again.");return a})
 }
+function importGpsRows(rows){
+ const heads=rows[0].map(v=>v.trim().toLowerCase().replace(/[\/_.-]+/g," ").replace(/\s+/g," "));
+ const find=names=>heads.map((h,i)=>names.includes(h)?i:-1).filter(i=>i>=0);
+ const lat=find(["latitude","lat"]),lon=find(["longitude","long","lon","lng"]),single=find(["gps","gps coordinates","coordinates","coordinate","latitude longitude","lat long","address","property address"]);
+ if(lat.length>1||lon.length>1||single.length>1||(single.length&&(lat.length||lon.length)))throw new Error("CSV has ambiguous GPS columns. Use one latitude and one longitude column, or one Coordinates column.");
+ const header=!!(lat.length||lon.length||single.length);if(header&&!single.length&&(!lat.length||!lon.length))throw new Error("GPS CSV needs both Latitude and Longitude columns.");
+ const data=header?rows.slice(1):rows;if(data.length>IMPORT_LIMIT)throw new Error("Import up to "+IMPORT_LIMIT+" locations at a time. Split this file into smaller batches.");
+ if(header&&data.some(r=>r.length>heads.length))throw new Error("A CSV row has extra columns. Put quotes around coordinate pairs in one column.");
+ if(!header){const widths=new Set(data.map(r=>r.length));if(widths.size!==1||![1,2].includes(data[0].length))throw new Error("GPS CSV needs Latitude and Longitude columns or one quoted coordinate pair per line.")}
+ return data.map((r,i)=>{const v=single.length?r[single[0]]:lat.length?(r[lat[0]]||"")+", "+(r[lon[0]]||""):r.length===2?r[0]+", "+r[1]:r[0];const p=importGPS(v,i+(header?2:1));if(!p)throw new Error("A CSV row is missing its GPS coordinates.");return p})
+}
 function openImport(){
  importReadSeq++;importPreview=null;
  const clients=sorted(S.clients).map(c=>`<option value="${E(c.id)}">${E(c.name)}</option>`).join("");
@@ -263,12 +290,14 @@ function openImport(){
  ${field("What should these addresses create?","imp_mode",`<select id="imp_mode" onchange="importModeChanged()"><option value="">Choose an option…</option><option value="properties">Properties for one existing client</option><option value="clients">One new client per address</option><option value="jobs">Scheduled jobs for a selected day</option></select>`)}
  <div id="imp_client_group" hidden>${field("Existing client","imp_client",`<select id="imp_client" onchange="importInvalidate()"><option value="">Choose a client…</option>${clients}</select>`)}</div>
  <div id="imp_new_group" hidden>${field("New client type","imp_type",`<select id="imp_type" onchange="importInvalidate()">${types}</select>`)}${field("New client stage","imp_stage",`<select id="imp_stage" onchange="importInvalidate()">${stages}</select>`)}<p class="m">Each new client will be named by its address until you edit it.</p></div>
- <div id="imp_job_group" hidden>${field("Job date","imp_date",`<input id="imp_date" type="date" value="${E(rd)}" onchange="importInvalidate()">`)}${field("Service","imp_service",`<select id="imp_service" onchange="importInvalidate()"><option value="">Choose a service…</option>${services}</select>`)}<p class="m">Jobs are scheduled once with no price set; add prices later. They appear on the selected day's route.</p></div>
- ${field("Paste one complete address per line","imp_text",`<textarea id="imp_text" rows="6" placeholder="123 Example St, Austin, TX 78701\n456 Example Ave, Austin, TX 78702" oninput="importInvalidate()"></textarea>`)}
+ <div id="imp_job_group" hidden>${field("Job date","imp_date",`<input id="imp_date" type="date" value="${E(rd)}" onchange="importInvalidate()">`)}${field("Service","imp_service",`<select id="imp_service" onchange="importInvalidate()"><option value="">Choose a service…</option>${services}</select>`)}<p class="m">Jobs are scheduled once with no price set. Their list order is kept after existing stops on the selected day's route.</p></div>
+ ${field("Location format","imp_format",`<select id="imp_format" onchange="importFormatChanged()"><option value="address">Street addresses</option><option value="gps">GPS coordinates (latitude, longitude)</option></select>`)}
+ ${field("Paste one location per line","imp_text",`<textarea id="imp_text" rows="6" placeholder="123 Example St, Austin, TX 78701\n456 Example Ave, Austin, TX 78702" oninput="importInvalidate()"></textarea>`)}
  ${field("Or choose a CSV or TXT file","imp_file",`<input id="imp_file" type="file" accept=".csv,.txt,text/csv,text/plain" onchange="importFile(this)">`)}
- <p class="m">CSV files need a column named Address containing the complete address. Combine separate street, city, state and ZIP columns first; unrelated columns are ignored. Export Excel or Sheets files as CSV. Files are read on this device; added records sync to your CRM. Import from one device at a time.</p>
+ <p class="m" id="imp_format_hint">For address CSVs, use one complete Address column; combine separate street, city, state and ZIP columns first. Other columns are ignored.</p>
+ <p class="m">For GPS, paste decimal latitude, longitude on each line, or use Latitude and Longitude CSV columns. Export Excel or Sheets files as CSV. Files are read on this device; added records sync to your CRM. Import from one device at a time.</p>
  <label style="display:flex;gap:6px;align-items:center"><input id="imp_skip" type="checkbox" style="width:auto;margin:0" checked onchange="importInvalidate()"> Skip addresses already in the selected destination</label>
- <p class="m">Duplicates are compared ignoring case and extra spaces; different abbreviations may not match. For new clients, this checks all clients' properties. For jobs, it checks scheduled jobs with the same client, date and service.</p>
+ <p class="m">Duplicates ignore case and extra spaces; equivalent GPS pairs are matched, but different street abbreviations may not match. For new clients, this checks all clients' properties. For jobs, it checks scheduled jobs with the same client, date and service.</p>
  <div class="bt"><button onclick="reviewImport()">Review import</button><button onclick="closeD()">Close</button></div>
  <p class="m" id="imp_status" role="status" aria-live="polite"></p><div id="imp_preview"></div>
  <div class="bt"><button id="imp_apply" class="pri" hidden onclick="confirmImport()">Add addresses</button></div>`)
@@ -281,13 +310,17 @@ function importModeChanged(){
  const m=$("#imp_mode").value;$("#imp_client_group").hidden=m!=="properties"&&m!=="jobs";
  $("#imp_new_group").hidden=m!=="clients";$("#imp_job_group").hidden=m!=="jobs";importInvalidate()
 }
+function importFormatChanged(){
+ const gps=$("#imp_format").value==="gps";$("#imp_text").placeholder=gps?"30.2672, -97.7431\n30.2710, -97.7500":"123 Example St, Austin, TX 78701\n456 Example Ave, Austin, TX 78702";
+ $("#imp_format_hint").textContent=gps?"GPS CSVs can have Latitude and Longitude columns, or one quoted Coordinates column.":"For address CSVs, use one complete Address column; combine separate street, city, state and ZIP columns first. Other columns are ignored.";importInvalidate()
+}
 async function importFile(input){
  const f=input.files&&input.files[0];if(!f)return;input.value="";importInvalidate();const seq=importReadSeq;$("#imp_status").textContent="Reading file on this device…";
  try{
   if(f.size>IMPORT_FILE_LIMIT)throw new Error("This file is too large. Choose a CSV or TXT file smaller than 1 MB.");
   if(!/\.(csv|txt)$/i.test(f.name||""))throw new Error("Choose a .csv or .txt file. Export Excel or Sheets files as CSV first.");
   const text=await f.text();if(seq!==importReadSeq||!$("#imp_text"))return;
-  const list=/\.csv$/i.test(f.name)?importCSV(text):importLines(text);if(!list.length)throw new Error("No addresses were found in this file.");
+  const format=$("#imp_format").value||"address",list=/\.csv$/i.test(f.name)?importCSV(text,format):importLines(text,format);if(!list.length)throw new Error("No locations were found in this file.");
   if($("#imp_text").value.trim()&&!confirm("Replace the pasted address list with this file?")){input.value="";$("#imp_status").textContent="Kept the pasted list; no CRM records changed.";return}
   if(seq!==importReadSeq||!$("#imp_text"))return;
   $("#imp_text").value=list.join("\n");$("#imp_status").textContent="Loaded "+list.length+" address"+(list.length===1?"":"es")+". Review before adding."
@@ -296,7 +329,8 @@ async function importFile(input){
 function importPlan(){
  if(!db||!hasSnapshot)throw new Error("Connect and wait for your CRM to load before importing.");
  const mode=$("#imp_mode").value;if(!["properties","clients","jobs"].includes(mode))throw new Error("Choose what the addresses should create.");
- const addresses=importLines($("#imp_text").value);if(!addresses.length)throw new Error("Paste addresses or choose a CSV or TXT file first.");
+ const format=$("#imp_format").value||"address";if(!["address","gps"].includes(format))throw new Error("Choose a valid location format.");
+ const addresses=importLines($("#imp_text").value,format);if(!addresses.length)throw new Error("Paste addresses or choose a CSV or TXT file first.");
  const clientId=mode==="clients"?"":$("#imp_client").value;
  if(mode!=="clients"&&!S.clients[clientId])throw new Error("Choose an existing client.");
  let type="",stage="",date="",service="";
@@ -307,14 +341,15 @@ function importPlan(){
   if(!d||isNaN(d.getTime())||fd(d)!==date)throw new Error("Choose a valid job date.");
   if(!SV.includes(service))throw new Error("Choose a service for the jobs.")
  }
+ const locationKey=a=>{const p=format==="gps"?coords(a):null;return importKey(p?p[0]+", "+p[1]:a)};
  const skipExisting=!!$("#imp_skip").checked,seen=new Set(),unique=[],repeated=[];
- addresses.forEach(a=>{const k=importKey(a);if(seen.has(k))repeated.push(a);else{seen.add(k);unique.push(a)}});
+ addresses.forEach(a=>{const k=locationKey(a);if(seen.has(k))repeated.push(a);else{seen.add(k);unique.push(a)}});
  const existing=new Set();
- if(mode==="properties")props(S.clients[clientId]).forEach(a=>existing.add(importKey(a)));
- else if(mode==="clients")arr(S.clients).forEach(c=>props(c).forEach(a=>existing.add(importKey(a))));
- else arr(S.jobs).filter(j=>j.client===clientId&&j.date===date&&j.status==="Scheduled"&&j.service===service).forEach(j=>{const a=jaddr(j);if(a)existing.add(importKey(a))});
- const already=[],entries=unique.filter(a=>{if(existing.has(importKey(a))){already.push(a);return !skipExisting}return true});
- return {mode,clientId,type,stage,date,service,skipExisting,addresses,entries,repeated,already}
+ if(mode==="properties")props(S.clients[clientId]).forEach(a=>existing.add(locationKey(a)));
+ else if(mode==="clients")arr(S.clients).forEach(c=>props(c).forEach(a=>existing.add(locationKey(a))));
+ else arr(S.jobs).filter(j=>j.client===clientId&&j.date===date&&j.status==="Scheduled"&&j.service===service).forEach(j=>{const a=jaddr(j);if(a)existing.add(locationKey(a))});
+ const already=[],entries=unique.filter(a=>{if(existing.has(locationKey(a))){already.push(a);return !skipExisting}return true});
+ return {mode,format,clientId,type,stage,date,service,skipExisting,addresses,entries,repeated,already}
 }
 function importDescription(p){const one=p.entries.length===1;return p.mode==="properties"?(one?"property":"properties"):p.mode==="clients"?(one?"client":"clients"):(one?"scheduled job":"scheduled jobs")}
 function previewAddresses(label,items){return items.length?`<details${items.length<=5?" open":""}><summary>${E(label)} (${items.length}${items.length>5?"; tap to show all":""})</summary><ul>${items.map(a=>`<li>${E(a)}</li>`).join("")}</ul></details>`:""}
@@ -337,7 +372,9 @@ function importRecords(p){
   return {coll,records:[Object.assign({},c,{props:old+sep+p.entries.join("\n")})]}
  }
  if(p.mode==="clients")return {coll,records:p.entries.map(a=>({id:nextId("c"),name:a,contact:"",phone:"",email:"",type:p.type,stage:p.stage,props:a,notes:""}))};
- return {coll,records:p.entries.map(a=>({id:nextId("j"),client:p.clientId,service:p.service,prop:a,date:p.date,status:"Scheduled",repeat:"One-time",items:"",price:"",notes:""}))}
+ const last=routeTail(p.date);
+ if(!Number.isSafeInteger(last)||last>Number.MAX_SAFE_INTEGER-p.entries.length)throw new Error("Existing route order is too large. Reorder the route before importing jobs.");
+ return {coll,records:p.entries.map((a,i)=>({id:nextId("j"),client:p.clientId,service:p.service,prop:a,date:p.date,status:"Scheduled",repeat:"One-time",items:"",price:"",notes:"",ord:last+1+i}))}
 }
 function importStorageAvailable(coll,records){
  const probe="mib_import_probe_"+uid("");
@@ -357,16 +394,193 @@ function confirmImport(){
  if(!p.entries.length)return;
  if(!confirm("Add "+p.entries.length+" "+importDescription(p)+"? Existing records will not be replaced."))return;
  try{const latest=importPlan();if(JSON.stringify(latest)!==JSON.stringify(p)){importPreview=null;$("#imp_apply").hidden=true;$("#imp_preview").innerHTML="";$("#imp_status").textContent="The list or CRM changed. Review the import again before adding.";return}p=latest}catch(e){importPreview=null;$("#imp_apply").hidden=true;$("#imp_status").textContent=e.message||"Could not review the list.";return}
- const batch=importRecords(p);if(!importStorageAvailable(batch.coll,batch.records)){$("#imp_status").textContent="Not enough device storage to safely save this import. Free space or use a smaller batch.";return}
+ let batch;try{batch=importRecords(p)}catch(e){$("#imp_status").textContent=e.message||"Could not prepare the import.";return}
+ if(!importStorageAvailable(batch.coll,batch.records)){$("#imp_status").textContent="Not enough device storage to safely save this import. Free space or use a smaller batch.";return}
  importPreview=null;$("#imp_apply").hidden=true;wBatch(batch.coll,batch.records);$("#imp_preview").innerHTML="";
  $("#imp_status").textContent=!storageOK?"The changes are in memory but could not be saved on this device. Use Backup now and keep this page open until synced.":"Added "+p.entries.length+" "+importDescription(p)+". Keep this page open until it says Synced across devices.";
  render()
 }
+/* Reorder existing jobs from a user-provided list; never geocode or upload it. */
+let routeOrderPreview=null,routeOrderSeq=0;
+function openRouteOrder(){
+ if(!dayJobs().length){rmsg("Add jobs to this day before importing a route order.");return}
+ routeOrderSeq++;routeOrderPreview=null;
+ dlg(`<h2>Use a planned route order</h2><p class="m">Reorder existing stops on ${E(rd)} without moving jobs or changing customers. Paste the saved locations in the order you want to visit them, one per line. Leave out your starting point.</p>
+ <p class="m">Locations must match the saved address or GPS coordinates; different street abbreviations may not match. Repeated locations match jobs in their current order. Stops you leave out stay at the end. Review the customer names before saving, and change the order on only one device at a time.</p>
+ <p class="m">Copying locations to another service shares them with that service.</p><button onclick="copyRouteLocations()">Copy this day's locations</button>
+ <details id="ro_copy_details"><summary>Show current locations for manual copying</summary><textarea id="ro_copy" rows="4" readonly>${E(dayJobs().map(jaddr).join("\n"))}</textarea></details>
+ <label for="ro_format">Location format</label><select id="ro_format" onchange="routeOrderInvalidate()"><option value="address">Street addresses</option><option value="gps">GPS coordinates (latitude, longitude)</option></select>
+ <label for="ro_text">Paste one saved location per line</label><textarea id="ro_text" rows="7" oninput="routeOrderInvalidate()"></textarea>
+ <label for="ro_file">Or choose a CSV or TXT file</label><input type="file" id="ro_file" accept=".csv,.txt,text/csv,text/plain" onchange="routeOrderFile(this)">
+ <p class="m">For CSV, use one complete Address column, or select GPS and use Latitude and Longitude columns. Use no more than 1,000 locations or 1 MB per file.</p>
+ <div class="bt"><button onclick="reviewRouteOrder()">Review order</button><button onclick="closeD()">Close</button></div>
+ <p class="m" id="ro_status" role="status" aria-live="polite"></p><div id="ro_preview"></div><div class="bt"><button class="pri" id="ro_apply" hidden onclick="applyRouteOrder()">Save route order</button></div>`)
+}
+function routeOrderInvalidate(){
+ routeOrderSeq++;routeOrderPreview=null;const p=$("#ro_preview"),b=$("#ro_apply"),s=$("#ro_status");
+ if(p)p.innerHTML="";if(b)b.hidden=true;if(s)s.textContent=""
+}
+async function copyRouteLocations(){
+ const seq=routeOrderSeq,list=dayJobs().map(jaddr);if(list.some(a=>!a)){if($("#ro_status"))$("#ro_status").textContent="Add a location to each job before copying this route.";return}
+ const ok=await copy(list.join("\n"));if(seq!==routeOrderSeq||!$("#ro_status"))return;
+ if($("#ro_copy"))$("#ro_copy").value=list.join("\n");if(!ok&&$("#ro_copy")){$("#ro_copy_details").open=true;$("#ro_copy").focus();$("#ro_copy").select()}
+ $("#ro_status").textContent=ok?"Locations copied. Share them only with a service you trust.":"Could not copy automatically. Select and copy the locations shown above."
+}
+async function routeOrderFile(input){
+ const f=input.files&&input.files[0];if(!f)return;input.value="";routeOrderInvalidate();const seq=routeOrderSeq;$("#ro_status").textContent="Reading file on this device…";
+ try{
+  if(f.size>IMPORT_FILE_LIMIT)throw new Error("Choose a file no larger than 1 MB.");
+  if(!/\.(csv|txt)$/i.test(f.name||""))throw new Error("Choose a CSV or TXT file. Export Excel or Sheets files as CSV first.");
+  const text=await f.text();if(seq!==routeOrderSeq||!$("#ro_text"))return;
+  const format=$("#ro_format").value||"address",list=/\.csv$/i.test(f.name)?importCSV(text,format):importLines(text,format);
+  if(!list.length)throw new Error("No locations were found in this file.");
+  if($("#ro_text").value.trim()&&!confirm("Replace the pasted route order with this file?")){$("#ro_status").textContent="Kept the pasted route order.";return}
+  if(seq!==routeOrderSeq||!$("#ro_text"))return;
+  $("#ro_text").value=list.join("\n");$("#ro_status").textContent="Loaded "+list.length+" locations. Review the order before saving."
+ }catch(e){if(seq===routeOrderSeq&&$("#ro_status"))$("#ro_status").textContent=e.message||"Could not read that file."}
+}
+function routeOrderPlan(){
+ if(!db||!hasSnapshot)throw new Error("Connect and wait for the CRM to load before saving a route order.");
+ const format=$("#ro_format").value||"address";if(!["address","gps"].includes(format))throw new Error("Choose a location format.");
+ const lines=importLines($("#ro_text").value,format);if(!lines.length)throw new Error("Paste a route order or choose a CSV or TXT file first.");
+ const stops=dayJobs(),queues=new Map(),used=new Set();
+ const routeKey=a=>{if(format==="gps"){const p=coords(a);return p?importKey(p[0]+", "+p[1]):""}return importKey(a)};
+ stops.forEach(j=>{const k=routeKey(jaddr(j));if(k){if(!queues.has(k))queues.set(k,[]);queues.get(k).push(j.id)}});
+ const ids=lines.map(a=>{const q=queues.get(routeKey(a));if(!q||!q.length)throw new Error("No unmatched stop on this day matches: "+a+". Use the exact saved locations.");const id=q.shift();used.add(id);return id});
+ const remaining=stops.filter(j=>!used.has(j.id)).map(j=>j.id),snapshot=stops.map(j=>({id:j.id,client:j.client,clientName:cname(j.client),date:j.date,status:j.status,service:j.service,address:jaddr(j),ord:j.ord==null?null:j.ord}));
+ return {date:rd,format,lines,ids:ids.concat(remaining),remaining,snapshot}
+}
+function reviewRouteOrder(){
+ try{
+  const p=routeOrderPlan();routeOrderPreview=p;$("#ro_apply").hidden=false;
+  const rows=p.ids.map(id=>{const j=S.jobs[id];return `<li>${E(cname(j.client))} — ${E(jaddr(j)||"No location")}</li>`}).join("");
+  $("#ro_preview").innerHTML=`<p><b>${p.lines.length}</b> matched stop${p.lines.length===1?"":"s"}. ${p.remaining.length} unlisted stop${p.remaining.length===1?" stays":"s stay"} at the end.</p><details${p.ids.length<=10?" open":""}><summary>New order (${p.ids.length}${p.ids.length>10?"; tap to show all":""})</summary><ol>${rows}</ol></details>`;
+  $("#ro_status").textContent="Review the order, then tap Save route order.";
+  if(typeof $("#ro_preview").scrollIntoView==="function")$("#ro_preview").scrollIntoView({block:"start"})
+ }catch(e){routeOrderPreview=null;$("#ro_apply").hidden=true;$("#ro_preview").innerHTML="";$("#ro_status").textContent=e.message||"Could not review the route order."}
+}
+function applyRouteOrder(){
+ if(!routeOrderPreview){$("#ro_status").textContent="Review the route order first.";return}
+ let p;try{p=routeOrderPlan()}catch(e){routeOrderPreview=null;$("#ro_apply").hidden=true;$("#ro_status").textContent=e.message;return}
+ if(JSON.stringify(p)!==JSON.stringify(routeOrderPreview)){routeOrderInvalidate();$("#ro_status").textContent="The route changed. Review the order again.";return}
+ if(!confirm("Save this order for "+p.ids.length+" stops on "+p.date+"? No jobs will be moved or deleted."))return;
+ try{const latest=routeOrderPlan();if(JSON.stringify(latest)!==JSON.stringify(p)){routeOrderInvalidate();$("#ro_status").textContent="The route changed. Review the order again.";return}p=latest}catch(e){routeOrderInvalidate();$("#ro_status").textContent=e.message;return}
+ const updates=p.ids.map((id,i)=>Object.assign({},S.jobs[id],{ord:i})).filter((j,i)=>S.jobs[p.ids[i]].ord!==i);
+ if(updates.length&&!importStorageAvailable("jobs",updates)){$("#ro_status").textContent="Not enough device storage to safely save this order. Free space and try again.";return}
+ routeOrderPreview=null;$("#ro_apply").hidden=true;if(updates.length)wBatch("jobs",updates);$("#ro_preview").innerHTML="";
+ $("#ro_status").textContent=storageOK?"Route order saved. Keep this page open until it says Synced across devices.":"The order is in memory but could not be saved locally. Use Backup and keep this page open until synced.";render()
+}
+/* Private, per-job photos in Supabase Storage. The CRM record backup does not contain photo bytes. */
+const PHOTO_BUCKET="mib-crm-job-photos",PHOTO_READY_RPC="mib_crm_photo_storage_private_v1",PHOTO_INPUT_LIMIT=20*1024*1024,PHOTO_OUTPUT_LIMIT=5*1024*1024,PHOTO_LIST_LIMIT=100;
+let photoSeq=0,photoJobId="",photoUrl="",photoBusy=false,photoReady=false;
+function clearPhotoView(){
+ photoSeq++;photoJobId="";photoBusy=false;photoReady=false;if(photoUrl){try{URL.revokeObjectURL(photoUrl)}catch(e){}photoUrl=""}
+}
+function photoFolder(id){
+ const bytes=new TextEncoder().encode(String(id));if(!bytes.length||bytes.length>250)throw new Error("This job ID cannot be used for photos.");
+ return "j-"+Array.from(bytes,b=>b.toString(16).padStart(2,"0")).join("")
+}
+function photoPathValid(path,id){
+ const base=photoFolder(id)+"/";if(!String(path).startsWith(base))return false;
+ return /^(before|after)\/p-[a-z0-9]{8,100}\.jpg$/.test(String(path).slice(base.length))
+}
+function photoCurrent(id,seq){return photoJobId===id&&photoSeq===seq&&$("#dlg").open&&!!$("#ph_status")}
+function photoInputs(busy){
+ photoBusy=busy;["#ph_before_input","#ph_after_input","#ph_refresh"].forEach(s=>{const e=$(s);if(e)e.disabled=busy||((s!=="#ph_refresh")&&(!synced||!photoReady))})
+}
+async function privatePhotoBucket(){
+ if(!db||!hasSnapshot)throw new Error("Connect and wait for the CRM to load before using job photos.");
+ if(typeof sb.rpc!=="function"||!sb.storage)throw new Error("Private photo storage is not configured. Complete the storage setup first.");
+ let r;try{r=await sb.rpc(PHOTO_READY_RPC)}catch(e){r=null}
+ if(!r||r.error||r.data!==true)throw new Error("Private photo storage is not ready. Ask the administrator to finish the private bucket and policy setup.");
+ return sb.storage.from(PHOTO_BUCKET)
+}
+function photoListMarkup(id,kind,files){
+ if(!files.length)return `<p class="m">No ${kind} photos yet.</p>`;
+ return files.map((f,i)=>{const path=photoFolder(id)+"/"+kind+"/"+f.name;return `<div class="row"><span class="m">${kind==="before"?"Before":"After"} photo ${i+1}</span><button data-path="${E(path)}" onclick="viewJobPhoto(this)">View</button><button class="dg" data-path="${E(path)}" onclick="removeJobPhoto(this)">Delete</button></div>`}).join("")
+}
+function openJobPhotos(id){
+ const j=S.jobs[id];if(!j){alert("That job no longer exists.");return}
+ dlg(`<h2>Before / after photos</h2><p>${E(cname(j.client))} · ${E(j.date)}</p><p class="m">Photos need an internet connection and a private team storage setup. Save and sync the job first. The CRM JSON backup does not include the photo files.</p>
+ <h3>Before</h3><label for="ph_before_input">Add a before photo</label><input id="ph_before_input" type="file" accept="image/*" disabled onchange="uploadJobPhoto(this,'before')"><div id="ph_before_list"></div>
+ <h3>After</h3><label for="ph_after_input">Add an after photo</label><input id="ph_after_input" type="file" accept="image/*" disabled onchange="uploadJobPhoto(this,'after')"><div id="ph_after_list"></div>
+ <p class="m">Photos are resized and saved as JPEG. The newest 100 per section are shown.</p><div class="bt"><button id="ph_refresh" onclick="refreshJobPhotos()">Refresh photos</button><button onclick="closeD()">Close</button></div>
+ <p id="ph_status" class="m" role="status" aria-live="polite">Checking private photo storage…</p><div id="ph_view"></div>`);
+ photoJobId=String(id);const seq=++photoSeq;loadJobPhotos(photoJobId,seq)
+}
+async function loadJobPhotos(id,seq){
+ if(!photoCurrent(id,seq))return;$("#ph_status").textContent="Checking private photo storage…";
+ try{
+  if(!S.jobs[id])throw new Error("This job no longer exists.");
+  const bucket=await privatePhotoBucket();if(!photoCurrent(id,seq))return;
+  const folder=photoFolder(id),results=await Promise.all(["before","after"].map(k=>bucket.list(folder+"/"+k,{limit:PHOTO_LIST_LIMIT+1,sortBy:{column:"created_at",order:"desc"}})));
+  if(!photoCurrent(id,seq))return;if(results.some(r=>!r||r.error||!Array.isArray(r.data)))throw new Error("Could not load photos. Check the private storage policies and your connection.");
+  const groups=results.map(r=>r.data.filter(f=>f&&/^p-[a-z0-9]{8,100}\.jpg$/.test(String(f.name||""))));
+  $("#ph_before_list").innerHTML=photoListMarkup(id,"before",groups[0].slice(0,PHOTO_LIST_LIMIT));
+  $("#ph_after_list").innerHTML=photoListMarkup(id,"after",groups[1].slice(0,PHOTO_LIST_LIMIT));
+  $("#ph_status").textContent=!synced?"Wait until the CRM says Synced across devices, then tap Refresh photos before uploading.":groups.some(g=>g.length>PHOTO_LIST_LIMIT)?"Showing the newest 100 photos in each section.":"Choose a photo to upload, or view an existing photo.";
+  photoReady=true;photoInputs(false);return true
+ }catch(e){if(photoCurrent(id,seq)){photoReady=false;$("#ph_status").textContent=e.message||"Could not load photos.";photoInputs(false)}return false}
+}
+function refreshJobPhotos(){if(!photoJobId||photoBusy)return;const id=photoJobId,seq=++photoSeq;photoReady=false;photoInputs(true);if(photoUrl){try{URL.revokeObjectURL(photoUrl)}catch(e){}photoUrl=""}$("#ph_view").innerHTML="";loadJobPhotos(id,seq)}
+function prepareJobPhoto(file){
+ if(!file||!/^image\/(jpeg|png|webp|heic|heif)$/i.test(String(file.type||"")))return Promise.reject(new Error("Choose a JPEG, PNG, WebP or HEIC photo from your camera or library."));
+ if(!Number.isFinite(file.size)||file.size<1||file.size>PHOTO_INPUT_LIMIT)return Promise.reject(new Error("Choose a nonempty photo no larger than 20 MB."));
+ return new Promise((resolve,reject)=>{
+  let url,img;try{url=URL.createObjectURL(file);img=new Image()}catch(e){if(url)try{URL.revokeObjectURL(url)}catch(x){}reject(new Error("This device cannot read that photo."));return}
+  const release=()=>{try{URL.revokeObjectURL(url)}catch(e){}};
+  img.onerror=()=>{release();reject(new Error("This device could not read that image. Try a JPEG or PNG."))};
+  img.onload=()=>{try{
+   const w=img.naturalWidth,h=img.naturalHeight;if(!w||!h||w>20000||h>20000||w*h>80000000)throw new Error("That photo has unsupported dimensions.");
+   const scale=Math.min(1,1600/Math.max(w,h)),canvas=document.createElement("canvas");canvas.width=Math.max(1,Math.round(w*scale));canvas.height=Math.max(1,Math.round(h*scale));
+   const ctx=canvas.getContext("2d");if(!ctx)throw new Error("Could not prepare this photo on your device.");ctx.drawImage(img,0,0,canvas.width,canvas.height);
+   canvas.toBlob(blob=>{release();if(!blob||!Number.isFinite(blob.size)||blob.size<1||blob.size>PHOTO_OUTPUT_LIMIT||String(blob.type).toLowerCase()!=="image/jpeg"){reject(new Error("Could not prepare a JPEG photo under 5 MB."));return}resolve(blob)},"image/jpeg",0.82)
+  }catch(e){release();reject(e)}};img.src=url
+ })
+}
+function newPhotoName(){const id=typeof crypto!=="undefined"&&typeof crypto.randomUUID==="function"?crypto.randomUUID().replace(/-/g,""):Date.now().toString(36)+Math.random().toString(36).slice(2)+Math.random().toString(36).slice(2);return "p-"+id+".jpg"}
+async function uploadJobPhoto(input,kind){
+ const file=input.files&&input.files[0];input.value="";if(!file||photoBusy)return;const id=photoJobId,seq=photoSeq;
+ if(!photoCurrent(id,seq)||!["before","after"].includes(kind))return;
+ if(!synced||!photoReady){$("#ph_status").textContent="Wait until Synced across devices, then tap Refresh photos.";return}
+ photoInputs(true);$("#ph_status").textContent="Preparing and uploading photo… Keep this page open.";
+ try{
+  const bucket=await privatePhotoBucket(),blob=await prepareJobPhoto(file);if(!photoCurrent(id,seq))return;
+  if(!S.jobs[id]||!synced)throw new Error("The job or connection changed. Refresh and try the upload again.");
+  const path=photoFolder(id)+"/"+kind+"/"+newPhotoName(),r=await bucket.upload(path,blob,{contentType:"image/jpeg",cacheControl:"0",upsert:false});
+  if(!r||r.error||!r.data||r.data.path!==path)throw new Error("The photo could not be uploaded. Check the private storage setup and connection.");
+  if(!photoCurrent(id,seq))return;if(!S.jobs[id])throw new Error("The job was deleted while uploading. Ask the storage administrator to review unused photos.");
+  const loaded=await loadJobPhotos(id,seq);if(photoCurrent(id,seq))$("#ph_status").textContent=(kind==="before"?"Before":"After")+" photo uploaded."+(loaded?"":" Could not refresh the list; tap Refresh photos.")
+ }catch(e){if(photoCurrent(id,seq))$("#ph_status").textContent=e.message||"Could not upload that photo."}
+ finally{if(photoCurrent(id,seq))photoInputs(false)}
+}
+async function viewJobPhoto(button){
+ const id=photoJobId,seq=photoSeq,path=button.dataset.path;if(photoBusy||!photoCurrent(id,seq)||!photoPathValid(path,id))return;
+ photoInputs(true);$("#ph_status").textContent="Loading photo…";
+ try{
+  const bucket=await privatePhotoBucket(),r=await bucket.download(path,{}, {cache:"no-store"});if(!photoCurrent(id,seq))return;
+  if(!r||r.error||!r.data||!Number.isFinite(r.data.size)||r.data.size<1||r.data.size>PHOTO_OUTPUT_LIMIT)throw new Error("Could not load that photo. Check the connection and storage access.");
+  if(photoUrl)URL.revokeObjectURL(photoUrl);photoUrl=URL.createObjectURL(r.data);
+  $("#ph_view").innerHTML=`<h3>Selected photo</h3><img src="${E(photoUrl)}" alt="Selected job photo" style="max-width:100%;height:auto;border-radius:8px"><p><a href="${E(photoUrl)}" download="job-photo.jpg">Save photo to device</a></p>`;
+  $("#ph_status").textContent="Photo loaded on this device.";if(typeof $("#ph_view").scrollIntoView==="function")$("#ph_view").scrollIntoView({block:"start"})
+ }catch(e){if(photoCurrent(id,seq))$("#ph_status").textContent=e.message||"Could not load that photo."}
+ finally{if(photoCurrent(id,seq))photoInputs(false)}
+}
+async function removeJobPhoto(button){
+ const id=photoJobId,seq=photoSeq,path=button.dataset.path;if(photoBusy||!photoCurrent(id,seq)||!photoPathValid(path,id))return;
+ if(!confirm("Permanently delete this photo? This cannot be undone."))return;
+ if(!photoCurrent(id,seq)||!S.jobs[id])return;photoInputs(true);$("#ph_status").textContent="Deleting photo…";
+ try{
+  const bucket=await privatePhotoBucket(),r=await bucket.remove([path]);if(!r||r.error||!Array.isArray(r.data)||!r.data.length)throw new Error("Photo deletion was not confirmed. Refresh and check storage access.");
+  if(!photoCurrent(id,seq))return;if(photoUrl){URL.revokeObjectURL(photoUrl);photoUrl=""}$("#ph_view").innerHTML="";const loaded=await loadJobPhotos(id,seq);if(photoCurrent(id,seq))$("#ph_status").textContent="Photo deleted."+(loaded?"":" Could not refresh the list; tap Refresh photos.")
+ }catch(e){if(photoCurrent(id,seq))$("#ph_status").textContent=e.message||"Could not delete the photo."}
+ finally{if(photoCurrent(id,seq))photoInputs(false)}
+}
 const copy=async t=>{try{await navigator.clipboard.writeText(t);return 1}catch(e){try{const a=document.createElement("textarea");a.value=t;document.body.appendChild(a);a.select();const ok=document.execCommand("copy");a.remove();return ok}catch(x){return 0}}};
-function openBackup(){dlg(`<h2>Backup</h2><p class="m">Copy this JSON somewhere safe. To restore, paste a backup here and tap Restore.</p><textarea id="bk" rows="10">${E(JSON.stringify({clients:S.clients,jobs:S.jobs,meta:S.meta}))}</textarea><div class="bt"><button class="pri" onclick="bcopy()">Copy</button><button class="dg" onclick="restore()">Restore</button><button onclick="closeD()">Close</button></div>`)}
+function openBackup(){dlg(`<h2>Backup</h2><p class="m">Copy this JSON somewhere private. Restore replaces ALL current CRM records. Photo files are not included; back them up separately.</p><textarea id="bk" rows="10">${E(JSON.stringify({clients:S.clients,jobs:S.jobs,meta:S.meta}))}</textarea><div class="bt"><button class="pri" onclick="bcopy()">Copy</button><button class="dg" onclick="restore()">Restore</button><button onclick="closeD()">Close</button></div>`)}
 async function bcopy(){$("#bk").select();alert(await copy($("#bk").value)?"Copied.":"Copy failed — select the text and copy it manually.")}
 function restore(){let d;try{d=JSON.parse($("#bk").value);if(!d||typeof d.clients!="object"||typeof d.jobs!="object")throw 0}catch(e){alert("That doesn’t look like a valid backup.");return}
- if(!confirm("Replace ALL current data with this backup?"))return;
+ if(!confirm("Replace ALL current data with this backup? Photo files are not included, and photos for jobs not in the backup will no longer be visible here."))return;
  ["clients","jobs"].forEach(c=>{Object.keys(S[c]).forEach(id=>{if(!d[c][id])rm(c,id)});Object.keys(d[c]).forEach(id=>{d[c][id].id=id;w(c,d[c][id])})});
  S.meta=d.meta||{};wm();closeD();render()}
 /* quote / invoice */
