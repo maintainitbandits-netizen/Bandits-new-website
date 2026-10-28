@@ -487,3 +487,69 @@ test('route job deletion is explicit, cancelable and warns that private photos r
     } finally { await context.close(); }
   } finally { await browser.close(); }
 });
+
+test('phone Completed tab tracks finished work across Done, Invoiced and Paid without hiding unpaid jobs', { skip: !canRun && 'Install browser dependencies externally' }, async () => {
+  const browser = await makeBrowser();
+  try {
+    for (const width of [320, 390]) {
+      const { context, page, requests, errors } = await setup(browser, width);
+      try {
+        await page.getByRole('button', { name: 'Jobs', exact: true }).click();
+        const job = () => page.locator('#main .card', { hasText: '100 Example Road' });
+        await job().getByRole('button', { name: '→ Done', exact: true }).click();
+        await page.waitForFunction(() => S.jobs.j1.status === 'Done' && document.querySelector('#st').textContent === 'Synced across devices');
+        assert.equal(await job().count(), 1, 'Done job remains in Jobs → Open');
+        await page.getByRole('button', { name: 'Completed', exact: true }).click();
+        await noOverflow(page, `${width} completed work`);
+        assert.match(await page.locator('#main').innerText(), /scheduled job dates, not completion dates/i);
+        assert.match(await page.locator('#completed_count').innerText(), /2 completed jobs shown/);
+        let completed = page.locator('#completed_list .card', { hasText: '100 Example Road' });
+        assert.match(await completed.innerText(), /Fictional Client.*Done/s);
+        assert.match(await completed.innerText(), /Scheduled: 2026-11-04/);
+        assert.match(await completed.innerText(), /Price not set/);
+        assert.equal(await completed.getByRole('button', { name: 'Before / after photos' }).count(), 1);
+        await completed.getByRole('button', { name: 'Invoice', exact: true }).click();
+        assert.equal(await page.locator('#doc h2').last().innerText(), 'Invoice');
+        await page.locator('#doc').getByRole('button', { name: 'Close' }).click();
+        await page.locator('#completed_search').fill('1000 Done Road');
+        assert.match(await page.locator('#completed_count').innerText(), /1 completed job shown/);
+        assert.equal(await page.locator('#completed_list .card').count(), 1);
+        await page.locator('#completed_filter').selectOption('Paid');
+        assert.match(await page.locator('#completed_list').innerText(), /No completed jobs match/);
+        await page.locator('#completed_filter').selectOption('All'); await page.locator('#completed_search').fill('');
+
+        await page.getByRole('button', { name: 'Jobs', exact: true }).click();
+        await job().getByRole('button', { name: '→ Invoiced', exact: true }).click();
+        await page.waitForFunction(() => S.jobs.j1.status === 'Invoiced' && document.querySelector('#st').textContent === 'Synced across devices');
+        assert.equal(await job().count(), 1, 'Invoiced job remains in Jobs → Open');
+        await page.getByRole('button', { name: 'Completed', exact: true }).click();
+        completed = page.locator('#completed_list .card', { hasText: '100 Example Road' });
+        assert.match(await completed.innerText(), /Invoiced/);
+        await page.locator('#completed_filter').selectOption('Invoiced');
+        assert.equal(await page.locator('#completed_list .card').count(), 1);
+        await page.locator('#completed_filter').selectOption('All');
+
+        await page.getByRole('button', { name: 'Jobs', exact: true }).click();
+        await job().getByRole('button', { name: '→ Paid', exact: true }).click();
+        await page.waitForFunction(() => S.jobs.j1.status === 'Paid' && document.querySelector('#st').textContent === 'Synced across devices');
+        assert.equal(await job().count(), 0, 'Paid job leaves Jobs → Open as before');
+        await page.getByRole('button', { name: 'Completed', exact: true }).click();
+        assert.match(await page.locator('#completed_list .card', { hasText: '100 Example Road' }).innerText(), /Paid/);
+        await page.getByRole('button', { name: 'Route', exact: true }).click();
+        await page.locator('#main .card', { hasText: '300 Example Road' }).getByRole('button', { name: 'Mark Done', exact: true }).click();
+        await page.waitForFunction(() => S.jobs.j3.status === 'Done' && document.querySelector('#st').textContent === 'Synced across devices');
+        await page.getByRole('button', { name: 'Completed', exact: true }).click();
+        let routed = page.locator('#completed_list .card', { hasText: '300 Example Road' });
+        assert.match(await routed.innerText(), /Done/);
+        await routed.getByRole('button', { name: 'Edit job' }).click();
+        await page.locator('#j_status').selectOption('Scheduled');
+        await page.locator('#dlg').getByRole('button', { name: 'Save', exact: true }).click();
+        await page.waitForFunction(() => S.jobs.j3.status === 'Scheduled' && document.querySelector('#st').textContent === 'Synced across devices');
+        assert.equal(await page.locator('#completed_list .card', { hasText: '300 Example Road' }).count(), 0);
+        await page.getByRole('button', { name: 'Jobs', exact: true }).click();
+        assert.equal(await page.locator('#main .card', { hasText: '300 Example Road' }).count(), 1);
+        assert.equal(requests.length, 0); assert.deepEqual(errors, []);
+      } finally { await context.close(); }
+    }
+  } finally { await browser.close(); }
+});

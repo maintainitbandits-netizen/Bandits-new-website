@@ -2231,3 +2231,118 @@ test('local-only estimates seed an empty cloud and stale fetches do not erase la
     assert.equal(second.exec('S.estimates.e1.notes'), 'Edited during load');
   } finally { first.dispose(); second.dispose(); }
 });
+
+// Completed work is a view of fictional existing jobs, not a new collection.
+test('Completed includes existing Done, Invoiced and Paid jobs without changing Open or records', async () => {
+  const server = new FakeServer(); seedPrice(server, 'clients', record('Fictional Client', 'c1'));
+  const jobs = [
+    { id:'scheduled', client:'c1', service:'Scheduled work', prop:'1 Fictional Road', date:'2026-11-06', status:'Scheduled', price:60 },
+    { id:'done', client:'c1', service:'Done work', prop:'2 Fictional Road', date:'2026-11-03', status:'Done', price:70 },
+    { id:'invoice', client:'c1', service:'Invoiced work', prop:'3 Fictional Road', date:'2026-11-04', status:'Invoiced', price:80 },
+    { id:'paid', client:'c1', service:'Paid work', prop:'4 Fictional Road', date:'2026-11-05', status:'Paid', price:'' },
+    { id:'unknown', client:'c1', service:'Unknown work', prop:'5 Fictional Road', date:'2026-11-02', status:'Unknown' },
+  ];
+  jobs.forEach(job => seedPrice(server, 'jobs', job));
+  const device = makeDevice(server);
+  try {
+    await device.login(); const before=JSON.stringify(clone(device.exec('S.jobs')));
+    device.exec(`tab='Completed';render()`);
+    let html=device.element('#completed_list').innerHTML;
+    assert.match(device.element('#main').innerHTML, /scheduled job dates, not completion dates/i);
+    assert.equal(device.element('#completed_count').textContent, '3 completed jobs shown');
+    assert.match(html, /Done work/); assert.match(html, /Invoiced work/); assert.match(html, /Paid work/);
+    assert.doesNotMatch(html, /Scheduled work|Unknown work/); assert.match(html, /Scheduled: 2026-11-05/); assert.match(html, /Price not set/);
+    assert.ok(html.indexOf('Paid work')<html.indexOf('Invoiced work')&&html.indexOf('Invoiced work')<html.indexOf('Done work'));
+    assert.match(html, /Edit job/); assert.match(html, /Invoice/); assert.match(html, /Before \/ after photos/); assert.match(html, /Delete job/);
+    device.exec(`completedFilter='Done';completedList()`); assert.equal(device.element('#completed_count').textContent, '1 completed job shown');
+    assert.match(device.element('#completed_list').innerHTML, /Done work/); assert.doesNotMatch(device.element('#completed_list').innerHTML, /Invoiced work|Paid work/);
+    device.exec(`completedFilter='All';completedQuery='3 Fictional';completedList()`); assert.match(device.element('#completed_list').innerHTML, /Invoiced work/);
+    device.exec(`completedQuery='2026-11-05';completedList()`); assert.match(device.element('#completed_list').innerHTML, /Paid work/);
+    device.exec(`completedQuery='no matching work';completedList()`); assert.equal(device.element('#completed_count').textContent, '0 completed jobs shown');
+    assert.match(device.element('#completed_list').innerHTML, /No completed jobs match/);
+    device.exec(`completedQuery='';completedFilter='All';tab='Jobs';jf='Open';render()`);
+    html=device.element('#main').innerHTML; assert.match(html, /Done work/); assert.match(html, /Invoiced work/); assert.doesNotMatch(html, /Paid work/);
+    assert.equal(JSON.stringify(clone(device.exec('S.jobs'))), before); assert.equal(device.exec('Object.keys(pending).length'), 0);
+    device.exec(`openDoc('paid')`); assert.match(device.element('#doc').innerHTML, />Invoice<\/h2>/);
+  } finally { device.dispose(); }
+});
+
+test('marking done appears in Completed and remains Open; invoiced and paid stay visible after syncing', async () => {
+  const server = new FakeServer(); seedPrice(server, 'clients', record('Fictional Client', 'c1'));
+  seedPrice(server, 'jobs', { id:'j-work', client:'c1', service:'Fictional work', prop:'123 Example Road', date:'2026-11-04', status:'Scheduled', repeat:'One-time', price:80 });
+  const [first, second] = await devices(server);
+  try {
+    second.exec(`tab='Completed';render()`); assert.equal(second.element('#completed_count').textContent, '0 completed jobs shown');
+    server.failWrites=true; first.exec(`setStatus('j-work','Done')`); await wait(35);
+    assert.equal(first.exec(`S.jobs['j-work'].status`), 'Done'); assert.notEqual(first.element('#st').textContent, 'Synced across devices');
+    assert.match(first.storage.get('mib_pending_v1'), /j-work/);
+    first.exec(`tab='Completed';render()`); assert.match(first.element('#completed_list').innerHTML, /Fictional work/);
+    first.exec(`tab='Jobs';jf='Open';render()`); assert.match(first.element('#main').innerHTML, /Fictional work/);
+    server.failWrites=false; first.client.reconnect(); await wait(150);
+    assert.equal(server.rows.get('jobs/j-work').data.status, 'Done');
+    assert.equal(second.exec(`S.jobs['j-work'].status`), 'Done'); assert.match(second.element('#completed_list').innerHTML, /Fictional work/);
+    first.exec(`setStatus('j-work','Invoiced')`); await wait(110);
+    assert.equal(second.exec(`S.jobs['j-work'].status`), 'Invoiced'); assert.match(second.element('#completed_list').innerHTML, /Invoiced/);
+    first.exec(`tab='Jobs';jf='Open';render()`); assert.match(first.element('#main').innerHTML, /Fictional work/);
+    first.exec(`setStatus('j-work','Paid')`); await wait(110);
+    assert.equal(second.exec(`S.jobs['j-work'].status`), 'Paid'); assert.match(second.element('#completed_list').innerHTML, /Paid/);
+    first.exec(`tab='Jobs';jf='Open';render()`); assert.doesNotMatch(first.element('#main').innerHTML, /Fictional work/);
+    first.exec(`tab='Completed';render()`); assert.match(first.element('#completed_list').innerHTML, /Fictional work/);
+    assert.equal(first.exec('Object.keys(S.jobs).length'), 1);
+  } finally { first.dispose(); second.dispose(); }
+});
+
+test('a repeating job keeps its next occurrence scheduled, while the finished occurrence appears once', async () => {
+  const server = new FakeServer(); seedPrice(server, 'clients', record('Fictional Client', 'c1'));
+  seedPrice(server, 'jobs', { id:'j-repeat', client:'c1', service:'Repeat work', prop:'123 Example Road', date:'2026-11-04', status:'Scheduled', repeat:'Weekly', estimatedMinutes:45 });
+  const device = makeDevice(server);
+  try {
+    await device.login(); device.exec(`setStatus('j-repeat','Done');tab='Completed';render()`);
+    const all=clone(device.exec('Object.values(S.jobs)')), finished=all.find(j=>j.id==='j-repeat'), next=all.find(j=>j.id!=='j-repeat');
+    assert.equal(finished.status, 'Done'); assert.ok(finished.spawned); assert.equal(next.status, 'Scheduled'); assert.equal(next.date, '2026-11-11'); assert.equal(next.estimatedMinutes,45);
+    const html=device.element('#completed_list').innerHTML; assert.match(html, /j-repeat/); assert.doesNotMatch(html, new RegExp(next.id));
+    assert.equal(device.element('#completed_count').textContent, '1 completed job shown');
+    device.exec(`setStatus('j-repeat','Invoiced');setStatus('j-repeat','Paid')`); assert.equal(device.exec('Object.keys(S.jobs).length'), 2);
+  } finally { device.dispose(); }
+});
+
+test('Completed escapes customer content and invalid job IDs cannot trigger actions', async () => {
+  const server = new FakeServer(), id='job" onmouseover="bad';
+  seedPrice(server, 'clients', record('<img src=x onerror=bad()>', 'c1'));
+  seedPrice(server, 'jobs', { id, client:'c1', service:'<svg onload=bad()>', prop:'123 <b>Example</b>', date:'2026-11-04', status:'Done' });
+  const device=makeDevice(server);
+  try {
+    await device.login(); device.exec(`S.jobs.invalid={id:'',client:'c1',service:'Invalid ID',date:'',status:'Done'};tab='Completed';render()`);
+    const html=device.element('#completed_list').innerHTML;
+    assert.match(html, /&lt;img src=x onerror=bad\(\)&gt;/); assert.match(html, /&lt;svg onload=bad\(\)&gt;/);
+    assert.match(html, /job&quot; onmouseover=&quot;bad/); assert.doesNotMatch(html, /<img|<svg/);
+    assert.match(html, /invalid ID; review your backup/i); assert.doesNotMatch(html, /data-job=""/);
+  } finally { device.dispose(); }
+});
+
+test('deleting a completed job still requires confirmation and never removes its photo files', async () => {
+  const server = new FakeServer(); seedPrice(server, 'clients', record('Fictional Client', 'c1'));
+  seedPrice(server, 'jobs', { id:'j-done', client:'c1', service:'Done work', prop:'123 Example Road', date:'2026-11-04', status:'Done' });
+  server.photoObjects.set('jobs/j-done/before/fictional.jpg', 'fictional');
+  let accept=false; const warnings=[], device=makeDevice(server, {}, { confirm: text => {warnings.push(text);return accept;} });
+  try {
+    await device.login(); device.exec(`tab='Completed';render();delJob('j-done')`);
+    assert.ok(device.exec(`S.jobs['j-done']`)); assert.match(warnings.at(-1), /photo files are NOT deleted/i);
+    accept=true; device.exec(`delJob('j-done')`); await wait(110);
+    assert.equal(device.exec(`S.jobs['j-done']`), undefined); assert.equal(server.rows.has('jobs/j-done'), false);
+    assert.equal(server.photoObjects.size, 1); assert.equal(device.element('#completed_count').textContent, '0 completed jobs shown');
+  } finally { device.dispose(); }
+});
+
+test('Completed refuses to edit a deleted job or silently reassign a job whose client is missing', async () => {
+  const server=new FakeServer(); seedPrice(server, 'clients', record('Other fictional client', 'c2'));
+  seedPrice(server, 'jobs', { id:'orphan', client:'missing-client', service:'Orphaned work', prop:'123 Example Road', date:'2026-11-04', status:'Done' });
+  const alerts=[],device=makeDevice(server, {}, { alert: message=>alerts.push(message) });
+  try {
+    await device.login(); device.exec(`tab='Completed';render();editCompletedJob('orphan')`);
+    assert.match(alerts.at(-1), /client is missing/i); assert.equal(device.element('#dlg').open, false);
+    assert.equal(device.exec('S.jobs.orphan.client'), 'missing-client'); assert.equal(device.exec('Object.keys(pending).length'), 0);
+    device.exec(`delete S.jobs.orphan;editCompletedJob('orphan')`);
+    assert.match(alerts.at(-1), /job no longer exists/i); assert.equal(device.element('#completed_count').textContent, '0 completed jobs shown');
+  } finally { device.dispose(); }
+});

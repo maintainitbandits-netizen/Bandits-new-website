@@ -2,6 +2,14 @@
 
 The controls below use the existing shared CRM and outbox. The usual Vercel preview uses the **live Supabase project**, so a confirmed completion or deletion there affects shared CRM records. Automated tests use fictional in-memory records and do not delete live data. Keep a private backup before destructive changes; JSON backups do not contain photo files. Refresh every team's CRM page after an update so all devices use the same safeguards.
 
+## Completed work
+
+Open **Completed** for a searchable view of jobs whose current status is **Done**, **Invoiced**, or **Paid**. Existing finished jobs appear automatically; this view does not create a second record or alter the jobs. Filter by status or search the client, property, service, or scheduled date. Dates shown and the newest-first order use the scheduled job date; the CRM does not record a completion date here.
+
+To mark scheduled work finished, tap **→ Done** on the Jobs card, **Mark Done** on Route, or use the confirmed **Mark done & next** action in next-stop mode. A repeating job can create its next scheduled occurrence using the existing repeat behavior. Done and Invoiced jobs also remain in **Jobs → Open** until marked Paid, so unpaid work is not hidden; Paid jobs remain in Completed and Jobs → All. Marking a job Done does not automatically send an invoice or contact a customer.
+
+Completed cards use the existing job editor, Invoice, Before / after photos, and Delete job controls. If a job's client is missing, editing from Completed is blocked rather than silently selecting another client; restore or review the client first. Deleting a job still requires confirmation and does not delete its private photo files. Wait for **Synced across devices** and use one device at a time; the existing outbox retries unsynced changes. No live records are used in automated tests.
+
 ## Due and overdue jobs
 
 Open **Due & overdue** to see scheduled jobs with due-by or exact-day requirements. The dashboard compares the required date to the device's current local date: earlier dates are overdue, today is due today, and later dates are upcoming. A job can be overdue even when its planned appointment was earlier. Missing/invalid required dates or rules appear under **Needs a valid requirement** rather than being silently assigned a deadline; a required date without a valid rule blocks quick routing or moving until corrected. Jobs without a requirement and jobs no longer Scheduled are excluded. Tap **Edit job** to review or change a requirement or estimate; the dashboard does not automatically reschedule or complete anything.
