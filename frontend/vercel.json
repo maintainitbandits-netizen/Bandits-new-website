@@ -2,11 +2,6 @@
   "buildCommand": "npm run build && node scripts/prerender-fall-cleanup.cjs",
   "redirects": [
     {
-      "source": "/crm",
-      "destination": "https://claude.ai/artifact/BZ3PKx8Dr3ogS8hJBuv4Bv",
-      "permanent": false
-    },
-    {
       "source": "/:city(pflugerville|round-rock|cedar-park|georgetown|leander|austin|taylor|hutto)-lawn-care",
       "destination": "/services/lawn-mowing/:city",
       "permanent": true
@@ -112,7 +107,38 @@
       "permanent": true
     }
   ],
+  "headers": [
+    {
+      "source": "/crm",
+      "headers": [
+        { "key": "X-Robots-Tag", "value": "noindex, nofollow" },
+        { "key": "Cache-Control", "value": "private, no-store" }
+      ]
+    },
+    {
+      "source": "/crm/",
+      "headers": [
+        { "key": "X-Robots-Tag", "value": "noindex, nofollow" },
+        { "key": "Cache-Control", "value": "private, no-store" }
+      ]
+    },
+    {
+      "source": "/crm.html",
+      "headers": [
+        { "key": "X-Robots-Tag", "value": "noindex, nofollow" },
+        { "key": "Cache-Control", "value": "private, no-store" }
+      ]
+    }
+  ],
   "rewrites": [
+    {
+      "source": "/crm",
+      "destination": "/crm.html"
+    },
+    {
+      "source": "/crm/",
+      "destination": "/crm.html"
+    },
     {
       "source": "/blog/fall-cleanup-austin-rental-properties",
       "destination": "/_prerendered/fall-cleanup-austin-rental-properties.html"
