@@ -2651,7 +2651,7 @@ test('PDF import rechecks clients and duplicates after confirmation, and checks 
 test('unscheduled work is not a last service, can have a due date, and a repeat does not reuse the AppFolio identity', async () => {
   const server = new FakeServer(); seedAppfolio(server);
   const client = server.rows.get('clients/c-af1'); client.data.props = '100 Example Road';
-  const job = { id: 'j-af', client: 'c-af1', prop: '100 Example Road', service: 'Other', status: 'Unscheduled', date: '', repeat: 'One-time', dateRequirement: 'deadline', requiredDate: '2026-11-03', sourceAppfolio: { managerId: 'c-af1', number: '250-1' }, workDescription: 'Fictional description', workOrderDetails: 'Fictional text', price: '' };
+  const job = { id: 'j-af', client: 'c-af1', prop: '100 Example Road', service: 'Other', workCategory: 'Tree Trimming', status: 'Unscheduled', date: '', repeat: 'One-time', dateRequirement: 'deadline', requiredDate: '2026-11-03', sourceAppfolio: { managerId: 'c-af1', number: '250-1' }, workDescription: 'Fictional description', workOrderDetails: 'Fictional text', price: '' };
   server.rows.set('jobs/j-af', { coll: 'jobs', id: 'j-af', data: job });
   const device = makeDevice(server);
   try {
@@ -2664,5 +2664,198 @@ test('unscheduled work is not a last service, can have a due date, and a repeat 
     const next = clone(device.exec("Object.values(S.jobs).find(j=>j.id!=='j-af')"));
     assert.equal(next.date, '2026-11-10'); assert.equal(next.status, 'Scheduled');
     assert.equal(next.sourceAppfolio, undefined); assert.equal(next.workDescription, undefined); assert.equal(next.workOrderDetails, undefined);
+    assert.equal(next.workCategory, 'Tree Trimming');
   } finally { device.dispose(); }
+});
+
+// Job categories are an explicit, optional label on the existing job record.
+// These tests use fictional records and the in-memory server only.
+function fillJobForCategory(device, id, category) {
+  const job = clone(device.exec(`S.jobs[${JSON.stringify(id)}]`));
+  device.exec(`openJob(${JSON.stringify(id)})`);
+  const values = {
+    j_client: job.client, j_service: job.service, j_prop: job.prop || '',
+    j_date: job.date || '', j_rule: job.dateRequirement || 'any', j_required: job.requiredDate || '',
+    j_minutes: job.estimatedMinutes == null ? '' : String(job.estimatedMinutes),
+    j_status: job.status, j_rep: job.repeat || 'One-time', j_items: job.items || '',
+    j_price: job.price == null ? '' : String(job.price), j_notes: job.notes || '', j_category: category,
+  };
+  Object.entries(values).forEach(([field, value]) => { device.element('#' + field).value = value; });
+  device.exec(`saveJob(${JSON.stringify(id)})`);
+}
+
+test('legacy jobs remain uncategorized until explicitly assigned, moved or cleared, and sync with backups', async () => {
+  const server = new FakeServer(); seedPrice(server, 'clients', record('Fictional Client', 'c1'));
+  const oldTrim = { id:'old-trim', client:'c1', service:'Trim / prune', prop:'111 Legacy Trim Example', date:'2026-11-01', status:'Scheduled', repeat:'One-time', price:'', notes:'Fictional original' };
+  const oldCleanup = { id:'old-clean', client:'c1', service:'Make-ready cleanup', prop:'222 Legacy Cleanup Example', date:'2026-11-02', status:'Done', repeat:'One-time', price:'' };
+  const tree = { id:'tree', client:'c1', service:'Tree Trimming', workCategory:'Tree Trimming', prop:'333 Tree Example', date:'2026-11-03', status:'Scheduled', price:'' };
+  const paid = { id:'paid', client:'c1', service:'Maintenance', workCategory:'Maintenance', prop:'444 Paid Example', date:'2026-11-04', status:'Paid', price:'' };
+  [oldTrim, oldCleanup, tree, paid].forEach(j => seedPrice(server, 'jobs', j));
+  const first = makeDevice(server), second = makeDevice(server);
+  try {
+    await Promise.all([first.login(), second.login()]);
+    first.exec("tab='Jobs';jf='All';render()");
+    for (const address of ['111 Legacy Trim','222 Legacy Cleanup','333 Tree','444 Paid']) assert.match(first.element('#main').innerHTML, new RegExp(address));
+    first.exec("tab='Tree Trimming';render()");
+    assert.match(first.element('#main').innerHTML, /333 Tree Example/);
+    assert.doesNotMatch(first.element('#main').innerHTML, /111 Legacy Trim|222 Legacy Cleanup|444 Paid/);
+    first.exec("tab='Cleaning';render()");
+    assert.match(first.element('#main').innerHTML, /No jobs match this category and status/);
+    assert.doesNotMatch(first.element('#main').innerHTML, /222 Legacy Cleanup/);
+    first.exec("tab='Maintenance';render()");
+    assert.doesNotMatch(first.element('#main').innerHTML, /444 Paid Example/);
+    first.exec("categoryFilters['Maintenance']='All';render()");
+    assert.match(first.element('#main').innerHTML, /444 Paid Example/);
+    assert.equal(first.exec('Object.keys(pending).length'), 0);
+    assert.deepEqual(server.rows.get('jobs/old-trim').data, oldTrim);
+    assert.deepEqual(server.rows.get('jobs/old-clean').data, oldCleanup);
+
+    server.failWrites = true;
+    fillJobForCategory(first, 'old-trim', 'Tree Trimming'); await wait(45);
+    assert.equal(first.exec("S.jobs['old-trim'].workCategory"), 'Tree Trimming');
+    assert.equal(first.exec("S.jobs['old-trim'].service"), 'Trim / prune');
+    assert.equal(first.exec("S.jobs['old-trim'].notes"), 'Fictional original');
+    assert.equal(second.exec("S.jobs['old-trim'].workCategory"), undefined);
+    assert.match(first.storage.get('mib_pending_v1'), /Tree Trimming/);
+    first.exec('openBackup()'); assert.match(first.element('#dlg').innerHTML, /workCategory.*Tree Trimming/);
+    server.failWrites = false; first.client.reconnect(); await wait(150);
+    assert.equal(second.exec("S.jobs['old-trim'].workCategory"), 'Tree Trimming');
+    assert.equal(second.exec("S.jobs['old-trim'].service"), 'Trim / prune');
+    assert.equal(first.element('#st').textContent, 'Synced across devices');
+
+    fillJobForCategory(first, 'old-trim', 'Cleaning'); await wait(120);
+    assert.equal(second.exec("S.jobs['old-trim'].workCategory"), 'Cleaning');
+    assert.doesNotMatch(first.exec("vJobs('Tree Trimming')"), /111 Legacy Trim Example/);
+    assert.match(first.exec("vJobs('Cleaning')"), /111 Legacy Trim Example/);
+    fillJobForCategory(first, 'old-trim', ''); await wait(120);
+    assert.equal(second.exec("S.jobs['old-trim'].workCategory"), undefined);
+    assert.match(first.exec('vJobs()'), /111 Legacy Trim Example/);
+    assert.doesNotMatch(first.exec("vJobs('Cleaning')"), /111 Legacy Trim Example/);
+    assert.equal(first.exec("S.jobs['old-clean'].workCategory"), undefined);
+  } finally { first.dispose(); second.dispose(); }
+});
+
+test('category bulk deletion stays scoped and rejects a job changed after selection', async () => {
+  const server = new FakeServer(); seedPrice(server, 'clients', record('Fictional Client', 'c1'));
+  const jobs = [
+    { id:'clean-open', workCategory:'Cleaning', status:'Scheduled', prop:'101 Clean Open' },
+    { id:'clean-paid', workCategory:'Cleaning', status:'Paid', prop:'102 Clean Paid' },
+    { id:'moving', workCategory:'Cleaning', status:'Done', prop:'103 Moving Job' },
+    { id:'tree', workCategory:'Tree Trimming', status:'Scheduled', prop:'104 Tree Job' },
+    { id:'legacy', status:'Scheduled', prop:'105 Legacy Job' },
+  ];
+  jobs.forEach(j => seedPrice(server, 'jobs', { client:'c1', service:'Other', date:'2026-11-01', ...j }));
+  const confirmations = [], first = makeDevice(server, {}, { confirm: text => { confirmations.push(text); return true; } }), second = makeDevice(server);
+  try {
+    await Promise.all([first.login(), second.login()]);
+    first.exec("tab='Cleaning';render();openBulkDeletion('jobs','Cleaning')");
+    assert.match(first.element('#dlg').innerHTML, /Only Cleaning jobs are selectable here/);
+    assert.equal(first.exec('bulkDeletion.candidates.length'), 3);
+    assert.equal(first.exec('bulkDeletion.initialFilter'), 'Open');
+    first.exec('bulkSelectShown()'); assert.equal(first.exec('bulkDeletion.selected.size'), 2);
+    first.element('#bulk_filter').value = 'All'; first.exec('bulkFilter();bulkSelectShown()');
+    assert.equal(first.exec('bulkDeletion.selected.size'), 3);
+    assert.equal(first.exec("bulkDeletion.selected.has('tree') || bulkDeletion.selected.has('legacy')"), false);
+    second.exec("w('jobs',Object.assign({},S.jobs.moving,{workCategory:'Maintenance'}))"); await wait(130);
+    first.exec('deleteBulkSelected()');
+    assert.match(first.element('#bulk_status').textContent, /changed.*close and select again/i);
+    assert.ok(first.exec('S.jobs["clean-open"] && S.jobs["clean-paid"] && S.jobs.moving'));
+    assert.equal(confirmations.length, 0);
+
+    first.exec("categoryFilters['Cleaning']='All';openBulkDeletion('jobs','Cleaning');bulkSelectShown()");
+    assert.equal(first.exec('bulkDeletion.candidates.length'), 2);
+    assert.equal(first.exec('bulkDeletion.selected.size'), 2);
+    first.exec('deleteBulkSelected()'); await wait(150);
+    assert.match(confirmations.at(-1), /Delete 2 selected jobs/);
+    assert.equal(server.rows.has('jobs/clean-open'), false); assert.equal(server.rows.has('jobs/clean-paid'), false);
+    assert.equal(server.rows.get('jobs/moving').data.workCategory, 'Maintenance');
+    assert.ok(server.rows.has('jobs/tree') && server.rows.has('jobs/legacy') && server.rows.has('clients/c1'));
+  } finally { first.dispose(); second.dispose(); }
+});
+
+test('PDF review categories are optional, batch-editable, rechecked and synced without inference', async () => {
+  const server = new FakeServer(); seedAppfolio(server); let first, mutate = false;
+  first = makeDevice(server, {}, { confirm: () => { if (mutate) first.exec("appfolioImport.entries[0].workCategory='Maintenance'"); return true; } });
+  const second = makeDevice(server);
+  try {
+    await Promise.all([first.login(), second.login()]);
+    setupAppfolio(first, [fictionalAppfolioEntry(), fictionalAppfolioEntry({ name:'second.pdf', number:'251-1', service:'Make-ready cleanup', date:'2026-11-10' })]);
+    assert.equal(first.exec('appfolioPlan(appfolioImport).jobs[0].workCategory'), '');
+    assert.equal(first.exec('appfolioPlan(appfolioImport).jobs[1].workCategory'), '');
+    first.element('#af_batch_category').value = 'Cleaning'; first.exec('appfolioApplyCategory()');
+    assert.equal(first.exec('appfolioImport.entries[0].workCategory'), 'Cleaning');
+    assert.equal(first.exec('appfolioImport.entries[1].workCategory'), 'Cleaning');
+    first.exec("appfolioEdit({dataset:{afIndex:'1'},value:'Tree Trimming'},'workCategory')");
+    first.exec("appfolioImport.entries[0].workCategory='invalid';appfolioAdd()");
+    assert.match(first.element('#af_status').textContent, /valid work category/i);
+    assert.equal(first.exec('Object.keys(pending).length'), 0);
+    first.exec("appfolioImport.entries[0].workCategory='Cleaning'"); mutate = true; first.exec('appfolioAdd()');
+    assert.match(first.element('#af_status').textContent, /selected jobs or CRM changed/i);
+    assert.equal(first.exec('Object.keys(S.jobs).length'), 0);
+    mutate = false; first.exec("appfolioImport.entries[0].workCategory='Cleaning';appfolioAdd()"); await wait(160);
+    const imported = clone(second.exec('Object.values(S.jobs)'));
+    assert.equal(imported.find(j => j.sourceAppfolio.number === '250-1').workCategory, 'Cleaning');
+    assert.equal(imported.find(j => j.sourceAppfolio.number === '250-1').status, 'Unscheduled');
+    assert.equal(imported.find(j => j.sourceAppfolio.number === '251-1').workCategory, 'Tree Trimming');
+    assert.equal(imported.find(j => j.sourceAppfolio.number === '251-1').service, 'Make-ready cleanup');
+    assert.equal(imported.find(j => j.sourceAppfolio.number === '251-1').status, 'Scheduled');
+  } finally { first.dispose(); second.dispose(); }
+});
+
+test('address import and scheduling from an estimate preserve explicitly chosen categories', async () => {
+  const server = new FakeServer(); seedPrice(server, 'clients', record('Fictional Client', 'c1')); seedPrice(server, 'estimates', priceEstimate('e1'));
+  const first = makeDevice(server, {}, { confirm: () => true }), second = makeDevice(server);
+  try {
+    await Promise.all([first.login(), second.login()]); first.exec('openImport()');
+    for (const [field, value] of Object.entries({ imp_mode:'jobs', imp_client:'c1', imp_format:'address', imp_date:'2026-11-12', imp_service:'Trim / prune', imp_category:'Cleaning', imp_text:'99 Fictional Road' })) first.element('#' + field).value = value;
+    first.exec('reviewImport()'); assert.match(first.element('#imp_preview').innerHTML, /Cleaning/);
+    first.element('#imp_category').value = 'Maintenance'; first.exec('confirmImport()');
+    assert.match(first.element('#imp_status').textContent, /changed.*review/i); assert.equal(first.exec('Object.keys(S.jobs).length'), 0);
+    first.exec('reviewImport();confirmImport()'); await wait(120);
+    const imported = clone(second.exec('Object.values(S.jobs)[0]'));
+    assert.equal(imported.workCategory, 'Maintenance'); assert.equal(imported.service, 'Trim / prune');
+    first.exec("scheduleEstimate('e1')");
+    first.element('#es_job_date').value = '2026-11-13'; first.element('#es_job_property').value = '100 Fictional Road';
+    first.element('#es_job_category').value = 'Tree Trimming'; first.exec('createJobFromEstimate()'); await wait(120);
+    const scheduled = clone(second.exec("Object.values(S.jobs).find(j=>j.sourceEstimateId==='e1')"));
+    assert.equal(scheduled.workCategory, 'Tree Trimming'); assert.equal(scheduled.service, 'Mow / edge / blow');
+    assert.equal(scheduled.price, 125); assert.equal(second.exec('S.estimates.e1.status'), 'Draft');
+  } finally { first.dispose(); second.dispose(); }
+});
+
+test('weekly planner applies an optional default and a per-job override without sending categories to routing', async () => {
+  const server = new FakeServer(), monday = futureMonday(), requests = []; weeklySeed(server, monday);
+  const first = makeDevice(server, {}, { confirm: () => true, fetch: weeklyFakeProvider(requests) }), second = makeDevice(server);
+  try {
+    await Promise.all([first.login(), second.login()]); first.client.auth.getSession = async () => fakeSession();
+    first.exec(`openWeekPlanner();weekPlan.setup.monday=${JSON.stringify(monday)};weekPlan.setup.flags=[true,true,true,true,true,false,false];weekPlan.setup.clientId='c-week';weekPlan.setup.workCategory='Cleaning';weekPlan.setup.text='101 Fictional Road, Austin, TX 78701\\n102 Fictional Road, Austin, TX 78701';weekReviewJobs()`);
+    assert.equal(first.exec('weekPlan.entries[0].workCategory'), 'Cleaning');
+    first.exec("weekEditEntry({dataset:{i:'1'},value:'Maintenance'},'workCategory');weekReviewSharing()");
+    await first.exec('weekBegin()'); await first.exec('weekSuggest()');
+    assert.equal(first.exec('weekPlan.stage'), 'preview');
+    assert.match(first.element('#dlg').innerHTML, /Cleaning/); assert.match(first.element('#dlg').innerHTML, /Maintenance/);
+    first.exec('weekSave()'); await wait(180);
+    const jobs = clone(second.exec("Object.values(S.jobs).filter(j=>j.id!=='old-week')"));
+    assert.equal(jobs.find(j => j.prop.startsWith('101 Fictional')).workCategory, 'Cleaning');
+    assert.equal(jobs.find(j => j.prop.startsWith('102 Fictional')).workCategory, 'Maintenance');
+    assert.equal(second.exec("S.jobs['old-week'].workCategory"), undefined);
+    assert.ok(requests.every(body => !JSON.stringify(body).includes('workCategory')));
+  } finally { first.dispose(); second.dispose(); }
+});
+
+test('unrecognized future categories are escaped and preserved unless the user explicitly changes them', async () => {
+  const server = new FakeServer(); seedPrice(server, 'clients', record('Fictional Client','c1'));
+  const future = '<future category>'; seedPrice(server, 'jobs', {id:'future',client:'c1',service:'Other',workCategory:future,prop:'900 Fictional Example',date:'2026-11-12',status:'Scheduled',repeat:'One-time'});
+  const alerts=[],device=makeDevice(server,{}, {alert:text=>alerts.push(text)});
+  try {
+    await device.login(); device.exec("openJob('future')");
+    assert.match(device.element('#dlg').innerHTML,/Unrecognized category: &lt;future category&gt;/);
+    fillJobForCategory(device,'future',future);await wait(100);
+    assert.equal(server.rows.get('jobs/future').data.workCategory,future);
+    fillJobForCategory(device,'future','not-an-allowed-category');
+    assert.match(alerts.at(-1),/valid work category/i);
+    assert.equal(server.rows.get('jobs/future').data.workCategory,future);
+    fillJobForCategory(device,'future','Maintenance');await wait(100);
+    assert.equal(server.rows.get('jobs/future').data.workCategory,'Maintenance');
+  } finally {device.dispose()}
 });

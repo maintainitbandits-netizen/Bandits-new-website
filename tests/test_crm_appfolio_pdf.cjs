@@ -215,6 +215,13 @@ test('multiple PDFs are read locally, reviewed, imported and scheduled on narrow
         assert.equal(await page.locator('#af_number_1').inputValue(), '251-1');
         assert.equal(await page.locator('#af_description_0').inputValue(), 'Fictional landscape cleanup');
         assert.match(await page.locator('#af_details_0').inputValue(), /Private Fictional Instructions/);
+        assert.equal(await page.locator('#af_category_0').inputValue(), '');
+        assert.equal(await page.locator('#af_category_1').inputValue(), '');
+        await page.locator('#af_batch_category').selectOption('Cleaning');
+        await page.getByRole('button', { name: 'Apply category to all' }).click();
+        assert.equal(await page.locator('#af_category_0').inputValue(), 'Cleaning');
+        assert.equal(await page.locator('#af_category_1').inputValue(), 'Cleaning');
+        await page.locator('#af_category_1').selectOption('Maintenance');
         assert.equal(await page.evaluate(() => __mock.writes.length), 0);
         await page.locator('#af_batch_client').selectOption('c1');
         await page.evaluate(() => { S.clients.c1.name = 'Renamed manager'; });
@@ -246,6 +253,7 @@ test('multiple PDFs are read locally, reviewed, imported and scheduled on narrow
         assert.equal(first.status, 'Unscheduled'); assert.equal(first.date, ''); assert.equal(first.client, 'c1');
         assert.equal(second.status, 'Scheduled'); assert.equal(second.date, '2026-11-10'); assert.equal(second.client, 'c2');
         assert.equal(second.service, 'Make-ready cleanup'); assert.equal(first.price, ''); assert.equal(first.notes, '');
+        assert.equal(first.workCategory, 'Cleaning'); assert.equal(second.workCategory, 'Maintenance');
         assert.equal(first.workDescription, 'Edited fictional landscape cleanup');
         assert.match(first.workOrderDetails, /Fictional landscape cleanup/);
         assert.equal(jobs.some(j => 'pdf' in j || 'file' in j), false);
