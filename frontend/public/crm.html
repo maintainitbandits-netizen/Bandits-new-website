@@ -31,7 +31,7 @@ input,select,textarea{width:100%;font:inherit;font-size:16px;background:var(--bg
 label{display:block;font-size:12px;color:var(--mu)}h2{font-size:17px;margin:0 0 8px}
 .pick-stop{display:flex;gap:10px;align-items:flex-start;border:1px solid var(--bd);border-radius:10px;padding:10px;margin:7px 0;color:var(--tx);font-size:14px;cursor:pointer}
 .pick-stop input{width:20px;height:20px;flex:0 0 20px;padding:0;margin:2px 0}.pick-stop span{min-width:0;overflow-wrap:anywhere}.pick-stop .m{display:block}
-.estimate-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.estimate-line{margin:8px 0}
+.estimate-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.estimate-line{margin:8px 0}.completed-card{overflow-wrap:anywhere}.completed-card .sp>*{min-width:0}
 dialog{width:min(520px,94vw);max-height:90vh;border:1px solid var(--bd);border-radius:14px;background:var(--cd);color:var(--tx);padding:14px;overflow-wrap:anywhere}
 dialog::backdrop{background:#0008}.bt{display:flex;gap:6px;flex-wrap:wrap}
 #login{position:fixed;inset:0;background:var(--bg);z-index:50;display:flex;align-items:center;justify-content:center;padding:20px}#login[hidden]{display:none}
@@ -55,7 +55,7 @@ dialog::backdrop{background:#0008}.bt{display:flex;gap:6px;flex-wrap:wrap}
 const $=s=>document.querySelector(s),E=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const ST=["Lead","Quoted","Won","Recurring","Lost"],JS=["Scheduled","Done","Invoiced","Paid"],RP=["One-time","Weekly","Every 2 weeks","Monthly"],
 TY=["Property manager","Homeowner","Realtor / investor","STR host","Commercial","Other / unknown"],
-SV=["Make-ready cleanup","Mow / edge / blow","Mulch / bed refresh","Trim / prune","Haul-off","Sod / seed","Pressure wash","Other"],TABS=["Pipeline","Clients","Properties","Estimates","Route","Jobs","Due & overdue"],
+SV=["Make-ready cleanup","Mow / edge / blow","Mulch / bed refresh","Trim / prune","Haul-off","Sod / seed","Pressure wash","Other"],TABS=["Pipeline","Clients","Properties","Estimates","Route","Jobs","Completed","Due & overdue"],
 DEF="Mow | 55\nMulch per yard | 85\nBed cleanup | 60\nTrim | 75\nHaul-off | 120\nPressure wash | 150\nMake-ready flat | 250";
 let S={clients:{},jobs:{},estimates:{},meta:{}},db=null,synced=false,tab="Pipeline",jf="Open",q="",pend=false,known={};
 const p2=n=>String(n).padStart(2,"0"),fd=d=>d.getFullYear()+"-"+p2(d.getMonth()+1)+"-"+p2(d.getDate()),today=()=>fd(new Date());
@@ -132,8 +132,8 @@ function render(){pend=false;head();
  const L=arr(S.clients),J=arr(S.jobs);
  $("#stats").innerHTML=[[L.filter(c=>c.stage=="Lead"||c.stage=="Quoted").length,"Open leads"],[L.filter(c=>c.stage=="Recurring").length,"Recurring"],[J.filter(j=>j.status=="Scheduled").length,"Scheduled"],[money(unp(J)),"Unpaid"]].map(a=>`<div class="stat"><b>${a[0]}</b><span>${a[1]}</span></div>`).join("");
  $("#tabs").innerHTML=TABS.map(t=>`<button class="${t==tab?"on":""}" onclick="tab='${t}';render()">${t}</button>`).join("");
- $("#main").innerHTML=({Pipeline:vPipe,Clients:vClients,Properties:vProps,Estimates:vEstimates,Route:vRoute,Jobs:vJobs,"Due & overdue":vDue})[tab]();
- if(tab=="Clients")clist();if(tab==="Estimates")estimateLists()}
+ $("#main").innerHTML=({Pipeline:vPipe,Clients:vClients,Properties:vProps,Estimates:vEstimates,Route:vRoute,Jobs:vJobs,Completed:vCompleted,"Due & overdue":vDue})[tab]();
+ if(tab=="Clients")clist();if(tab==="Estimates")estimateLists();if(tab==="Completed")completedList()}
 const sorted=o=>arr(o).sort((a,b)=>(a.name||"").localeCompare(b.name||""));
 function vPipe(){return`<div class="board">${ST.map((s,i)=>{const cs=sorted(S.clients).filter(c=>c.stage==s);
  return`<div class="col"><h3>${s}<span class="m">${cs.length}</span></h3>${s==="Lead"?'<button class="dg" onclick="openLeadDeletion()">Select leads to delete</button>':""}${cs.map(c=>{const n=nextJob(c.id);
@@ -419,6 +419,28 @@ function vJobs(){const od=today();let L=arr(S.jobs).filter(j=>jf=="All"||(jf=="O
  return`<div class="card" onclick="openJob('${j.id}')"><div class="sp"><b>${E(cname(j.client))}</b><b>${money(j.price)}</b></div><div class="m">${E(j.service)}${j.prop?" · "+E(j.prop):""}</div>
  <div class="m">${E(j.date)} <span class="chip">${j.status}</span>${jobDateLabel(j)?`<span class="chip">${E(jobDateLabel(j))}</span>`:""}${storedEstimate(j.estimatedMinutes)?`<span class="chip">${E(estimateText(j.estimatedMinutes))} work</span>`:""}${late?'<span class="chip bad">Overdue</span>':""}${j.repeat&&j.repeat!="One-time"?`<span class="chip">${E(j.repeat)}</span>`:""}</div>
  <div class="row">${nx?`<button onclick="event.stopPropagation();setStatus('${j.id}','${nx}')">→ ${nx}</button>`:""}<button onclick="event.stopPropagation();openDoc('${j.id}')">${j.status=="Scheduled"?"Quote":"Invoice"}</button><button data-job="${E(j.id)}" onclick="event.stopPropagation();openJobPhotos(this.dataset.job)">Before / after photos</button><button class="dg" data-job="${E(j.id)}" onclick="event.stopPropagation();delJob(this.dataset.job)">Delete job</button></div></div>`}).join("")||'<p class="m">No jobs here.</p>')}
+/* Completed work is a view of existing job statuses, not a separate copy. */
+const COMPLETED_STATES=["Done","Invoiced","Paid"];
+let completedQuery="",completedFilter="All";
+function vCompleted(){return `<div class="card"><h2>Completed work</h2><p class="m">Jobs marked Done, Invoiced or Paid appear here. To finish a job, tap → Done in Jobs or Mark Done on Route. Done and Invoiced jobs also remain in Jobs → Open until marked Paid.</p><p class="m">Dates below are scheduled job dates, not completion dates.</p></div>
+ <label for="completed_search">Search completed jobs</label><input id="completed_search" type="search" placeholder="Client, property, service or date" value="${E(completedQuery)}" oninput="completedQuery=this.value;completedList()">
+ <label for="completed_filter">Status</label><select id="completed_filter" onchange="completedFilter=this.value;completedList()">${["All",...COMPLETED_STATES].map(s=>`<option${s===completedFilter?" selected":""}>${E(s)}</option>`).join("")}</select>
+ <p id="completed_count" class="m" role="status" aria-live="polite"></p><div id="completed_list"></div>`}
+function completedList(){
+ const list=$("#completed_list"),count=$("#completed_count");if(!list||!count)return;
+ const query=completedQuery.trim().toLowerCase(),matches=parts=>!query||parts.map(v=>String(v==null?"":v)).join(" ").toLowerCase().includes(query);
+ const date=j=>validDate(j.date)?j.date:"";
+ const jobs=arr(S.jobs).filter(j=>j&&COMPLETED_STATES.includes(j.status)&&(completedFilter==="All"||j.status===completedFilter)&&matches([cname(j.client),jaddr(j),j.service,j.date,j.status])).sort((a,b)=>date(b).localeCompare(date(a))||String(a.id||"").localeCompare(String(b.id||"")));
+ count.textContent=jobs.length+" completed job"+(jobs.length===1?"":"s")+" shown";
+ list.innerHTML=jobs.map(j=>{const price=j.price==null||j.price===""?"Price not set":Number.isFinite(Number(j.price))?money(j.price):"Price needs review",validId=typeof j.id==="string"&&!!j.id&&S.jobs[j.id]===j;
+  return `<div class="card completed-card"><div class="sp"><b>${E(cname(j.client))}</b><span class="chip">${E(j.status)}</span></div><div class="m">${E(j.service||"Service not set")} · ${E(jaddr(j)||"No property")}</div><div class="m">Scheduled: ${E(j.date||"not set")} · ${E(price)}</div>${validId?`<div class="row"><button data-job="${E(j.id)}" onclick="editCompletedJob(this.dataset.job)">Edit job</button><button data-job="${E(j.id)}" onclick="openDoc(this.dataset.job)">Invoice</button><button data-job="${E(j.id)}" onclick="openJobPhotos(this.dataset.job)">Before / after photos</button><button class="dg" data-job="${E(j.id)}" onclick="delJob(this.dataset.job)">Delete job</button></div>`:'<p class="m">This job has an invalid ID; review your backup before changing it.</p>'}</div>`
+ }).join("")||'<p class="m">No completed jobs match.</p>'
+}
+function editCompletedJob(id){
+ const job=Object.prototype.hasOwnProperty.call(S.jobs,id)?S.jobs[id]:null;if(!job){alert("That job no longer exists. Refresh and try again.");if(tab==="Completed")completedList();return}
+ if(!Object.prototype.hasOwnProperty.call(S.clients,job.client)||!S.clients[job.client]){alert("This job's client is missing. Restore or review the client before editing this job.");return}
+ openJob(id)
+}
 /* Due dates are based on the required date, not the planned appointment date. */
 function vDue(){
  const now=today(),jobs=arr(S.jobs).filter(j=>j&&j.status==="Scheduled"&&((j.dateRequirement&&j.dateRequirement!=="any")||(!j.dateRequirement&&j.requiredDate))),groups={overdue:[],today:[],upcoming:[],attention:[]};
