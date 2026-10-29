@@ -529,8 +529,14 @@ function estimateLists(){
 function spawn(j){if(j.repeat&&j.repeat!="One-time"&&!j.spawned&&COMPLETED_STATES.includes(j.status)&&validDate(j.date)){const n=Object.assign({},j,{id:uid("j"),date:addD(j.date,j.repeat=="Weekly"?7:14,j.repeat=="Monthly"),status:"Scheduled",spawned:false});delete n.ord;delete n.dateRequirement;delete n.requiredDate;delete n.sourceAppfolio;delete n.workDescription;delete n.workOrderDetails;j.spawned=true;w("jobs",n);w("jobs",j)}}
 function setStatus(id,s){const j=S.jobs[id];j.status=s;w("jobs",j);spawn(j);render()}
 /* dialogs */
-const dlg=h=>{clearPhotoView();clearAIQuote();$("#dlg").innerHTML=h;if(!$("#dlg").open)$("#dlg").showModal()},closeD=()=>{$("#dlg").close();later()};
-$("#dlg").addEventListener("close",()=>{roadSeq++;roadPlan=null;roadBusy=false;pickedRoute=null;weekSeq++;weekPlan=null;weekBusy=false;appfolioReadSeq++;appfolioImport=null;leadDeletion=null;clientDeletion=null;bulkDeletion=null;bulkCategoryAssignment=null;jobEditor=null;estimateDraft=null;estimateSchedule=null;clearPhotoView();clearAIQuote();if(pend)setTimeout(later,0)});
+let dialogNeedsCleanup=false;
+function clearClosedDialog(){roadSeq++;roadPlan=null;roadBusy=false;pickedRoute=null;weekSeq++;weekPlan=null;weekBusy=false;appfolioReadSeq++;appfolioImport=null;leadDeletion=null;clientDeletion=null;bulkDeletion=null;bulkCategoryAssignment=null;jobEditor=null;estimateDraft=null;estimateSchedule=null;clearPhotoView();clearAIQuote();if(pend)setTimeout(later,0)}
+const dlg=h=>{clearPhotoView();clearAIQuote();$("#dlg").innerHTML=h;if(!$("#dlg").open){$("#dlg").showModal();dialogNeedsCleanup=true}},closeD=()=>{const d=$("#dlg");if(d.open){d.close();if(dialogNeedsCleanup){dialogNeedsCleanup=false;clearClosedDialog()}}later()};
+// Native close events can arrive after this dialog has already been reopened.
+// Cleanup happens synchronously on our close path so a stale event cannot wipe
+// the new form; Escape follows the same path.
+$("#dlg").addEventListener("cancel",e=>{e.preventDefault();closeD()});
+$("#dlg").addEventListener("close",()=>{if($("#dlg").open||!dialogNeedsCleanup)return;dialogNeedsCleanup=false;clearClosedDialog()});
 document.addEventListener("focusout",()=>setTimeout(()=>{if(pend&&!busy())render()},80));
 const bt=(id,key,del)=>`<div class="bt"><button class="pri" data-id="${E(id||"")}" onclick="${key}(this.dataset.id)">Save</button>${id&&del?`<button class="dg" data-id="${E(id)}" onclick="${del}(this.dataset.id)">Delete</button>`:""}<button onclick="closeD()">Cancel</button></div>`;
 /* Destructive changes require a current shared snapshot and an explicit count. */
@@ -857,11 +863,16 @@ function saveEstimate(){
 }
 /* AI photo estimates are ephemeral until the normal estimate editor saves them. */
 const AI_PHOTO_LIMIT=3,AI_PHOTO_INPUT_LIMIT=20*1024*1024,AI_PHOTO_OUTPUT_LIMIT=750000,AI_RATE_LIMIT=50,AI_ANSWER_LIMIT=18;
+// Allow the server's 150-second limit and network overhead, but do not leave
+// a mobile form waiting forever if the preview connection never responds.
+const AI_SESSION_WAIT_MS=10000,AI_NETWORK_WAIT_MS=165000;
 function clearAIQuote(){
  const p=aiQuote;aiQuote=null;if(!p)return;if(p.controller)try{p.controller.abort()}catch(e){}
  (p.urls||[]).forEach(url=>{try{URL.revokeObjectURL(url)}catch(e){}});p.urls=[];p.files=[];p.photos=[];p.answers=[];p.extra=""
 }
 function aiCurrent(p){return aiQuote===p&&$("#dlg").open&&!!$("#ai_status")}
+function aiRequestCurrent(p,seq){return aiCurrent(p)&&p.requestSeq===seq}
+function aiSetStatus(message){$("#ai_status").textContent=message;const local=$("#ai_followup_status");if(local)local.textContent=message}
 function aiRateCard(){
  const raw=S.meta&&S.meta.rates;
  if(typeof raw!=="string"||!raw.trim()||raw.replace(/\r\n/g,"\n").trim()===DEF.trim())return {raw,rates:[],message:"Starter rates are placeholders. Update Rates with your real prices before using them here; otherwise enter prices manually."};
@@ -895,7 +906,7 @@ function openAIQuote(){
  </fieldset><p id="ai_status" class="m" role="status" aria-live="polite"></p><div id="ai_result"></div>
  <div class="bt"><button id="ai_generate" class="pri" type="button" onclick="generateAIQuote()">Generate draft</button><button type="button" onclick="closeD()">Cancel / close</button></div>
  <p class="m">Closing after a request starts may not stop processing or allowance use (or charges on a paid account). Requests are never automatically retried.</p>`);
- aiQuote={files:[],urls:[],photos:[],answers:[],extra:"",questionFields:[],busy:false,controller:null,rateRaw:card.raw,result:null}
+ aiQuote={files:[],urls:[],photos:[],answers:[],extra:"",questionFields:[],busy:false,controller:null,requestSeq:0,rateRaw:card.raw,result:null}
 }
 function aiClientChanged(){const client=String($("#ai_client").value||"");$("#ai_properties").innerHTML=pl(client);$("#ai_property").value=""}
 function aiPhotosChanged(input){
@@ -926,7 +937,8 @@ async function prepareAIPhoto(file){
 }
 function aiBusy(p,busy){
  p.busy=busy;
- ["#ai_form","#ai_followup_form","#ai_generate","#ai_update","#ai_flat","#ai_items"].forEach(id=>{const el=$(id);if(el)el.disabled=busy})
+ ["#ai_form","#ai_followup_form","#ai_generate","#ai_update","#ai_flat","#ai_items","#ai_previous_flat","#ai_previous_items"].forEach(id=>{const el=$(id);if(el)el.disabled=busy});
+ ["#ai_stop","#ai_stop_info"].forEach(id=>{const el=$(id);if(el)el.hidden=!(busy&&p.result)})
 }
 function aiCleanResult(value,rates){
  const keys=(o,k)=>o&&typeof o==="object"&&!Array.isArray(o)&&Object.keys(o).length===k.length&&k.every(x=>Object.prototype.hasOwnProperty.call(o,x));
@@ -955,26 +967,39 @@ function aiCleanResult(value,rates){
 function aiError(p,e,consent){
  if(!aiCurrent(p))return;
  const cause=String(e&&e.message||"Could not prepare the photo estimate.").replace(/\s*No estimate was saved\./gi,"").trim();
- const message=cause+(p.providerAttempted?" No estimate was saved. This attempt may have used allowance or incurred charges on a paid account; check usage before retrying.":p.requestSent?" No Gemini request was made.":/no request was sent/i.test(cause)?"":" No request was sent.");
+ let message=cause+(p.providerAttempted?" No estimate was saved. This attempt may have used allowance or incurred charges on a paid account; check usage before retrying.":p.requestSent?" No Gemini request was made.":/no request was sent/i.test(cause)?"":" No request was sent.");
+ if(p.result&&consent==="#ai_followup_consent"){$("#ai_previous").hidden=false;message+=" The last completed draft is still available below."}
  $("#ai_status").textContent=message;const local=consent==="#ai_followup_consent"?$("#ai_followup_status"):null;if(local)local.textContent=message;
  const check=$(consent);if(p.requestSent&&check)check.checked=false
 }
-async function aiSend(p,answers,extra){
- let session;try{session=await sb.auth.getSession()}catch(e){throw new Error("Could not check your CRM session. Sign in and try again.")}
- if(!aiCurrent(p))return null;const token=session&&session.data&&session.data.session&&session.data.session.access_token;
+async function aiSession(){
+ let timer;const timedOut={};
+ try{return await Promise.race([Promise.resolve().then(()=>sb.auth.getSession()),new Promise((_,reject)=>{timer=setTimeout(()=>reject(timedOut),AI_SESSION_WAIT_MS)})])}
+ catch(e){throw new Error(e===timedOut?"Checking your CRM session took too long (APP_SESSION_TIMEOUT).":"Could not check your CRM session. Sign in and try again.")}
+ finally{clearTimeout(timer)}
+}
+async function aiSend(p,answers,extra,seq){
+ aiSetStatus("Checking your CRM session…");const session=await aiSession();
+ if(!aiRequestCurrent(p,seq))return null;const token=session&&session.data&&session.data.session&&session.data.session.access_token;
  if(!/^[A-Za-z0-9._~-]{1,8192}$/.test(String(token||"")))throw new Error("Your CRM session expired. Sign in again.");
  if(!db||!hasSnapshot||!synced||!S.clients[p.client]||JSON.stringify(S.clients[p.client])!==p.clientSignature)throw new Error("The client or sync state changed. No request was sent; review it before generating.");
  if(p.useRates&&(!S.meta||S.meta.rates!==p.rateRaw))throw new Error("The rate card changed. No request was sent; review Rates before generating.");
  const body={consent:true,provider:"gemini",disclosure:"gemini-free-v1",service:p.service,description:p.description,photos:p.photos,rates:p.rates.map(r=>({id:r.id,name:r.name})),answers,extra};
- p.controller=new AbortController();const sending="Waiting for Gemini to prepare a draft. This can take up to about 2 minutes; keep this window open.";$("#ai_status").textContent=sending;if($("#ai_followup_status"))$("#ai_followup_status").textContent=sending;p.requestSent=true;p.providerAttempted=true;
- let response;try{response=await fetch("/api/crm-quote",{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+token},body:JSON.stringify(body),cache:"no-store",signal:p.controller.signal})}
- catch(e){throw new Error("The connection to the preview ended before the request could be confirmed (APP_CONNECTION).")}
- if(!aiCurrent(p))return null;let data;try{data=await response.json()}catch(e){throw new Error("The preview returned an unreadable response (APP_BAD_RESPONSE).")}
- if(!response.ok){p.providerAttempted=!data||data.providerAttempted!==false;throw new Error(String(data&&data.error||"Could not prepare the draft (APP_ERROR).").slice(0,300))}
- return aiCleanResult(data&&data.draft,p.rates)
+ const controller=new AbortController();p.controller=controller;let timedOut=false;
+ const timer=setTimeout(()=>{timedOut=true;controller.abort()},AI_NETWORK_WAIT_MS);
+ aiSetStatus("Waiting for Gemini to prepare a draft. This can take up to about 2 minutes; keep this window open.");p.requestSent=true;p.providerAttempted=true;
+ try{
+  let response;try{response=await fetch("/api/crm-quote",{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+token},body:JSON.stringify(body),cache:"no-store",signal:controller.signal})}
+  catch(e){throw new Error(timedOut?"The preview did not respond within the time limit (APP_TIMEOUT).":"The connection to the preview ended before the request could be confirmed (APP_CONNECTION).")}
+  if(!aiRequestCurrent(p,seq))return null;let data;
+  try{data=await response.json()}catch(e){throw new Error(timedOut?"The preview did not respond within the time limit (APP_TIMEOUT).":"The preview returned an unreadable response (APP_BAD_RESPONSE).")}
+  if(!aiRequestCurrent(p,seq))return null;
+  if(!response.ok){p.providerAttempted=!data||data.providerAttempted!==false;throw new Error(String(data&&data.error||"Could not prepare the draft (APP_ERROR).").slice(0,300))}
+  return aiCleanResult(data&&data.draft,p.rates)
+ }finally{clearTimeout(timer);if(p.controller===controller)p.controller=null}
 }
 async function generateAIQuote(){
- const p=aiQuote;if(!p||p.busy||p.result)return;p.requestSent=false;p.providerAttempted=false;
+ const p=aiQuote;if(!p||p.busy||p.result)return;const seq=++p.requestSeq;p.requestSent=false;p.providerAttempted=false;
  try{
   if(!db||!hasSnapshot||!synced)throw new Error("Wait until the CRM says Synced across devices before generating.");
   const client=String($("#ai_client").value||""),clientRecord=S.clients[client],service=$("#ai_service").value,property=$("#ai_property").value.trim(),description=$("#ai_description").value.trim();
@@ -987,11 +1012,11 @@ async function generateAIQuote(){
   if(useRates&&(card.raw!==p.rateRaw||!card.rates.length))throw new Error("The rate card changed or needs review. Close this window and check Rates before using it.");
   p.client=client;p.clientSignature=JSON.stringify(clientRecord);p.service=service;p.property=property;p.description=description;p.rateRaw=card.raw;p.rates=useRates?card.rates:[];p.useRates=useRates;
   aiBusy(p,true);const photos=[];
-  for(let i=0;i<p.files.length;i++){$("#ai_status").textContent="Preparing photo "+(i+1)+" of "+p.files.length+" on this device…";photos.push(await prepareAIPhoto(p.files[i]));if(!aiCurrent(p))return}
-  p.photos=photos;const result=await aiSend(p,[],"");if(!aiCurrent(p)||!result)return;
+  for(let i=0;i<p.files.length;i++){$("#ai_status").textContent="Preparing photo "+(i+1)+" of "+p.files.length+" on this device…";photos.push(await prepareAIPhoto(p.files[i]));if(!aiRequestCurrent(p,seq))return}
+  p.photos=photos;const result=await aiSend(p,[],"",seq);if(!aiRequestCurrent(p,seq)||!result)return;
   p.result=result;p.answers=[];p.extra="";p.controller=null;$("#ai_form").hidden=true;$("#ai_generate").hidden=true;showAIResult(p)
- }catch(e){aiError(p,e,"#ai_consent")}
- finally{if(aiCurrent(p)){p.controller=null;aiBusy(p,false)}}
+ }catch(e){if(aiRequestCurrent(p,seq))aiError(p,e,"#ai_consent")}
+ finally{if(aiRequestCurrent(p,seq)){p.controller=null;aiBusy(p,false)}}
 }
 function aiCollectAnswers(p){
  const answers=[];
@@ -1006,22 +1031,31 @@ function aiCollectAnswers(p){
 }
 function aiAnswersChanged(p,values){return JSON.stringify(values)!==JSON.stringify({answers:p.answers,extra:p.extra})}
 async function updateAIQuote(){
- const p=aiQuote;if(!p||p.busy||!p.result)return;p.requestSent=false;p.providerAttempted=false;
+ const p=aiQuote;if(!p||p.busy||!p.result)return;const seq=++p.requestSeq;p.requestSent=false;p.providerAttempted=false;
  try{
   const values=aiCollectAnswers(p);if(!aiAnswersChanged(p,values))throw new Error("Enter or change an answer or additional detail first.");
   if(!$("#ai_followup_consent").checked)throw new Error("Agree to send the photos and answers to Gemini again before updating.");
-  aiBusy(p,true);const result=await aiSend(p,values.answers,values.extra);if(!aiCurrent(p)||!result)return;
-  p.answers=values.answers;p.extra=values.extra;p.result=result;p.controller=null;showAIResult(p)
- }catch(e){aiError(p,e,"#ai_followup_consent")}
- finally{if(aiCurrent(p)){p.controller=null;aiBusy(p,false)}}
+  aiBusy(p,true);const result=await aiSend(p,values.answers,values.extra,seq);if(!aiRequestCurrent(p,seq)||!result)return;
+  p.answers=values.answers;p.extra=values.extra;p.result=result;p.controller=null;showAIResult(p,true)
+ }catch(e){if(aiRequestCurrent(p,seq))aiError(p,e,"#ai_followup_consent")}
+ finally{if(aiRequestCurrent(p,seq)){p.controller=null;aiBusy(p,false)}}
 }
-function showAIResult(p){
+function stopAIUpdate(){
+ const p=aiQuote;if(!p||!aiCurrent(p)||!p.busy||!p.result)return;
+ const attempted=p.requestSent,seq=p.requestSeq,draft=p.result;
+ if(!confirm("Stop waiting for this update? "+(attempted?"Gemini may still process it or count usage. ":"No Gemini request has been sent yet. ")+"The last completed draft will remain available, but it does not include the new answers."))return;
+ if(!aiRequestCurrent(p,seq)||!p.busy||p.result!==draft)return;
+ p.requestSeq++;if(p.controller)try{p.controller.abort()}catch(e){}p.controller=null;aiBusy(p,false);
+ const check=$("#ai_followup_consent");if(check)check.checked=false;$("#ai_previous").hidden=false;
+ aiSetStatus("Stopped waiting. The last completed draft is unchanged."+(attempted?" Gemini may still process the request or count usage; check usage before retrying.":" No Gemini request was sent."))
+}
+function showAIResult(p,updated=false){
  if(!aiCurrent(p)||!p.result)return;const d=p.result,stable=!p.useRates||(S.meta&&S.meta.rates===p.rateRaw),b=d.ballpark;
  const list=(title,items)=>items.length?`<h3>${E(title)}</h3><ul>${items.map(x=>`<li>${E(x)}</li>`).join("")}</ul>`:"";
  const seen=new Set(),fields=[];[...p.answers,...d.questions.map(question=>({question,answer:""}))].forEach(item=>{const key=item.question.toLowerCase();if(!seen.has(key)){seen.add(key);fields.push(item)}});p.questionFields=fields;
  const range=b.low===null?"No useful total ballpark yet — answer questions or add details below.":estimateMoney(b.low)+" – "+estimateMoney(b.high);
  const midpoint=b.low===null?null:Math.floor((b.low+b.high+1)/2);
- $("#ai_result").innerHTML=`<h3>Suggested draft — not saved</h3><p>${E(d.summary)}</p>
+ $("#ai_result").innerHTML=`<h3>${updated?"Updated draft — not saved":"Suggested draft — not saved"}</h3><p>${E(d.summary)}</p>
  <div class="card"><b>Total AI ballpark: ${E(range)}</b><p class="m">${E(b.basis)}</p><p class="m">This is an unverified AI guess, not your actual rates or researched local prices. Check the scope, measurements, access, hidden conditions and price before using it.</p></div>
  <p class="m">Review every line. A photo cannot reliably show measurements or hidden conditions. ${stable?"":"Your rate card changed; matching prices will be left blank."}</p>
  ${d.lines.map((line,i)=>{const rate=stable?p.rates.find(r=>r.id===line.rate_id):null;return `<div class="card"><b>${i+1}. ${E(line.description)}</b><div class="m">Quantity: ${line.quantity===null?"Needs review / measurement":E(line.quantity)} · Rate: ${rate?E(rate.name)+" — "+estimateMoney(rate.cents):"Enter manually"}</div><div class="m">${E(line.basis)}</div></div>`}).join("")}
@@ -1032,30 +1066,40 @@ function showAIResult(p){
  <label for="ai_extra">Additional details (optional)</label><textarea id="ai_extra" rows="2" maxlength="1000">${E(p.extra)}</textarea>
  <label class="pick-stop"><input id="ai_followup_consent" type="checkbox"><span>I confirm this material contains no personal, sensitive or confidential information, and I agree to send it to Google Gemini again as described above.</span></label>
  <p id="ai_followup_status" class="m" role="status" aria-live="polite"></p><div class="bt"><button id="ai_update" type="button" onclick="updateAIQuote()">Update draft with answers</button></div></fieldset>
+ <div class="bt"><button id="ai_stop" type="button" hidden onclick="stopAIUpdate()">Stop waiting and keep last draft</button></div><p id="ai_stop_info" class="m" hidden>Stopping may not stop Gemini from processing or using allowance. The last draft is kept only in this window; closing it discards the unsaved draft and answers.</p>
+ <div id="ai_previous" class="card" hidden><b>Continue without another AI request</b><p class="m">The last completed AI draft and ballpark do not include your new or changed answers. You can add those answers to team notes and correct the scope and price yourself. Nothing is sent or saved by opening the editor; closing this window discards the unsaved draft.</p><div class="bt">${midpoint===null?"":`<button id="ai_previous_flat" type="button" onclick="aiToEstimate('flat',true)">Review previous ballpark</button>`}<button id="ai_previous_items" type="button" onclick="aiToEstimate('items',true)">Review previous itemized draft</button></div></div>
  <p class="m">${midpoint===null?"When a ballpark is available, you can use its midpoint as an editable flat draft.":"Use "+estimateMoney(midpoint)+" (the midpoint) as one flat line, or review itemized lines and enter their prices yourself."} Neither option saves or sends anything.</p>
  <p id="ai_review_status" class="m" role="status" aria-live="polite"></p><div class="bt">${midpoint===null?"":`<button id="ai_flat" class="pri" type="button" onclick="aiToEstimate('flat')">Use midpoint as flat draft</button>`}<button id="ai_items" type="button" onclick="aiToEstimate('items')">Review in estimate editor</button></div>`;
- $("#ai_status").textContent="Draft ready for review. Nothing has been saved or sent to a customer.";
+ $("#ai_status").textContent=updated?"Draft updated with your answers. Review the new scope and ballpark; nothing has been saved or sent to a customer.":"Draft ready for review. Nothing has been saved or sent to a customer.";
  const heading=$("#ai_result h3");if(heading&&typeof heading.scrollIntoView==="function")heading.scrollIntoView({block:"start",inline:"nearest"})
 }
 function aiReviewMessage(message){$("#ai_status").textContent=message;const local=$("#ai_review_status");if(local)local.textContent=message}
-function aiToEstimate(mode){
- const p=aiQuote;if(!p||!p.result||p.busy)return;
- try{if(aiAnswersChanged(p,aiCollectAnswers(p)))throw new Error("You have unsent answers. Update the draft with consent, or clear your changes before reviewing.")}catch(e){aiReviewMessage(e.message);return}
- const client=S.clients[p.client];
+function aiToEstimate(mode,usePrevious=false){
+ const p=aiQuote;if(!p||!p.result||p.busy)return;const draft=p.result;let values,unapplied;
+ try{
+  values=aiCollectAnswers(p);unapplied=aiAnswersChanged(p,values);
+  if(unapplied&&!usePrevious){$("#ai_previous").hidden=false;throw new Error("You have new or changed answers. Update with consent, or review the previous draft below without updating.")}
+  if(unapplied&&!confirm("Your new or changed answers were NOT used to update the last AI draft or ballpark. Continue with the previous result and add those changes to team-only notes for manual review? Nothing is sent or saved yet."))return
+ }catch(e){aiReviewMessage(e.message);return}
+ const answerSignature=JSON.stringify(values),client=S.clients[p.client];
  if(!client){aiReviewMessage("The chosen client was deleted. The draft is not saved; review the suggestions here before closing.");return}
  if(JSON.stringify(client)!==p.clientSignature){
   if(!confirm("The selected client changed while this draft was open. Use the current client details? The property will be cleared for review; nothing has been saved."))return;
   p.clientSignature=JSON.stringify(client);p.property="";p.clientChanged=true
  }
- const changedClient=!!p.clientChanged,stable=!p.useRates||(S.meta&&S.meta.rates===p.rateRaw),d=p.result,b=d.ballpark,flat=mode==="flat";
+ const changedClient=!!p.clientChanged,rateAtReview=S.meta&&S.meta.rates,stable=!p.useRates||rateAtReview===p.rateRaw,d=p.result,b=d.ballpark,flat=mode==="flat";
  if(flat&&b.low===null){aiReviewMessage("No ballpark is available for a flat draft yet.");return}
  const moneyText=cents=>String(Math.floor(cents/100))+"."+String(cents%100).padStart(2,"0");
  const flatSummary=d.summary.replace(/[|$€£]/g," ").replace(/\bUSD\b/gi," ").replace(/\s+/g," ").trim()||p.service;
  const rows=flat?[{description:("Flat estimate — "+flatSummary).slice(0,200).trim(),quantity:"1",rate:moneyText(Math.floor((b.low+b.high+1)/2))}]:d.lines.map(line=>{const rate=stable?p.rates.find(r=>r.id===line.rate_id):null;return {description:line.description,quantity:line.quantity===null?"":line.quantity,rate:rate?moneyText(rate.cents):""}});
  const priceNote=b.low===null?"AI ballpark: unavailable — "+b.basis:"AI ballpark (unverified total): "+estimateMoney(b.low)+" – "+estimateMoney(b.high)+". "+b.basis;
- let notes=["AI photo draft — verify the scope, measurements and prices.",priceNote,...d.cautions.map(x=>"Caution: "+x),...d.questions.map(x=>"Question: "+x),...p.answers.map(x=>"Answer to "+x.question+": "+x.answer),...(p.extra?["Additional details: "+p.extra]:[]),"AI scope: "+d.summary,...d.lines.map((line,i)=>"Line "+(i+1)+": "+line.description+" — "+line.basis),"Work description: "+p.description].join("\n");
+ const previousAnswers=new Map(p.answers.map(x=>[x.question,x.answer])),currentAnswers=new Map(values.answers.map(x=>[x.question,x.answer]));
+ const pendingNotes=unapplied?["IMPORTANT: New or changed answers and details were NOT used to update this AI scope or ballpark; revise them manually.",...values.answers.filter(x=>previousAnswers.get(x.question)!==x.answer).map(x=>"New or changed answer not applied to this draft — "+x.question+": "+x.answer),...p.answers.filter(x=>!currentAnswers.has(x.question)).map(x=>"Answer cleared since this draft — "+x.question+" (the previous answer was submitted for this draft)."),...(values.extra!==p.extra?[values.extra?"New or changed additional details not applied to this draft: "+values.extra:"Additional details cleared since this draft; previous details were submitted for it."]:[])]:[];
+ let notes=["AI photo draft — verify the scope, measurements and prices.",priceNote,...pendingNotes,...d.cautions.map(x=>"Caution: "+x),...d.questions.map(x=>"Question: "+x),...p.answers.map(x=>"Answer submitted for this draft: "+x.question+": "+x.answer),...(p.extra?["Additional details submitted for this draft: "+p.extra]:[]),"AI scope: "+d.summary,...d.lines.map((line,i)=>"Line "+(i+1)+": "+line.description+" — "+line.basis),"Work description: "+p.description].join("\n");
  let shortened=false;if(notes.length>5000){if(!confirm("The team notes exceed 5,000 characters and must be shortened. Continue? Cancel to copy any important details from the AI suggestions first."))return;notes=notes.slice(0,4950)+"\n[AI notes shortened; review and complete manually.]";shortened=true}
- const notice=(flat?"This flat amount is the midpoint of an unverified AI guess, not your rates or researched local prices. The individual suggestions are in team notes.":stable?"Matched rates, if any, came from the saved card and still require review.":"The rate card changed; matching prices were left blank.")+(changedClient?" Client details changed; the property was cleared.":"")+(shortened?" Team notes were shortened; review and complete them.":"");
+ const notice=(flat?"This flat amount is the midpoint of an unverified AI guess, not your rates or researched local prices. The individual suggestions are in team notes.":stable?"Matched rates, if any, came from the saved card and still require review.":"The rate card changed; matching prices were left blank.")+(unapplied?" New or changed answers were not applied to this completed AI draft; revise the previous scope and price manually.":"")+(changedClient?" Client details changed; the property was cleared.":"")+(shortened?" Team notes were shortened; review and complete them.":"");
+ try{if(!aiCurrent(p)||p.busy||p.result!==draft||JSON.stringify(aiCollectAnswers(p))!==answerSignature)throw new Error("The draft or answers changed. Review them before opening the editor.");if(!S.clients[p.client]||JSON.stringify(S.clients[p.client])!==p.clientSignature)throw new Error("The selected client changed again. Review the draft before continuing.");if(p.useRates&&(S.meta&&S.meta.rates)!==rateAtReview)throw new Error("The rate card changed during review. Try opening the draft again.")}
+ catch(e){if(aiCurrent(p))aiReviewMessage(e.message);return}
  openEstimate(null,{client:p.client,clientSignature:p.clientSignature,service:p.service,property:changedClient?"":p.property,rows,teamNotes:notes,notice,aiRatesUsed:!!(!flat&&p.useRates&&stable&&rows.some(row=>row.rate!=="")),rateRaw:p.rateRaw});$("#dlg").scrollTop=0
 }
 

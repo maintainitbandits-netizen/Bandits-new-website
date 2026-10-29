@@ -145,7 +145,7 @@ test('follow-up answers are explicitly sent with the same photos, and a ballpark
       assert.match(await page.locator('label:has(#ai_followup_consent)').innerText(),/no personal, sensitive or confidential information/);
       assert.equal(await page.evaluate(()=>{const d=document.querySelector('#dlg').getBoundingClientRect(),h=document.querySelector('#ai_result h3').getBoundingClientRect();return h.top>=d.top&&h.top<d.bottom;}),true);
       await page.locator('#ai_answer_0').fill('2 inches deep');await page.locator('#ai_extra').fill('The path is clear.');
-      await page.locator('#ai_flat').click();assert.match(await page.locator('#ai_review_status').innerText(),/unsent answers/i);assert.equal(await page.locator('#es_lines').count(),0);
+      await page.locator('#ai_flat').click();assert.match(await page.locator('#ai_review_status').innerText(),/new or changed answers/i);assert.equal(await page.locator('#es_lines').count(),0);
       await page.locator('#ai_update').click();assert.match(await page.locator('#ai_followup_status').innerText(),/agree to send/i);assert.equal(calls.length,1);
       await page.locator('#ai_followup_consent').check();await page.locator('#ai_update').click();await page.waitForFunction(()=>document.querySelector('#ai_result').textContent.includes('Updated fictional scope.'));
       assert.equal(calls.length,2);assert.deepEqual(calls[1].body.photos,calls[0].body.photos);assert.equal(calls[1].body.consent,true);assert.equal(calls[1].body.provider,'gemini');assert.equal(calls[1].body.disclosure,'gemini-free-v1');
@@ -181,7 +181,10 @@ test('an unavailable ballpark or failed follow-up never produces a fake price or
       assert.equal(calls.length,2);assert.equal(await page.locator('#ai_followup_consent').isChecked(),false);assert.equal(await page.locator('#ai_answer_0').inputValue(),'Unknown');
       const message=await page.locator('#ai_status').innerText();assert.equal(await page.locator('#ai_followup_status').innerText(),message);
       assert.equal((message.match(/No estimate was saved\./g)||[]).length,1);assert.match(message,/may have used allowance/);
-      assert.match(await page.locator('#ai_result').innerText(),/No useful total ballpark yet/);assert.equal(await writes(page),0);assert.deepEqual(errors,[]);
+      assert.match(await page.locator('#ai_result').innerText(),/No useful total ballpark yet/);assert.equal(await page.locator('#ai_previous_flat').count(),0);
+      await page.locator('#ai_previous_items').click();assert.equal(await page.locator('[data-field=rate]').first().inputValue(),'');
+      assert.match(await page.locator('#es_team_notes').inputValue(),/New or changed answer not applied to this draft.*Unknown/);
+      assert.match(await page.locator('#dlg').innerText(),/revise the previous scope and price manually/i);assert.equal(calls.length,2);assert.equal(await writes(page),0);assert.deepEqual(errors,[]);
     }finally{await context.close();}
   }finally{await browser.close();}
 });
@@ -236,6 +239,158 @@ test('closing an in-flight follow-up does not overwrite a new editor or retry',s
       assert.equal(await page.locator('#es_lines .estimate-line').count(),1);assert.equal(await page.locator('[data-field=description]').inputValue(),'');
       assert.equal(calls.length,2);assert.equal(await writes(page),0);assert.deepEqual(errors,[]);
     }finally{release();await context.close();}
+  }finally{await browser.close();}
+});
+
+test('closing an in-flight follow-up and immediately reopening keeps the new form usable',skip,async()=>{
+  const browser=await makeBrowser();let start,release;const started=new Promise(r=>start=r),wait=new Promise(r=>release=r);
+  const handler=async(route,_call,calls)=>{
+    if(calls.length===1)return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({draft:defaultDraft()})});
+    if(calls.length===2){start();await wait;try{await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({draft:defaultDraft()})});}catch(_){}return;}
+    return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({draft:defaultDraft()})});
+  };
+  try{const {context,page,errors,calls}=await setup(browser,320,handler);
+    try{
+      await begin(page);await page.locator('#ai_use_rates').check();await page.locator('#ai_consent').check();await page.getByRole('button',{name:'Generate draft'}).click();await page.waitForSelector('#ai_result h3');
+      await page.locator('#ai_answer_0').fill('3 inches');await page.locator('#ai_followup_consent').check();await page.locator('#ai_update').click();await started;
+      // A close event can be queued after a new dialog opens. Exercise that
+      // ordering explicitly instead of relying on timing between clicks.
+      await page.evaluate(()=>{closeD();openAIQuote();});await page.waitForTimeout(100);
+      assert.equal(await page.evaluate(()=>!!aiQuote),true,'the old close event must not destroy the new form state');
+      await page.locator('#ai_client').selectOption('c1');await page.locator('#ai_service').selectOption('Mulch / bed refresh');
+      await page.locator('#ai_description').fill('Install 2.5 yards of mulch.');await photo(page);await page.locator('#ai_use_rates').check();await page.locator('#ai_consent').check();
+      await page.getByRole('button',{name:'Generate draft'}).click();await page.waitForSelector('#ai_result h3');release();
+      assert.equal(calls.length,3);assert.equal(await writes(page),0);assert.deepEqual(errors,[]);
+    }finally{release();await context.close();}
+  }finally{await browser.close();}
+});
+
+test('a slow follow-up can be stopped and the previous draft reviewed with clearly marked new answers',skip,async()=>{
+  const browser=await makeBrowser();let start,release,allowPrevious=false;const started=new Promise(r=>start=r),wait=new Promise(r=>release=r);
+  const policy=message=>message.includes('answers were NOT used')?allowPrevious:true;
+  const handler=async(route,_call,calls)=>{
+    if(calls.length===1)return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({draft:defaultDraft()})});
+    start();await wait;try{await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({draft:{...defaultDraft(),summary:'Late response.'}})});}catch(_){}
+  };
+  try{const {context,page,errors,calls,dialogs}=await setup(browser,320,handler,policy);
+    try{
+      await begin(page);await page.locator('#ai_use_rates').check();await page.locator('#ai_consent').check();await page.getByRole('button',{name:'Generate draft'}).click();await page.waitForSelector('#ai_result h3');
+      await page.locator('#ai_answer_0').fill('3 inches');await page.locator('#ai_extra').fill('The path is clear.');await page.locator('#ai_followup_consent').check();await page.locator('#ai_update').click();await started;
+      assert.equal(await page.locator('#ai_stop').isVisible(),true);assert.equal(await page.locator('#ai_flat').isDisabled(),true);assert.match(await page.locator('#ai_stop_info').innerText(),/closing it discards the unsaved draft/i);await noOverflow(page,'320 waiting');
+      await page.locator('#ai_stop').click();assert.match(dialogs[0],/may still process/);assert.match(await page.locator('#ai_followup_status').innerText(),/last completed draft is unchanged/i);
+      assert.equal(await page.locator('#ai_followup_consent').isChecked(),false);assert.equal(await page.locator('#ai_previous').isVisible(),true);
+await page.locator('#ai_flat').click();assert.match(await page.locator('#ai_review_status').innerText(),/new or changed answers/i);
+      await page.locator('#ai_previous_flat').click();assert.equal(await page.locator('#ai_update').isVisible(),true);assert.equal(await writes(page),0);
+      allowPrevious=true;await page.locator('#ai_previous_flat').click();
+      assert.equal(await page.locator('#es_lines .estimate-line').count(),1);assert.equal(await page.locator('[data-field=rate]').inputValue(),'170.00');
+      const notes=await page.locator('#es_team_notes').inputValue();assert.match(notes,/NOT used to update this AI scope or ballpark/);assert.match(notes,/New or changed answer not applied to this draft.*3 inches/);assert.match(notes,/New or changed additional details not applied to this draft: The path is clear/);
+      assert.match(await page.locator('#dlg').innerText(),/new or changed answers were not applied to this completed AI draft/i);assert.equal(await page.locator('#es_ai_review').isChecked(),false);
+      release();await page.waitForTimeout(100);assert.equal(await page.locator('#es_lines .estimate-line').count(),1);assert.equal(calls.length,2);assert.equal(await writes(page),0);assert.deepEqual(errors,[]);
+    }finally{release();await context.close();}
+  }finally{await browser.close();}
+});
+
+test('reviewing a previous itemized draft distinguishes changed and cleared details from earlier answers',skip,async()=>{
+  const first={...defaultDraft(),questions:['Confirm the bed depth.','Is the path clear?']};
+  const second={...first,summary:'Earlier completed scope.'};
+  const handler=(route,_call,calls)=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({draft:calls.length===1?first:second})});
+  const browser=await makeBrowser();try{const {context,page,errors,calls}=await setup(browser,320,handler);
+    try{
+      await begin(page);await page.locator('#ai_use_rates').check();await page.locator('#ai_consent').check();await page.getByRole('button',{name:'Generate draft'}).click();await page.waitForSelector('#ai_result h3');
+      await page.locator('#ai_answer_0').fill('3 inches');await page.locator('#ai_answer_1').fill('No');await page.locator('#ai_extra').fill('Earlier details.');
+      await page.locator('#ai_followup_consent').check();await page.locator('#ai_update').click();await page.waitForFunction(()=>document.querySelector('#ai_result').textContent.includes('Earlier completed scope.'));
+      await page.locator('#ai_answer_0').fill('');await page.locator('#ai_answer_1').fill('Yes');await page.locator('#ai_extra').fill('');
+      await page.locator('#ai_items').click();assert.equal(await page.locator('#ai_previous').isVisible(),true);await page.locator('#ai_previous_items').click();
+      assert.equal(await page.locator('#es_lines .estimate-line').count(),2);assert.equal(await page.locator('[data-field=rate]').first().inputValue(),'19.99');
+      const notes=await page.locator('#es_team_notes').inputValue();
+      assert.match(notes,/New or changed answer not applied to this draft — Is the path clear\?: Yes/);assert.match(notes,/Answer cleared since this draft — Confirm the bed depth/);
+      assert.match(notes,/Additional details cleared since this draft/);assert.match(notes,/Answer submitted for this draft: Confirm the bed depth\.: 3 inches/);
+      assert.match(notes,/Answer submitted for this draft: Is the path clear\?: No/);assert.match(notes,/Additional details submitted for this draft: Earlier details/);
+      assert.equal(await page.locator('#es_ai_review').isChecked(),false);assert.equal(calls.length,2);assert.equal(await writes(page),0);assert.deepEqual(errors,[]);
+    }finally{await context.close();}
+  }finally{await browser.close();}
+});
+
+test('changes during the previous-draft confirmation require review again',skip,async()=>{
+  const browser=await makeBrowser();try{const {context,page,errors,calls}=await setup(browser,320);
+    try{
+      await begin(page);await page.locator('#ai_use_rates').check();await page.locator('#ai_consent').check();await page.getByRole('button',{name:'Generate draft'}).click();await page.waitForSelector('#ai_result h3');
+      await page.locator('#ai_answer_0').fill('3 inches');await page.locator('#ai_items').click();
+      await page.evaluate(()=>{window.__nativeConfirm=window.confirm;window.confirm=message=>{if(message.includes('answers were NOT used'))document.querySelector('#ai_answer_0').value='4 inches';return true;}});
+      await page.locator('#ai_previous_items').click();assert.match(await page.locator('#ai_review_status').innerText(),/draft or answers changed/i);assert.equal(await page.locator('#es_lines').count(),0);
+      await page.evaluate(()=>{window.confirm=window.__nativeConfirm});await page.locator('#ai_previous_items').click();
+      assert.match(await page.locator('#es_team_notes').inputValue(),/not applied to this draft.*4 inches/);assert.equal(calls.length,1);assert.equal(await writes(page),0);assert.deepEqual(errors,[]);
+    }finally{await context.close();}
+  }finally{await browser.close();}
+});
+
+test('a stopped update cannot overwrite a newer update or re-enable it early',skip,async()=>{
+  const browser=await makeBrowser();let firstStarted,secondStarted,releaseFirst,releaseSecond;
+  const first=new Promise(r=>firstStarted=r),second=new Promise(r=>secondStarted=r),waitFirst=new Promise(r=>releaseFirst=r),waitSecond=new Promise(r=>releaseSecond=r);
+  const handler=async(route,_call,calls)=>{
+    if(calls.length===1)return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({draft:defaultDraft()})});
+    const old=calls.length===2;if(old){firstStarted();await waitFirst}else{secondStarted();await waitSecond}
+    try{return await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({draft:{...defaultDraft(),summary:old?'Obsolete response.':'New completed response.'}})});}catch(_){}
+  };
+  try{const {context,page,errors,calls}=await setup(browser,390,handler);
+    try{
+      await begin(page);await page.locator('#ai_use_rates').check();await page.locator('#ai_consent').check();await page.getByRole('button',{name:'Generate draft'}).click();await page.waitForSelector('#ai_result h3');
+      await page.locator('#ai_answer_0').fill('3 inches');await page.locator('#ai_followup_consent').check();await page.locator('#ai_update').click();await first;
+      await page.locator('#ai_stop').click();assert.equal(await page.locator('#ai_followup_consent').isChecked(),false);
+      await page.locator('#ai_followup_consent').check();await page.locator('#ai_update').click();await second;releaseFirst();await page.waitForTimeout(100);
+      assert.equal(await page.locator('#ai_update').isDisabled(),true);assert.match(await page.locator('#ai_followup_status').innerText(),/Waiting for Gemini/);
+      assert.doesNotMatch(await page.locator('#ai_result').innerText(),/Obsolete response/);releaseSecond();
+      await page.waitForFunction(()=>document.querySelector('#ai_result').textContent.includes('New completed response.'));
+      assert.match(await page.locator('#ai_result h3').first().innerText(),/Updated draft/);assert.match(await page.locator('#ai_status').innerText(),/updated with your answers/i);
+      assert.equal(calls.length,3);assert.equal(await writes(page),0);assert.deepEqual(errors,[]);
+    }finally{releaseFirst();releaseSecond();await context.close();}
+  }finally{await browser.close();}
+});
+
+test('stopping while the CRM session is pending prevents a later provider request',skip,async()=>{
+  const browser=await makeBrowser();try{const {context,page,errors,calls}=await setup(browser,320);
+    try{
+      await begin(page);await page.locator('#ai_use_rates').check();await page.locator('#ai_consent').check();await page.getByRole('button',{name:'Generate draft'}).click();await page.waitForSelector('#ai_result h3');
+      await page.evaluate(()=>{sb.auth.getSession=()=>new Promise(resolve=>{window.__releaseAISession=resolve})});
+      await page.locator('#ai_answer_0').fill('3 inches');await page.locator('#ai_followup_consent').check();await page.locator('#ai_update').click();
+      await page.waitForFunction(()=>typeof window.__releaseAISession==='function');assert.match(await page.locator('#ai_followup_status').innerText(),/Checking your CRM session/);
+      await page.locator('#ai_stop').click();assert.match(await page.locator('#ai_followup_status').innerText(),/No Gemini request was sent/);
+      await page.evaluate(()=>window.__releaseAISession({data:{session:{access_token:'fictional.jwt'}}}));await page.waitForTimeout(100);
+      assert.equal(calls.length,1);assert.equal(await page.locator('#ai_previous').isVisible(),true);assert.equal(await writes(page),0);assert.deepEqual(errors,[]);
+    }finally{await context.close();}
+  }finally{await browser.close();}
+});
+
+test('browser and session stalls eventually show a safe error and preserve the last draft',skip,async()=>{
+  const browser=await makeBrowser();try{for(const mode of ['session','network']){
+    let start,release;const started=new Promise(r=>start=r),wait=new Promise(r=>release=r);
+    const handler=async(route,_call,calls)=>{
+      if(calls.length===1)return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({draft:defaultDraft()})});
+      start();await wait;try{await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({draft:defaultDraft()})});}catch(_){}
+    };
+    const {context,page,errors,calls}=await setup(browser,320,handler);
+    try{
+      await begin(page);await page.locator('#ai_use_rates').check();await page.locator('#ai_consent').check();await page.getByRole('button',{name:'Generate draft'}).click();await page.waitForSelector('#ai_result h3');
+      await page.evaluate(kind=>{const real=window.setTimeout;window.setTimeout=(fn,ms,...args)=>real(fn,(kind==='session'&&ms===10000)||(kind==='network'&&ms===165000)?100:ms,...args);if(kind==='session')sb.auth.getSession=()=>new Promise(()=>{});},mode);
+      await page.locator('#ai_answer_0').fill('3 inches');await page.locator('#ai_followup_consent').check();await page.locator('#ai_update').click();if(mode==='network')await started;
+      const expected=mode==='session'?'APP_SESSION_TIMEOUT':'APP_TIMEOUT';await page.waitForFunction(code=>document.querySelector('#ai_followup_status').textContent.includes(code),expected);
+      const message=await page.locator('#ai_followup_status').innerText();assert.match(message,mode==='session'?/No request was sent/:/may have used allowance/);
+      assert.equal(await page.locator('#ai_previous').isVisible(),true);assert.equal(await page.locator('#ai_update').isDisabled(),false);
+      assert.equal(calls.length,mode==='session'?1:2);assert.equal(await writes(page),0);assert.deepEqual(errors,[]);
+    }finally{release();await context.close();}
+  }}finally{await browser.close();}
+});
+
+test('a rapid close and reopen does not erase the new estimate editor state; Escape still closes safely',skip,async()=>{
+  const browser=await makeBrowser();try{const {context,page,errors}=await setup(browser,320);
+    try{
+      await page.getByRole('button',{name:'Estimates',exact:true}).click();await page.getByRole('button',{name:'+ New estimate'}).click();
+      await page.evaluate(()=>{closeD();openEstimate()});await page.waitForTimeout(100);
+      assert.equal(await page.evaluate(()=>!!estimateDraft),true);await page.locator('[data-field=description]').fill('Fictional work');
+      assert.equal(await page.evaluate(()=>estimateDraft.rows[0].description),'Fictional work');
+      await page.keyboard.press('Escape');await page.waitForFunction(()=>!document.querySelector('#dlg').open);
+      assert.equal(await page.evaluate(()=>estimateDraft),null);assert.equal(await writes(page),0);assert.deepEqual(errors,[]);
+    }finally{await context.close();}
   }finally{await browser.close();}
 });
 
