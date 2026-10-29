@@ -1,5 +1,5 @@
 // Phone/browser tests use fictional in-memory records and intercepted network
-// requests only. No live CRM, customer images, or OpenAI API calls are made.
+// requests only. No live CRM, customer images, or Cloudflare API calls are made.
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -89,7 +89,10 @@ test('phone photo estimate sends only consented data; review and complete every 
     const {context,page,errors,calls}=await setup(browser,width);
     try{
       await begin(page);await noOverflow(page,`${width} input`);
-      assert.match(await page.locator('#dlg').innerText(),/separately billed OpenAI API charges/);
+      const disclosure=await page.locator('#dlg').innerText();
+      assert.match(disclosure,/sent to Cloudflare Workers AI/);assert.match(disclosure,/Workers Free account/);
+      assert.match(disclosure,/paid account may incur charges/);assert.match(disclosure,/cannot verify the plan/);
+      assert.equal(await page.locator('#dlg a[href="https://developers.cloudflare.com/workers-ai/platform/data-usage/"]').count(),1);
       assert.match(await page.locator('#ai_photo_list').innerText(),/sample1.png/);assert.equal(await writes(page),0);
       await page.getByRole('button',{name:'Generate draft'}).click();assert.match(await page.locator('#ai_status').innerText(),/Agree/);assert.equal(calls.length,0);
       await page.locator('#ai_use_rates').check();await page.locator('#ai_consent').check();await page.getByRole('button',{name:'Generate draft'}).click();
@@ -163,15 +166,17 @@ test('closing an in-flight request cannot contaminate a new estimate or start an
   }finally{await browser.close();}
 });
 
-test('disabled setup and invalid AI output never save, retry or leave consent checked',skip,async()=>{
-  const browser=await makeBrowser();try{for(const mode of ['disabled','invalid']){
-    const handler=route=>route.fulfill(mode==='disabled'?{status:503,contentType:'application/json',body:JSON.stringify({error:'Photo estimates are not enabled yet.',openaiAttempted:false})}:{status:200,contentType:'application/json',body:JSON.stringify({draft:{...defaultDraft(),total:1}})});
+test('disabled setup, quota and invalid AI output never save, retry or leave consent checked',skip,async()=>{
+  const browser=await makeBrowser();try{for(const mode of ['disabled','quota','invalid']){
+    const handler=route=>route.fulfill(mode==='disabled'?{status:503,contentType:'application/json',body:JSON.stringify({error:'Photo estimates are not enabled yet.',providerAttempted:false})}:
+      mode==='quota'?{status:429,contentType:'application/json',body:JSON.stringify({error:'Cloudflare is busy or its daily allowance or rate limit was reached.',providerAttempted:true})}:
+      {status:200,contentType:'application/json',body:JSON.stringify({draft:{...defaultDraft(),total:1}})});
     const {context,page,errors,calls}=await setup(browser,320,handler);
     try{
       await begin(page);await page.locator('#ai_use_rates').check();await page.locator('#ai_consent').check();await page.getByRole('button',{name:'Generate draft'}).click();
-      await page.waitForFunction(()=>{const s=document.querySelector('#ai_status');return s&&/not enabled|invalid/.test(s.textContent);});
+      await page.waitForFunction(()=>{const s=document.querySelector('#ai_status');return s&&/not enabled|invalid|allowance/.test(s.textContent);});
       assert.equal(await page.locator('#ai_consent').isChecked(),false);assert.equal(calls.length,1);assert.equal(await writes(page),0);
-      if(mode==='disabled')assert.match(await page.locator('#ai_status').innerText(),/No OpenAI request was made/);else assert.match(await page.locator('#ai_status').innerText(),/may charge/);
+      if(mode==='disabled')assert.match(await page.locator('#ai_status').innerText(),/No Cloudflare request was made/);else assert.match(await page.locator('#ai_status').innerText(),/may have used allowance/);
       assert.equal(await page.locator('#ai_result h3').count(),0);assert.deepEqual(errors,[]);
     }finally{await context.close();}
   }}finally{await browser.close();}
@@ -219,10 +224,10 @@ test('browser and server contracts work together with only fictional JPEGs and m
   const {createHandler}=require('../frontend/lib/crm-quote');let providerBody,providerCalls=0;
   const fakeFetch=async(url,init)=>{
     if(url==='https://jvmvzfshgcekwocffdtv.supabase.co/auth/v1/user')return {ok:true,status:200,json:async()=>({id:'fictional-user',role:'authenticated',aud:'authenticated',is_anonymous:false})};
-    assert.equal(url,'https://api.openai.com/v1/responses');providerCalls++;providerBody=JSON.parse(init.body);
-    return {ok:true,status:200,json:async()=>({status:'completed',output:[{type:'message',content:[{type:'output_text',text:JSON.stringify(defaultDraft())}]}]})};
+    assert.equal(url,`https://api.cloudflare.com/client/v4/accounts/${'a1'.repeat(16)}/ai/run/@cf/google/gemma-4-26b-a4b-it`);providerCalls++;providerBody=JSON.parse(init.body);
+    return {ok:true,status:200,json:async()=>({success:true,result:{choices:[{finish_reason:'stop',message:{role:'assistant',content:JSON.stringify(defaultDraft()),refusal:null}}]}})};
   };
-  const server=createHandler({env:{AI_QUOTES_ENABLED:'true',CRM_OPENAI_API_KEY:'fictional-secret'},fetch:fakeFetch});
+  const server=createHandler({env:{AI_QUOTES_ENABLED:'true',CRM_AI_FREE_PLAN_CONFIRMED:'true',CRM_CLOUDFLARE_ACCOUNT_ID:'a1'.repeat(16),CRM_CLOUDFLARE_AI_TOKEN:'fictional-secret'},fetch:fakeFetch});
   const routeHandler=async(route,call)=>{
     const res={headers:{},setHeader(k,v){this.headers[k]=v;},status(code){this.code=code;return this;},json(data){this.data=data;return this;}};
     await server({method:'POST',headers:call.headers,body:call.body},res);
@@ -230,9 +235,10 @@ test('browser and server contracts work together with only fictional JPEGs and m
   };
   const browser=await makeBrowser();try{const {context,page,errors,calls}=await setup(browser,390,routeHandler);
     try{
-      await begin(page);await page.locator('#ai_use_rates').check();await page.locator('#ai_consent').check();await page.getByRole('button',{name:'Generate draft'}).click();await page.waitForSelector('#ai_result h3');
-      assert.equal(calls.length,1);assert.equal(providerCalls,1);assert.equal(providerBody.input[1].content[1].type,'input_image');
-      assert.match(providerBody.input[1].content[1].image_url,/^data:image\/jpeg;base64,/);assert.equal(providerBody.store,false);
+      await begin(page);await photo(page,3);await page.locator('#ai_use_rates').check();await page.locator('#ai_consent').check();await page.getByRole('button',{name:'Generate draft'}).click();await page.waitForSelector('#ai_result h3');
+      assert.equal(calls.length,1);assert.equal(providerCalls,1);assert.equal(providerBody.messages[1].content.length,4);
+      for(const image of providerBody.messages[1].content.slice(1)){assert.equal(image.type,'image_url');assert.match(image.image_url.url,/^data:image\/jpeg;base64,/);}
+      assert.equal(providerBody.store,false);
       assert.doesNotMatch(JSON.stringify(providerBody),/Fictional Road|Fictional Customer|PRIVATE CLIENT NOTE|19\.99|sample1\.png/);
       assert.equal(await page.locator('#ai_result img').count(),0);assert.equal(await writes(page),0);assert.deepEqual(errors,[]);
     }finally{await context.close();}

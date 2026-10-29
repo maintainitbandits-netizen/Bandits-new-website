@@ -1,6 +1,6 @@
 'use strict';
 
-// Both switches are server-only. Nothing is enabled until an administrator
-// explicitly configures the feature and deploys with an OpenAI API key.
+// Disabled until an administrator configures the server-only Cloudflare
+// credentials, enables the feature and confirms the Workers Free prerequisite.
 const { createHandler } = require('../lib/crm-quote');
 module.exports = createHandler();

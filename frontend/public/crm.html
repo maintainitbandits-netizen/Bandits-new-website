@@ -880,19 +880,20 @@ function openAIQuote(){
  const card=aiRateCard();
  dlg(`<h2>Photo estimate with AI</h2>
  <p class="m">Choose up to 3 photos and describe the work. The result is a suggestion, not a final quote. Check measurements, access and hidden conditions before using any price.</p>
- <p class="m"><b>Before you generate:</b> the selected photos (including anything visible in them), work description, service and optional rate names will be sent to OpenAI. Client and property fields stay in the CRM unless you include them in the photos or description. Photos are resized and re-encoded on your device to remove metadata, but visible details remain.</p>
- <p class="m">Administrator setup is required before first use. Each request may incur separately billed OpenAI API charges; ChatGPT Plus does not cover general API use. OpenAI may retain data under its API policies. Nothing is saved or sent to a customer automatically.</p>
+ <p class="m"><b>Before you generate:</b> the selected photos (including anything visible in them), work description, service and optional rate names will be sent to Cloudflare Workers AI. Client and property fields stay in the CRM unless you include them in the photos or description. Photos are resized and re-encoded on your device to remove metadata, but visible details remain. See <a href="https://developers.cloudflare.com/workers-ai/platform/data-usage/" target="_blank" rel="noopener noreferrer">Cloudflare's data policy</a>.</p>
+ <p class="m">An administrator must set up and maintain a Cloudflare Workers Free account. That plan stops requests at its daily allowance; a paid account may incur charges. This app cannot verify the plan. Nothing is saved or sent to a customer automatically.</p>
  <fieldset id="ai_form" style="border:0;padding:0;margin:0;min-width:0">
  <label for="ai_client">Client (kept in the CRM)</label><select id="ai_client" onchange="aiClientChanged()"><option value="">Choose a client…</option>${clients.map(c=>`<option value="${E(c.id)}">${E(c.name||"(unnamed)")}</option>`).join("")}</select>
  <label for="ai_property">Property / unit (optional; kept in the CRM)</label><input id="ai_property" list="ai_properties" maxlength="500" placeholder="Street address or GPS coordinates"><datalist id="ai_properties"></datalist>
  <label for="ai_service">Service</label><select id="ai_service"><option value="">Choose a service…</option>${SV.map(s=>`<option value="${E(s)}">${E(s)}</option>`).join("")}</select>
- <label for="ai_description">Describe the work, measurements and known conditions</label><textarea id="ai_description" rows="5" maxlength="2000" placeholder="For example: clean two rooms, approximately 12 by 14 feet each. Access is through the front door."></textarea>
+ <label for="ai_description">Describe the work, measurements and known conditions</label><textarea id="ai_description" rows="5" maxlength="2000" placeholder="For example: clean 2 rooms, approximately 12 by 14 feet each. Access is through the front door."></textarea>
+ <p class="m">Use digits for known quantities. Numbers not found in your description are left blank; even a matching number may be wrong, so verify it.</p>
  <label for="ai_photos">Photos (1 to 3, up to 20 MB each)</label><input id="ai_photos" type="file" accept="image/*" multiple onchange="aiPhotosChanged(this)"><div id="ai_photo_list" class="m"></div>
  <p class="m">${E(card.message)}</p><label class="pick-stop"><input id="ai_use_rates" type="checkbox"${card.rates.length?"":" disabled"}><span>I verified that my saved rate card contains current, real prices. Send the rate names and use matching prices in this draft.</span></label>
- <label class="pick-stop"><input id="ai_consent" type="checkbox"><span>I agree to send the selected photos and description to OpenAI and understand this request may incur API charges.</span></label>
+ <label class="pick-stop"><input id="ai_consent" type="checkbox"><span>I agree to send the selected photos and description to Cloudflare and understand the account's plan and allowance apply.</span></label>
  </fieldset><p id="ai_status" class="m" role="status" aria-live="polite"></p><div id="ai_result"></div>
  <div class="bt"><button id="ai_generate" class="pri" type="button" onclick="generateAIQuote()">Generate draft</button><button type="button" onclick="closeD()">Cancel / close</button></div>
- <p class="m">Closing after a request starts may not stop processing or charges. Requests are never automatically retried.</p>`);
+ <p class="m">Closing after a request starts may not stop processing or allowance use (or charges on a paid account). Requests are never automatically retried.</p>`);
  aiQuote={files:[],urls:[],busy:false,controller:null,rateRaw:card.raw,result:null}
 }
 function aiClientChanged(){const client=String($("#ai_client").value||"");$("#ai_properties").innerHTML=pl(client);$("#ai_property").value=""}
@@ -936,7 +937,7 @@ function aiCleanResult(value,rates){
  });return {summary:value.summary.trim(),lines,questions:value.questions.map(s=>s.trim()),cautions:value.cautions.map(s=>s.trim())}
 }
 async function generateAIQuote(){
- const p=aiQuote;if(!p||p.busy||p.result)return;let sent=false,openaiAttempted=false;
+ const p=aiQuote;if(!p||p.busy||p.result)return;let sent=false,providerAttempted=false;
  try{
   if(!db||!hasSnapshot||!synced)throw new Error("Wait until the CRM says Synced across devices before generating.");
   const client=String($("#ai_client").value||""),clientRecord=S.clients[client],service=$("#ai_service").value,property=$("#ai_property").value.trim(),description=$("#ai_description").value.trim();
@@ -944,7 +945,7 @@ async function generateAIQuote(){
   if(property.length>500||/[\x00-\x1f\x7f]/.test(property))throw new Error("Use a property up to 500 characters without control characters.");
   if(description.length<5||description.length>2000||/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/.test(description))throw new Error("Describe the work in 5 to 2,000 characters.");
   if(!p.files.length||p.files.length>AI_PHOTO_LIMIT)throw new Error("Choose 1 to 3 photos.");
-  if(!$("#ai_consent").checked)throw new Error("Agree to the OpenAI photo and cost disclosure before generating.");
+  if(!$("#ai_consent").checked)throw new Error("Agree to the Cloudflare photo disclosure before generating.");
   const useRates=$("#ai_use_rates").checked,card=aiRateCard();
   if(useRates&&(card.raw!==p.rateRaw||!card.rates.length))throw new Error("The rate card changed or needs review. Close this window and check Rates before using it.");
   p.client=client;p.clientSignature=JSON.stringify(clientRecord);p.service=service;p.property=property;p.description=description;p.rateRaw=card.raw;p.rates=useRates?card.rates:[];p.useRates=useRates;
@@ -956,13 +957,13 @@ async function generateAIQuote(){
   if(!synced||!S.clients[client]||JSON.stringify(S.clients[client])!==p.clientSignature)throw new Error("The client or sync state changed. No request was sent; review it before generating.");
   if(useRates&&(!S.meta||S.meta.rates!==p.rateRaw))throw new Error("The rate card changed. No request was sent; review Rates before generating.");
   const body={consent:true,service,description,photos,rates:p.rates.map(r=>({id:r.id,name:r.name}))};p.controller=new AbortController();
-  $("#ai_status").textContent="Sending to OpenAI and preparing a draft… Keep this window open.";sent=true;openaiAttempted=true;
+  $("#ai_status").textContent="Sending to Cloudflare and preparing a draft… Keep this window open.";sent=true;providerAttempted=true;
   let response;try{response=await fetch("/api/crm-quote",{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+token},body:JSON.stringify(body),cache:"no-store",signal:p.controller.signal})}
-  catch(e){throw new Error("Could not confirm the OpenAI request. It may still be charged; check usage before trying again.")}
-  if(!aiCurrent(p))return;let data;try{data=await response.json()}catch(e){throw new Error("The response could not be read. Check OpenAI usage before trying again.")}
-  if(!response.ok){openaiAttempted=!data||data.openaiAttempted!==false;throw new Error(String(data&&data.error||"Could not prepare the draft. Check OpenAI usage before trying again.").slice(0,300))}
+  catch(e){throw new Error("Could not confirm the Cloudflare request. It may have used allowance; check usage before trying again.")}
+  if(!aiCurrent(p))return;let data;try{data=await response.json()}catch(e){throw new Error("The response could not be read. Check Workers AI usage before trying again.")}
+  if(!response.ok){providerAttempted=!data||data.providerAttempted!==false;throw new Error(String(data&&data.error||"Could not prepare the draft. Check Workers AI usage before trying again.").slice(0,300))}
   p.result=aiCleanResult(data&&data.draft,p.rates);p.controller=null;$("#ai_form").hidden=true;$("#ai_generate").hidden=true;showAIResult(p)
- }catch(e){if(aiCurrent(p)){$("#ai_status").textContent=(e&&e.message||"Could not prepare the photo estimate.")+(openaiAttempted?" No estimate was saved. OpenAI may charge for this attempt; check usage before retrying.":sent?" No OpenAI request was made.":" No request was sent.");if(sent&&$("#ai_consent"))$("#ai_consent").checked=false}}
+ }catch(e){if(aiCurrent(p)){$("#ai_status").textContent=(e&&e.message||"Could not prepare the photo estimate.")+(providerAttempted?" No estimate was saved. This attempt may have used allowance or incurred charges on a paid account; check usage before retrying.":sent?" No Cloudflare request was made.":" No request was sent.");if(sent&&$("#ai_consent"))$("#ai_consent").checked=false}}
  finally{if(aiCurrent(p)){p.controller=null;aiBusy(p,false)}}
 }
 function showAIResult(p){
