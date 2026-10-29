@@ -2,9 +2,19 @@
 
 The controls below use the existing shared CRM and outbox. The usual Vercel preview uses the **live Supabase project**, so a confirmed completion or deletion there affects shared CRM records. Automated tests use fictional in-memory records and do not delete live data. Keep a private backup before destructive changes; JSON backups do not contain photo files. Refresh every team's CRM page after an update so all devices use the same safeguards.
 
+## Organizing jobs by work category
+
+**Tree Trimming**, **Cleaning** and **Maintenance** are separate CRM tabs showing the same job records, not copies. On a phone, swipe the section bar sideways to find them. Each tab starts with the **Open** status filter (which excludes Paid); choose **All** or **Paid** to see paid work. Jobs still appear in the main **Jobs** list, subject to its own status filter, and in Route, Completed, estimates and other existing views as applicable.
+
+Existing jobs are not classified from their service or description. To assign one, tap **Edit job** in **Jobs**, choose **Work category**, and save. Choose a different category or **Uncategorized** later to move it between sections. Category and service are separate: changing a category does not change the service. A job can have one category at a time. To start a new job from a category tab, use its **+ … job** button (or the top **+ Job** while on that tab); the category and matching service start selected and can be changed before saving. A new job from another tab starts uncategorized.
+
+PDF review lets you select a category per work order or apply one to the batch, then adjust individual entries. Address import can assign a single category to its new jobs; the weekly planner supports a default and per-job changes; scheduling from an estimate also offers a category. These start uncategorized unless you choose one. Repeating jobs inherit their category, while the existing rules for AppFolio details and date requirements still apply. Categories use the normal CRM sync and are included in private JSON backups. No category changes occur merely by opening a tab.
+
+Each category tab's **Select … jobs to delete** picker is limited to that category and uses its current status filter; the main Jobs picker can select jobs from all categories. Review the selection and confirmation carefully. Deletion still removes the shared job and does not delete photo files. Use one device at a time and wait for **Synced across devices**.
+
 ## Completed work
 
-Open **Completed** for a searchable view of jobs whose current status is **Done**, **Invoiced**, or **Paid**. Existing finished jobs appear automatically; this view does not create a second record or alter the jobs. Filter by status or search the client, property, service, or scheduled date. Dates shown and the newest-first order use the scheduled job date; the CRM does not record a completion date here.
+Open **Completed** for a searchable view of jobs whose current status is **Done**, **Invoiced**, or **Paid**. Existing finished jobs appear automatically; this view does not create a second record or alter the jobs. Filter by status or search the client, property, service, work category, or scheduled date. Dates shown and the newest-first order use the scheduled job date; the CRM does not record a completion date here.
 
 To mark scheduled work finished, tap **→ Done** on the Jobs card, **Mark Done** on Route, or use the confirmed **Mark done & next** action in next-stop mode. A repeating job can create its next scheduled occurrence using the existing repeat behavior. Done and Invoiced jobs also remain in **Jobs → Open** until marked Paid, so unpaid work is not hidden; Paid jobs remain in Completed and Jobs → All. Marking a job Done does not automatically send an invoice or contact a customer.
 
