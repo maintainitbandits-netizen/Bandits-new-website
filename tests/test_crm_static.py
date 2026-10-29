@@ -1,4 +1,5 @@
 import base64
+import hashlib
 import json
 import re
 import subprocess
@@ -74,7 +75,7 @@ class CRMStaticTests(unittest.TestCase):
             self.assertEqual(rewrites[-1], {'source': '/(.*)', 'destination': '/index.html'})
             for source in ('/crm', '/crm/'):
                 self.assertIn({'source': source, 'destination': '/crm.html'}, rewrites[:-1])
-            for source in ('/crm', '/crm/', '/crm.html', '/crm-week.js'):
+            for source in ('/crm', '/crm/', '/crm.html', '/crm-week.js', '/crm-pdf.mjs', '/crm-pdfjs/:path*'):
                 rule = next(rule for rule in config['headers'] if rule['source'] == source)
                 headers = {header['key'].lower(): header['value'].lower() for header in rule['headers']}
                 self.assertIn('noindex', headers['x-robots-tag'])
@@ -102,6 +103,28 @@ class CRMStaticTests(unittest.TestCase):
         self.assertIn('Some changes have not synced', self.source)
         self.assertIn('Replace all current clients, jobs, saved estimates and settings with this backup?', self.source)
         self.assertIn('This older backup has no saved estimates. Current estimates will be kept', self.source)
+
+    def test_work_order_pdf_reader_is_local_pinned_and_multiple(self):
+        self.assertIn('onclick="openAppfolioImport()"', self.source)
+        self.assertRegex(self.source, r'id="af_file"[^>]*\bmultiple\b')
+        self.assertIn("import('/crm-pdf.mjs')", self.source)
+        reader = ROOT / 'frontend/public/crm-pdf.mjs'
+        text = reader.read_text(encoding='utf-8')
+        self.assertIn("import('/crm-pdfjs/pdf.min.mjs')", text)
+        self.assertIn("workerSrc = '/crm-pdfjs/pdf.worker.min.mjs'", text)
+        self.assertIn('enableScripting: false', text)
+        self.assertIn('enableXfa: false', text)
+        self.assertIn('useWasm: false', text)
+        subprocess.run(['node', '--check', str(reader)], check=True, capture_output=True, text=True)
+        files = {
+            'pdf.min.mjs': 'bccc24ea711db8e44503629519904a5292d73b9daaa214bbe7cdcc282b0f4259',
+            'pdf.worker.min.mjs': '145d2dd3ab0c86151011dba95acfa2d5336e2accd59388ea43dbee0efddaaec6',
+        }
+        for name, expected in files.items():
+            content = (ROOT / 'frontend/public/crm-pdfjs' / name).read_bytes()
+            self.assertEqual(hashlib.sha256(content).hexdigest(), expected)
+            self.assertIn(b'pdfjsVersion = 6.4.299', content[:1500])
+        self.assertIn('Apache License', (ROOT / 'frontend/public/crm-pdfjs/LICENSE').read_text())
 
     def test_photo_controls_require_private_storage_and_do_not_use_public_urls(self):
         self.assertIn('mib_crm_photo_storage_private_v1', self.source)

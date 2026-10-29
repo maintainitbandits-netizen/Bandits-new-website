@@ -2562,3 +2562,107 @@ test('bulk pickers show identifying details so similarly named records can be re
     assert.equal(device.exec('Object.keys(pending).length'),0);
   }finally{device.dispose()}
 });
+
+// AppFolio importer state tests use fictional, pre-extracted text and the same
+// in-memory outbox as the rest of this suite. No PDF or customer data leaves it.
+function fictionalAppfolioEntry(overrides = {}) {
+  return { name: 'fictional.pdf', include: true, error: '', managerId: 'c-af1', managerName: 'Fictional Manager One', number: '250-1', location: '100 Example Road, Austin, TX', service: 'Other', date: '', description: 'Fictional work description', details: 'Fictional work order text', pages: 1, pagesWithoutText: 0, ...overrides };
+}
+function seedAppfolio(server) {
+  for (const client of [record('Fictional Manager One', 'c-af1'), record('Fictional Manager Two', 'c-af2')]) {
+    client.type = 'Property manager'; server.rows.set(`clients/${client.id}`, { coll: 'clients', id: client.id, data: client });
+  }
+}
+function setupAppfolio(device, entries) {
+  device.context.fictionalAppfolioEntries = clone(entries);
+  device.exec('openAppfolioImport(); appfolioImport.entries=fictionalAppfolioEntries; appfolioRender()');
+}
+
+test('PDF import queues multiple reviewed jobs, keeps unscheduled work off routes, and retries a failed sync', async () => {
+  const server = new FakeServer(); seedAppfolio(server);
+  server.rows.set('jobs/existing', { coll: 'jobs', id: 'existing', data: { id: 'existing', client: 'c-af1', status: 'Scheduled', date: '2026-11-10', service: 'Other', prop: 'Old fictional address', ord: 4 } });
+  const first = makeDevice(server, {}, { confirm: () => true }), second = makeDevice(server);
+  try {
+    await Promise.all([first.login(), second.login()]);
+    setupAppfolio(first, [fictionalAppfolioEntry(), fictionalAppfolioEntry({ name: 'second.pdf', managerId: 'c-af2', managerName: 'Fictional Manager Two', number: '251-1', date: '2026-11-10' })]);
+    assert.equal(first.exec('Object.keys(S.jobs).length'), 1);
+    server.failWrites = true; first.exec('appfolioAdd()'); await wait(45);
+    assert.equal(first.exec('Object.keys(S.jobs).length'), 3); assert.equal(first.exec('Object.keys(pending).length'), 2);
+    assert.equal(second.exec('Object.keys(S.jobs).length'), 1);
+    assert.notEqual(first.element('#st').textContent, 'Synced across devices');
+    const saved = clone(first.exec('Object.values(S.jobs).filter(j=>j.sourceAppfolio)'));
+    const unscheduled = saved.find(j => j.sourceAppfolio.number === '250-1'), scheduled = saved.find(j => j.sourceAppfolio.number === '251-1');
+    assert.equal(unscheduled.status, 'Unscheduled'); assert.equal(unscheduled.date, ''); assert.equal(unscheduled.price, '');
+    assert.equal(unscheduled.workDescription, 'Fictional work description'); assert.equal(unscheduled.workOrderDetails, 'Fictional work order text');
+    assert.equal(scheduled.status, 'Scheduled'); assert.equal(scheduled.ord, 5);
+    assert.equal(first.exec("pickCandidates().some(c=>c.record.id===" + JSON.stringify(unscheduled.id) + ")"), false);
+    assert.equal(first.exec("!!appfolioDuplicate('c-af1','#250-1')"), true);
+    assert.match(first.storage.get('mib_pending_v1'), /Fictional work description/);
+    server.failWrites = false; first.client.reconnect(); await wait(220);
+    assert.equal(second.exec('Object.keys(S.jobs).length'), 3);
+    assert.equal(first.element('#st').textContent, 'Synced across devices');
+    assert.equal(second.exec("Object.values(S.jobs).filter(j=>j.sourceAppfolio&&j.status==='Unscheduled').length"), 1);
+  } finally { first.dispose(); second.dispose(); }
+});
+
+test('PDF import rejects duplicates, missing fields, invalid dates and oversized details without writes', async () => {
+  const server = new FakeServer(); seedAppfolio(server); const device = makeDevice(server, {}, { confirm: () => true });
+  try {
+    await device.login();
+    setupAppfolio(device, [fictionalAppfolioEntry(), fictionalAppfolioEntry({ name: 'same.pdf', number: '# 250-1' })]);
+    device.exec("S.clients['c-af1'].name=' Fictional Manager One '");
+    assert.equal(device.exec('appfolioClientName(S.clients["c-af1"].name)'), 'Fictional Manager One');
+    device.exec('appfolioAdd()'); assert.match(device.element('#af_status').textContent, /same work order number.*twice/i);
+    assert.equal(device.exec('Object.keys(S.jobs).length'), 0);
+    device.exec("appfolioImport.entries[1].managerId='c-af2';appfolioImport.entries[1].managerName='Fictional Manager Two'");
+    assert.equal(device.exec('appfolioPlan(appfolioImport).jobs.length'), 2);
+    device.exec("appfolioImport.entries[0].number=''"); device.exec('appfolioAdd()'); assert.match(device.element('#af_status').textContent, /Enter a work order number/i);
+    device.exec("appfolioImport.entries[0].number='250-1';appfolioImport.entries[0].location=''"); device.exec('appfolioAdd()'); assert.match(device.element('#af_status').textContent, /enter the property/i);
+    device.exec("appfolioImport.entries[0].location='100 Example Road';appfolioImport.entries[0].date='2026-02-30'"); device.exec('appfolioAdd()'); assert.match(device.element('#af_status').textContent, /valid planned date/i);
+    device.exec("appfolioImport.entries[0].date='';appfolioImport.entries[0].description='  '"); device.exec('appfolioAdd()'); assert.match(device.element('#af_status').textContent, /enter the work description/i);
+    device.exec("appfolioImport.entries[0].description='x'.repeat(10001)"); device.exec('appfolioAdd()'); assert.match(device.element('#af_status').textContent, /10,000 characters/i);
+    device.exec("appfolioImport.entries[0].description='Fictional description';appfolioImport.entries[0].details='x'.repeat(50001)"); device.exec('appfolioAdd()'); assert.match(device.element('#af_status').textContent, /50,000 characters/i);
+    assert.equal(device.exec('Object.keys(S.jobs).length'), 0); assert.equal(device.exec('Object.keys(pending).length'), 0);
+  } finally { device.dispose(); }
+});
+
+test('PDF import rechecks clients and duplicates after confirmation, and checks device storage before queueing', async () => {
+  const server = new FakeServer(); seedAppfolio(server); let device, action = 'client', approve = true;
+  device = makeDevice(server, {}, { confirm: () => {
+    if (action === 'client') device.exec("S.clients['c-af1'].name='Changed Fictional Manager'");
+    if (action === 'duplicate') device.exec("S.jobs.incoming={id:'incoming',client:'c-af1',sourceAppfolio:{managerId:'c-af1',number:'250-1'}}");
+    return approve;
+  } });
+  try {
+    await device.login(); setupAppfolio(device, [fictionalAppfolioEntry()]);
+    device.exec('appfolioAdd()'); assert.match(device.element('#af_status').textContent, /client changed/i);
+    assert.equal(device.exec('Object.keys(S.jobs).length'), 0); assert.equal(device.exec('Object.keys(pending).length'), 0);
+    device.exec("S.clients['c-af1'].name='Fictional Manager One'");
+    action = 'duplicate'; device.exec('appfolioAdd()'); assert.match(device.element('#af_status').textContent, /already imported/i);
+    assert.equal(device.exec('Object.keys(pending).length'), 0); device.exec('delete S.jobs.incoming');
+    action = 'none'; approve = false; device.exec('appfolioAdd()'); assert.equal(device.exec('Object.keys(S.jobs).length'), 0);
+    approve = true; const old = device.context.localStorage.setItem;
+    device.context.localStorage.setItem = (k, v) => { if (k.startsWith('mib_import_probe_')) throw new Error('fictional quota'); return old(k, v); };
+    device.exec('appfolioAdd()'); assert.match(device.element('#af_status').textContent, /not enough device storage/i);
+    assert.equal(device.exec('Object.keys(S.jobs).length'), 0); assert.equal(device.exec('Object.keys(pending).length'), 0);
+  } finally { device.dispose(); }
+});
+
+test('unscheduled work is not a last service, can have a due date, and a repeat does not reuse the AppFolio identity', async () => {
+  const server = new FakeServer(); seedAppfolio(server);
+  const client = server.rows.get('clients/c-af1'); client.data.props = '100 Example Road';
+  const job = { id: 'j-af', client: 'c-af1', prop: '100 Example Road', service: 'Other', status: 'Unscheduled', date: '', repeat: 'One-time', dateRequirement: 'deadline', requiredDate: '2026-11-03', sourceAppfolio: { managerId: 'c-af1', number: '250-1' }, workDescription: 'Fictional description', workOrderDetails: 'Fictional text', price: '' };
+  server.rows.set('jobs/j-af', { coll: 'jobs', id: 'j-af', data: job });
+  const device = makeDevice(server);
+  try {
+    await device.login();
+    assert.match(device.exec('vJobs()'), /Unscheduled/);
+    assert.match(device.exec('vDue()'), /Not scheduled/);
+    assert.match(device.exec('vProps()'), /Last service: —/);
+    assert.equal(device.exec("pickCandidates().some(c=>c.record.id==='j-af')"), false);
+    device.exec("S.jobs['j-af'].status='Scheduled';S.jobs['j-af'].date='2026-11-03';S.jobs['j-af'].repeat='Weekly';setStatus('j-af','Done')");
+    const next = clone(device.exec("Object.values(S.jobs).find(j=>j.id!=='j-af')"));
+    assert.equal(next.date, '2026-11-10'); assert.equal(next.status, 'Scheduled');
+    assert.equal(next.sourceAppfolio, undefined); assert.equal(next.workDescription, undefined); assert.equal(next.workOrderDetails, undefined);
+  } finally { device.dispose(); }
+});
