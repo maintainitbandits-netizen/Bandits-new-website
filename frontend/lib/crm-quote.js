@@ -11,11 +11,25 @@ const MAX_PHOTOS = 3;
 const MAX_RATES = 50;
 const MAX_ANSWERS = 18;
 const MAX_PRICE_CENTS = 99_999_999_999;
+// Gemini's complete (non-streaming) response may take longer than the old
+// 40-second limit. Keep this below the function's 150-second Vercel limit so
+// authentication, validation and a safe error response also have time.
+const GEMINI_TIMEOUT_MS = 120_000;
 
 class QuoteError extends Error {
   constructor(status, message) { super(message); this.status = status; }
 }
 const reject = (status, message) => { throw new QuoteError(status, message); };
+// Expose only a fixed diagnostic category. Never return or log the raw network
+// exception: it may contain a URL, key, request body, or customer information.
+function rejectGeminiConnection(signal, error) {
+  if (signal.aborted) reject(504, 'Gemini did not finish within the time limit (G_TIMEOUT).');
+  const code = error && error.cause && error.cause.code;
+  if (code === 'ENOTFOUND' || code === 'EAI_AGAIN') reject(503, 'The Gemini service could not be reached because of a DNS error (G_DNS).');
+  if (code === 'ETIMEDOUT' || code === 'UND_ERR_CONNECT_TIMEOUT') reject(503, 'The connection to Gemini timed out (G_CONNECT_TIMEOUT).');
+  if (code === 'ECONNRESET' || code === 'EPIPE' || code === 'UND_ERR_SOCKET') reject(503, 'The connection to Gemini was interrupted (G_CONNECTION_RESET).');
+  reject(503, 'The connection to Gemini ended before a response was confirmed (G_CONNECTION).');
+}
 const keysAre = (o, keys) => o && typeof o === 'object' && !Array.isArray(o) &&
   Object.keys(o).length === keys.length && keys.every(k => Object.prototype.hasOwnProperty.call(o, k));
 const singleLine = (s, max) => typeof s === 'string' && !!s.trim() && s.length <= max && !/[\x00-\x1f\x7f]/.test(s);
@@ -195,6 +209,9 @@ function cleanResult(draft, rates, suppliedDetails) {
 function createHandler(options = {}) {
   const env = options.env || process.env;
   const fetchFn = options.fetch || globalThis.fetch;
+  // Injectable only by local tests; the deployed handler always uses the
+  // fixed deadline above, not a request, environment or user-supplied value.
+  const createGeminiSignal = options.createGeminiSignal || (ms => AbortSignal.timeout(ms));
   return async function handler(req, res) {
     let providerAttempted = false;
     try {
@@ -205,21 +222,30 @@ function createHandler(options = {}) {
       const project = gemini.configuredProject(env);
       if (!project) reject(503, 'Photo estimates are not enabled yet. Ask the administrator to finish Gemini Free setup.');
       let response;
+      // One signal bounds both the wait for headers and the full response body.
+      // It never triggers an automatic retry or a second provider call.
+      const geminiSignal = createGeminiSignal(GEMINI_TIMEOUT_MS);
       try {
         providerAttempted = true;
         response = await fetchFn(gemini.ENDPOINT, {
           method: 'POST', headers: { 'x-goog-api-key': project.key, 'Content-Type': 'application/json', Accept: 'application/json' },
-          body: JSON.stringify(gemini.buildRequest(input, RESPONSE_SCHEMA)), cache: 'no-store', redirect: 'error', signal: AbortSignal.timeout(40000),
+          body: JSON.stringify(gemini.buildRequest(input, RESPONSE_SCHEMA)), cache: 'no-store', redirect: 'error', signal: geminiSignal,
         });
-      } catch (_) { reject(503, 'Could not confirm the Gemini request. It may have used some allowance; check usage before trying again.'); }
+      } catch (e) { rejectGeminiConnection(geminiSignal, e); }
       if (!response || !response.ok) {
-        if (response && response.status === 429) reject(429, 'Gemini is busy or an allowance or rate limit was reached. Check Gemini usage and try later.');
-        if (response && [401, 403].includes(response.status)) reject(503, 'Photo estimates are not configured correctly. Check the Gemini Free setup.');
-        if (response && [400, 422].includes(response.status)) reject(422, 'Gemini could not process this request. No estimate was saved.');
-        reject(503, 'Gemini is temporarily unavailable. Check Gemini usage before trying again.');
+        const status = response && Number.isInteger(response.status) && response.status >= 400 && response.status <= 599 ? response.status : null;
+        const tag = status ? ` (G_HTTP_${status})` : ' (G_HTTP_ERROR)';
+        if (status === 429) reject(429, 'Gemini is busy or an allowance or rate limit was reached' + tag + '.');
+        if (status === 401 || status === 403) reject(503, 'Photo estimates are not configured correctly. Check the Gemini Free setup' + tag + '.');
+        if (status === 400 || status === 422) reject(422, 'Gemini could not process this request' + tag + '.');
+        reject(503, 'Gemini is temporarily unavailable' + tag + '.');
       }
       let data, draft;
-      try { data = await response.json(); } catch (_) { reject(502, 'Gemini returned an unreadable draft. No estimate was saved.'); }
+      try { data = await response.json(); }
+      catch (e) {
+        if (geminiSignal.aborted || (e && e.cause && ['ENOTFOUND','EAI_AGAIN','ETIMEDOUT','UND_ERR_CONNECT_TIMEOUT','ECONNRESET','EPIPE','UND_ERR_SOCKET'].includes(e.cause.code))) rejectGeminiConnection(geminiSignal, e);
+        reject(502, 'Gemini returned an unreadable draft (G_BAD_RESPONSE).');
+      }
       try { draft = gemini.extractDraft(data); }
       catch (e) {
         if (e && e.code === 'refused') reject(422, 'Gemini could not prepare a draft for these photos. No estimate was saved.');

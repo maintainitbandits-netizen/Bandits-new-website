@@ -179,6 +179,8 @@ test('an unavailable ballpark or failed follow-up never produces a fake price or
       await page.locator('#ai_answer_0').fill('Unknown');await page.locator('#ai_followup_consent').check();await page.locator('#ai_update').click();
       await page.waitForFunction(()=>document.querySelector('#ai_status').textContent.includes('allowance'));
       assert.equal(calls.length,2);assert.equal(await page.locator('#ai_followup_consent').isChecked(),false);assert.equal(await page.locator('#ai_answer_0').inputValue(),'Unknown');
+      const message=await page.locator('#ai_status').innerText();assert.equal(await page.locator('#ai_followup_status').innerText(),message);
+      assert.equal((message.match(/No estimate was saved\./g)||[]).length,1);assert.match(message,/may have used allowance/);
       assert.match(await page.locator('#ai_result').innerText(),/No useful total ballpark yet/);assert.equal(await writes(page),0);assert.deepEqual(errors,[]);
     }finally{await context.close();}
   }finally{await browser.close();}
@@ -250,6 +252,32 @@ test('disabled setup, quota and invalid AI output never save, retry or leave con
       if(mode==='disabled')assert.match(await page.locator('#ai_status').innerText(),/No Gemini request was made/);else assert.match(await page.locator('#ai_status').innerText(),/may have used allowance/);
       assert.equal(await page.locator('#ai_result h3').count(),0);assert.deepEqual(errors,[]);
     }finally{await context.close();}
+  }}finally{await browser.close();}
+});
+
+test('waiting status and safe diagnostics distinguish timeout, server connection and browser connection',skip,async()=>{
+  const browser=await makeBrowser();
+  try{for(const mode of ['timeout','connection','browser','unreadable']){
+    let start,release;const started=new Promise(r=>start=r),wait=new Promise(r=>release=r);
+    const handler=async route=>{
+      start();await wait;
+      if(mode==='browser')return route.abort('failed');
+      if(mode==='unreadable')return route.fulfill({status:504,contentType:'text/html',body:'Unavailable'});
+      return route.fulfill({status:mode==='timeout'?504:503,contentType:'application/json',body:JSON.stringify({
+        error:mode==='timeout'?'Gemini did not finish within the time limit (G_TIMEOUT).':'The connection to Gemini was interrupted (G_CONNECTION_RESET).',providerAttempted:true,
+      })});
+    };
+    const {context,page,errors,calls}=await setup(browser,320,handler);
+    try{
+      await begin(page);await page.locator('#ai_consent').check();await page.getByRole('button',{name:'Generate draft'}).click();await started;
+      assert.match(await page.locator('#ai_status').innerText(),/up to about 2 minutes/);assert.equal(await page.locator('#ai_generate').isDisabled(),true);
+      release();const expected={timeout:'G_TIMEOUT',connection:'G_CONNECTION_RESET',browser:'APP_CONNECTION',unreadable:'APP_BAD_RESPONSE'}[mode];
+      await page.waitForFunction(code=>document.querySelector('#ai_status').textContent.includes(code),expected);
+      const message=await page.locator('#ai_status').innerText();assert.equal((message.match(/No estimate was saved\./g)||[]).length,1);
+      assert.equal((message.match(/check usage before retrying/gi)||[]).length,1);assert.match(message,/may have used allowance.*charges on a paid account/);
+      assert.equal(await page.locator('#ai_consent').isChecked(),false);assert.equal(calls.length,1);assert.equal(await writes(page),0);
+      assert.equal(await page.locator('#ai_result h3').count(),0);await noOverflow(page,`320 ${mode} diagnostic`);assert.deepEqual(errors,[]);
+    }finally{release();await context.close();}
   }}finally{await browser.close();}
 });
 

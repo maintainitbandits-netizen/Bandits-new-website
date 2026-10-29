@@ -954,7 +954,8 @@ function aiCleanResult(value,rates){
 }
 function aiError(p,e,consent){
  if(!aiCurrent(p))return;
- const message=(e&&e.message||"Could not prepare the photo estimate.")+(p.providerAttempted?" No estimate was saved. This attempt may have used allowance or incurred charges on a paid account; check usage before retrying.":p.requestSent?" No Gemini request was made.":" No request was sent.");
+ const cause=String(e&&e.message||"Could not prepare the photo estimate.").replace(/\s*No estimate was saved\./gi,"").trim();
+ const message=cause+(p.providerAttempted?" No estimate was saved. This attempt may have used allowance or incurred charges on a paid account; check usage before retrying.":p.requestSent?" No Gemini request was made.":/no request was sent/i.test(cause)?"":" No request was sent.");
  $("#ai_status").textContent=message;const local=consent==="#ai_followup_consent"?$("#ai_followup_status"):null;if(local)local.textContent=message;
  const check=$(consent);if(p.requestSent&&check)check.checked=false
 }
@@ -965,11 +966,11 @@ async function aiSend(p,answers,extra){
  if(!db||!hasSnapshot||!synced||!S.clients[p.client]||JSON.stringify(S.clients[p.client])!==p.clientSignature)throw new Error("The client or sync state changed. No request was sent; review it before generating.");
  if(p.useRates&&(!S.meta||S.meta.rates!==p.rateRaw))throw new Error("The rate card changed. No request was sent; review Rates before generating.");
  const body={consent:true,provider:"gemini",disclosure:"gemini-free-v1",service:p.service,description:p.description,photos:p.photos,rates:p.rates.map(r=>({id:r.id,name:r.name})),answers,extra};
- p.controller=new AbortController();const sending="Sending to Google Gemini and preparing a draft… Keep this window open.";$("#ai_status").textContent=sending;if($("#ai_followup_status"))$("#ai_followup_status").textContent=sending;p.requestSent=true;p.providerAttempted=true;
+ p.controller=new AbortController();const sending="Waiting for Gemini to prepare a draft. This can take up to about 2 minutes; keep this window open.";$("#ai_status").textContent=sending;if($("#ai_followup_status"))$("#ai_followup_status").textContent=sending;p.requestSent=true;p.providerAttempted=true;
  let response;try{response=await fetch("/api/crm-quote",{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+token},body:JSON.stringify(body),cache:"no-store",signal:p.controller.signal})}
- catch(e){throw new Error("Could not confirm the Gemini request. It may have used allowance; check usage before trying again.")}
- if(!aiCurrent(p))return null;let data;try{data=await response.json()}catch(e){throw new Error("The response could not be read. Check Gemini usage before trying again.")}
- if(!response.ok){p.providerAttempted=!data||data.providerAttempted!==false;throw new Error(String(data&&data.error||"Could not prepare the draft. Check Gemini usage before trying again.").slice(0,300))}
+ catch(e){throw new Error("The connection to the preview ended before the request could be confirmed (APP_CONNECTION).")}
+ if(!aiCurrent(p))return null;let data;try{data=await response.json()}catch(e){throw new Error("The preview returned an unreadable response (APP_BAD_RESPONSE).")}
+ if(!response.ok){p.providerAttempted=!data||data.providerAttempted!==false;throw new Error(String(data&&data.error||"Could not prepare the draft (APP_ERROR).").slice(0,300))}
  return aiCleanResult(data&&data.draft,p.rates)
 }
 async function generateAIQuote(){

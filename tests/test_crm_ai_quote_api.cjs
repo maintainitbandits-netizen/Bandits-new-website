@@ -32,7 +32,7 @@ function harness(options = {}) {
     if (url === GEMINI) return output(draft());
     throw new Error('Unexpected network request');
   };
-  const handler = createHandler({ env, fetch });
+  const handler = createHandler({ env, fetch, createGeminiSignal: options.createGeminiSignal });
   const request = async (body = input(), opts = {}) => {
     const req = { method: opts.method || 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer fictional.jwt', ...opts.headers }, body };
     const res = { headers: {}, setHeader(k,v) { this.headers[k.toLowerCase()] = v; }, status(code) { this.code = code; return this; }, json(data) { this.data = data; return this; } };
@@ -259,12 +259,66 @@ test('partial, refused, malformed, multiple or unreadable Gemini replies fail wi
   }
 });
 
-test('quota, provider errors and timeouts are sanitized, never retried and never fall back', async () => {
-  for (const [status,expected] of [[400,422],[401,503],[403,503],[422,422],[429,429],[500,503]]) {
+test('quota and provider errors are sanitized, never retried and never fall back', async () => {
+  for (const [status,expected] of [[400,422],[401,503],[403,503],[422,422],[429,429],[500,503],[404,503]]) {
     const h = harness({ respond: url => url === AUTH ? auth() : reply({ error:'fictional-secret and customer details' }, status) });
     const r = await h.request(); assert.equal(r.code,expected); assert.deepEqual(h.calls.map(c=>c.url),[AUTH,GEMINI]); assert.equal(r.data.providerAttempted,true); assert.doesNotMatch(JSON.stringify(r.data), /fictional-secret|customer details/);
+    assert.match(r.data.error,new RegExp('G_HTTP_'+status));
     if(status===429) assert.match(r.data.error,/allowance or rate limit/);
   }
-  const h = harness({ respond: url => { if (url === AUTH) return auth(); throw new Error('fictional-secret'); } });
-  const r = await h.request(); assert.equal(r.code,503); assert.match(r.data.error, /may have used some allowance/); assert.deepEqual(h.calls.map(c=>c.url),[AUTH,GEMINI]); assert.equal(r.data.providerAttempted,true);
+});
+
+test('network failures expose only fixed categories, not raw exceptions, and never retry', async () => {
+  for (const [code,category] of [
+    ['ENOTFOUND','G_DNS'], ['EAI_AGAIN','G_DNS'], ['UND_ERR_CONNECT_TIMEOUT','G_CONNECT_TIMEOUT'],
+    ['ETIMEDOUT','G_CONNECT_TIMEOUT'], ['ECONNRESET','G_CONNECTION_RESET'],
+    ['UND_ERR_SOCKET','G_CONNECTION_RESET'], ['private-key-and-customer-details','G_CONNECTION'], [undefined,'G_CONNECTION'],
+  ]) {
+    const h = harness({ respond: url => {
+      if (url === AUTH) return auth();
+      throw Object.assign(new Error('fictional-secret customer details'), { cause: { code } });
+    } });
+    const r=await h.request(); assert.equal(r.code,503); assert.match(r.data.error,new RegExp('\\b'+category+'\\b'));
+    assert.equal(r.data.providerAttempted,true); assert.deepEqual(h.calls.map(c=>c.url),[AUTH,GEMINI]);
+    assert.doesNotMatch(JSON.stringify(r.data),/fictional-secret|customer details|private-key/);
+  }
+});
+
+// Simulate the entire header and body wait with short real timers rather than
+// sending a live request. The production handler requests 120 seconds; the
+// test-only factory makes its signal expire quickly so both paths are covered.
+function waitForAbort(signal) {
+  return new Promise((_,reject) => {
+    const guard=setTimeout(()=>reject(new Error('test signal did not abort')),1000);
+    const onAbort=()=>{clearTimeout(guard);reject(signal.reason);};
+    if(signal.aborted) onAbort(); else signal.addEventListener('abort',onAbort,{once:true});
+  });
+}
+
+test('a single bounded deadline covers Gemini headers and body, with enough function headroom', async () => {
+  const config=require('../frontend/vercel.json');
+  assert.equal(config.functions['api/crm-quote.js'].maxDuration,150);
+  for(const stage of ['headers','body']) {
+    let requestedMs;
+    const h=harness({
+      createGeminiSignal: ms=>{requestedMs=ms;return AbortSignal.timeout(25);},
+      respond: (url,init)=>{
+        if(url===AUTH)return auth();
+        if(stage==='headers')return waitForAbort(init.signal);
+        return {ok:true,status:200,json:()=>waitForAbort(init.signal)};
+      },
+    });
+    const r=await h.request();
+    assert.equal(requestedMs,120_000); assert.ok(config.functions['api/crm-quote.js'].maxDuration*1000 > requestedMs+7000);
+    assert.equal(r.code,504); assert.match(r.data.error,/G_TIMEOUT/); assert.equal(r.data.providerAttempted,true);
+    assert.deepEqual(h.calls.map(c=>c.url),[AUTH,GEMINI]); assert.doesNotMatch(JSON.stringify(r.data),/fictional-secret/);
+  }
+});
+
+test('connection failure after response headers is still classified without exposing a body', async () => {
+  const h=harness({respond:(url)=>url===AUTH?auth():{ok:true,status:200,json:async()=>{
+    throw Object.assign(new Error('private body'),{cause:{code:'ECONNRESET'}});
+  }}});
+  const r=await h.request();assert.equal(r.code,503);assert.match(r.data.error,/G_CONNECTION_RESET/);
+  assert.equal(r.data.providerAttempted,true);assert.equal(h.calls.length,2);assert.doesNotMatch(JSON.stringify(r.data),/private body/);
 });

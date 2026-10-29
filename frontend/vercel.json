@@ -1,7 +1,7 @@
 {
   "buildCommand": "npm run build && node scripts/prerender-fall-cleanup.cjs",
   "functions": {
-    "api/crm-quote.js": { "maxDuration": 60 }
+    "api/crm-quote.js": { "maxDuration": 150 }
   },
   "redirects": [
     {
