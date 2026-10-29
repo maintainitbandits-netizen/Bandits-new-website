@@ -179,3 +179,132 @@ test('phone multi-lead deletion requires a new keep-or-delete choice when select
     } finally { await context.close(); }
   } finally { await browser.close(); }
 });
+
+// Multi-select deletion is exercised with fictional records and intercepted requests.
+test('phone bulk jobs and Completed selection respect filters, cancellation and hidden selections', { skip: !canRun && 'Install browser dependencies externally' }, async () => {
+  const browser=await makeBrowser();
+  try {
+    for(const width of [320,390]){
+      const {context,page,errors,dialogs,dismiss}=await setup(browser,width);
+      try{
+        await page.evaluate(()=>{
+          const records=[
+            ['jobs',{id:'paid',client:'c2',service:'Paid fictional service',prop:'200 Example Road',date:'2026-10-21',status:'Paid'}],
+            ['jobs',{id:'future',client:'c1',service:'Future fictional service',prop:'300 Example Road',date:'2026-11-05',status:'Scheduled'}],
+            ['estimates',{id:'e1',client:'c1',clientName:'Fictional Client',service:'Mow / edge / blow',property:'123 Example Road',date:'2026-10-01',status:'Draft',lines:[{description:'Work',quantityMilli:1000,unitCents:5500}],totalCents:5500,notes:'',teamNotes:''}],
+          ];
+          S.jobs.existing.sourceEstimateId='e1';__mock.rows.get('jobs/existing').data.sourceEstimateId='e1';
+          for(const [coll,data] of records){S[coll][data.id]=data;__mock.rows.set(`${coll}/${data.id}`,{coll,id:data.id,data:JSON.parse(JSON.stringify(data))})}
+        });
+        await page.getByRole('button',{name:'Jobs',exact:true}).click();
+        await page.getByRole('button',{name:'Select jobs to delete'}).click();await noOverflow(page,`${width} jobs selection`);
+        assert.equal(await page.locator('#bulk_filter').inputValue(),'Open');
+        assert.equal(await page.locator('#bulk_list label',{hasText:'Paid fictional service'}).count(),0);
+        await page.getByRole('button',{name:'Select shown',exact:true}).click();assert.match(await page.locator('#bulk_count').innerText(),/2 selected/);
+        await page.getByRole('button',{name:'Clear selection',exact:true}).click();assert.match(await page.locator('#bulk_count').innerText(),/0 selected/);
+        await page.locator('#dlg').getByRole('button',{name:'Cancel',exact:true}).click();
+        await page.getByRole('button',{name:'Completed',exact:true}).click();
+        await page.locator('#completed_search').fill('Example');await page.locator('#completed_filter').selectOption('Paid');
+        await page.getByRole('button',{name:'Select completed jobs to delete'}).click();await noOverflow(page,`${width} completed selection`);
+        assert.equal(await page.locator('#bulk_filter').inputValue(),'Paid');assert.equal(await page.locator('#bulk_search').inputValue(),'Example');
+        assert.equal(await page.locator('#bulk_list label',{hasText:'Future fictional service'}).count(),0);
+        await page.locator('#bulk_filter').selectOption('All');
+        await page.locator('#bulk_list label',{hasText:'123 Example Road'}).locator('input').check();
+        await page.locator('#bulk_search').fill('200 Example');
+        await page.locator('#bulk_list label',{hasText:'200 Example Road'}).locator('input').check();
+        assert.match(await page.locator('#bulk_count').innerText(),/2 selected.*1 hidden by filters/);
+        await page.locator('#bulk_review_title').click();
+        assert.match(await page.locator('#bulk_review_list').innerText(),/123 Example Road/);
+        assert.match(await page.locator('#bulk_review_list').innerText(),/200 Example Road/);
+        await noOverflow(page,`${width} selected review`);
+        await page.locator('#bulk_review_list li',{hasText:'123 Example Road'}).getByRole('button',{name:'Remove Fictional Client from selection'}).click();
+        assert.match(await page.locator('#bulk_count').innerText(),/1 selected/);
+        await page.locator('#bulk_search').fill('123 Example');await page.locator('#bulk_list label',{hasText:'123 Example Road'}).locator('input').check();
+        await page.locator('#bulk_search').fill('200 Example');assert.match(await page.locator('#bulk_count').innerText(),/2 selected.*1 hidden/);
+        dismiss();await page.getByRole('button',{name:'Delete selected completed jobs'}).click();
+        assert.match(dialogs.at(-1).text,/2 selected jobs/);assert.match(dialogs.at(-1).text,/hidden by the current filters/);
+        assert.match(dialogs.at(-1).text,/photo files are NOT deleted/i);
+        assert.equal(await page.evaluate(()=>__mock.writes.length),0);
+        await page.getByRole('button',{name:'Delete selected completed jobs'}).click();await synced(page);
+        assert.equal(await page.evaluate(()=>!!S.jobs.existing||!!S.jobs.paid),false);
+        assert.ok(await page.evaluate(()=>!!S.jobs.future&&!!S.estimates.e1&&!!S.clients.c1&&!!S.clients.c2));
+        assert.deepEqual(errors,[]);
+      }finally{await context.close()}
+    }
+  }finally{await browser.close()}
+});
+
+test('phone bulk client deletion shows linked consequences and requires a keep-or-delete choice', { skip: !canRun && 'Install browser dependencies externally' }, async () => {
+  const browser=await makeBrowser();
+  try{
+    for(const width of [320,390]){
+      const {context,page,errors,dialogs,dismiss}=await setup(browser,width);
+      try{
+        await page.evaluate(()=>{
+          S.clients.c2.stage='Recurring';__mock.rows.get('clients/c2').data.stage='Recurring';
+          const records=[
+            ['clients',{id:'c3',name:'Unselected Client',stage:'Won',type:'Homeowner',props:'',notes:''}],
+            ['jobs',{id:'j2',client:'c2',service:'Second job',prop:'456 Example Road',date:'2026-10-22',status:'Paid'}],
+            ['jobs',{id:'j3',client:'c3',service:'Keep job',prop:'789 Example Road',date:'2026-10-23',status:'Scheduled'}],
+            ...[['e1','c1','Fictional Client'],['e2','c2','Other Client'],['e3','c3','Unselected Client']].map(([id,client,clientName])=>['estimates',{id,client,clientName,service:'Mow',property:'',date:'2026-10-01',status:'Draft',lines:[{description:'Work',quantityMilli:1000,unitCents:5500}],totalCents:5500,notes:'',teamNotes:''}]),
+          ];
+          for(const [coll,data] of records){S[coll][data.id]=data;__mock.rows.set(`${coll}/${data.id}`,{coll,id:data.id,data:JSON.parse(JSON.stringify(data))})}
+        });
+        await page.getByRole('button',{name:'Clients',exact:true}).click();await page.locator('#q').fill('Fictional');
+        await page.getByRole('button',{name:'Select clients to delete'}).click();await noOverflow(page,`${width} client selection`);
+        assert.equal(await page.locator('#bulk_search').inputValue(),'Fictional');await page.locator('#bulk_search').fill('');
+        await page.locator('#bulk_list label',{hasText:'Fictional Client'}).locator('input').check();
+        await page.locator('#bulk_estimate_choice').selectOption('keep');
+        await page.locator('#bulk_search').fill('Other Client');
+        await page.locator('#bulk_list label',{hasText:'Other Client'}).locator('input').check();
+        assert.equal(await page.locator('#bulk_estimate_choice').inputValue(),'');
+        assert.match(await page.locator('#bulk_count').innerText(),/2 selected.*1 hidden.*2 linked jobs.*2 saved estimates/);
+        await page.getByRole('button',{name:'Delete selected clients'}).click();
+        assert.match(await page.locator('#bulk_status').innerText(),/Choose whether to keep or delete/);
+        await page.locator('#bulk_estimate_choice').selectOption('delete');
+        await page.locator('#bulk_review_title').click();await noOverflow(page,`${width} client review`);
+        dismiss();await page.getByRole('button',{name:'Delete selected clients'}).click();
+        assert.match(dialogs.at(-1).text,/2 clients AND 2 linked jobs/);assert.match(dialogs.at(-1).text,/DELETE 2 saved estimates/);
+        assert.match(dialogs.at(-1).text,/photo files are NOT deleted/i);assert.equal(await page.evaluate(()=>__mock.writes.length),0);
+        await page.getByRole('button',{name:'Delete selected clients'}).click();await synced(page);
+        assert.deepEqual(await page.evaluate(()=>Object.keys(S.clients)),['c3']);
+        assert.deepEqual(await page.evaluate(()=>Object.keys(S.jobs)),['j3']);
+        assert.deepEqual(await page.evaluate(()=>Object.keys(S.estimates)),['e3']);
+        assert.deepEqual(errors,[]);
+      }finally{await context.close()}
+    }
+  }finally{await browser.close()}
+});
+
+test('phone bulk saved estimate deletion leaves linked jobs and job quotes', { skip: !canRun && 'Install browser dependencies externally' }, async () => {
+  const browser=await makeBrowser();
+  try{
+    for(const width of [320,390]){
+      const {context,page,errors,dialogs,dismiss}=await setup(browser,width);
+      try{
+        await page.evaluate(()=>{
+          const records=[
+            ['jobs',{id:'j2',client:'c2',sourceEstimateId:'e2',service:'Other job',prop:'456 Example Road',date:'2026-10-22',status:'Scheduled'}],
+            ...[['e1','c1','Fictional Client','123 Example Road'],['e2','c2','Other Client','456 Example Road'],['e3','c2','Other Client','789 Example Road']].map(([id,client,clientName,property])=>['estimates',{id,client,clientName,service:'Mow',property,date:'2026-10-01',status:'Draft',lines:[{description:'Work',quantityMilli:1000,unitCents:5500}],totalCents:5500,notes:'',teamNotes:''}]),
+          ];
+          S.jobs.existing.sourceEstimateId='e1';__mock.rows.get('jobs/existing').data.sourceEstimateId='e1';
+          for(const [coll,data] of records){S[coll][data.id]=data;__mock.rows.set(`${coll}/${data.id}`,{coll,id:data.id,data:JSON.parse(JSON.stringify(data))})}
+        });
+        await page.getByRole('button',{name:'Estimates',exact:true}).click();await page.locator('#est_search').fill('Example Road');await page.locator('#est_filter').selectOption('Draft');
+        await page.getByRole('button',{name:'Select estimates to delete'}).click();await noOverflow(page,`${width} estimate selection`);
+        assert.equal(await page.locator('#bulk_search').inputValue(),'Example Road');assert.equal(await page.locator('#bulk_filter').inputValue(),'Draft');
+        await page.locator('#bulk_list label',{hasText:'123 Example Road'}).locator('input').check();
+        await page.locator('#bulk_search').fill('456 Example Road');
+        await page.getByRole('button',{name:'Select shown',exact:true}).click();
+        assert.match(await page.locator('#bulk_count').innerText(),/2 selected.*1 hidden.*2 linked jobs remain/);
+        dismiss();await page.getByRole('button',{name:'Delete selected estimates'}).click();
+        assert.match(dialogs.at(-1).text,/2 selected saved estimates/);assert.match(dialogs.at(-1).text,/2 linked jobs will remain unchanged/);
+        assert.equal(await page.evaluate(()=>__mock.writes.length),0);
+        await page.getByRole('button',{name:'Delete selected estimates'}).click();await synced(page);
+        assert.deepEqual(await page.evaluate(()=>Object.keys(S.estimates)),['e3']);
+        assert.ok(await page.evaluate(()=>!!S.jobs.existing&&!!S.jobs.j2));
+        assert.match(await page.locator('#est_jobs').innerText(),/Fictional Client/);assert.deepEqual(errors,[]);
+      }finally{await context.close()}
+    }
+  }finally{await browser.close()}
+});

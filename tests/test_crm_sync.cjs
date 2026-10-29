@@ -2346,3 +2346,219 @@ test('Completed refuses to edit a deleted job or silently reassign a job whose c
     assert.match(alerts.at(-1), /job no longer exists/i); assert.equal(device.element('#completed_count').textContent, '0 completed jobs shown');
   } finally { device.dispose(); }
 });
+
+// Bulk deletion uses only fictional records and an in-memory Supabase substitute.
+function selectBulk(device, id, checked = true) {
+  device.exec(`{const i=bulkDeletion.candidates.findIndex(c=>c.id===${JSON.stringify(id)});if(i<0)throw Error('missing test candidate');bulkToggle({dataset:{index:String(i)},checked:${checked}})}`);
+}
+
+test('bulk Completed deletion respects filters, confirms hidden selections and retries without deleting photos or estimates', async () => {
+  const server = new FakeServer();
+  seedPrice(server, 'clients', record('Fictional Client', 'c1'));
+  for (const job of [
+    { id:'done', client:'c1', status:'Done', service:'Mow', prop:'100 Fictional Rd', date:'2026-10-01', sourceEstimateId:'e1' },
+    { id:'paid', client:'c1', status:'Paid', service:'Trim', prop:'200 Fictional Rd', date:'2026-10-02' },
+    { id:'scheduled', client:'c1', status:'Scheduled', service:'Future', prop:'300 Fictional Rd', date:'2026-11-01' },
+    { id:'invoiced', client:'c1', status:'Invoiced', service:'Other', prop:'400 Fictional Rd', date:'2026-10-03' },
+  ]) seedPrice(server, 'jobs', job);
+  seedPrice(server, 'estimates', priceEstimate('e1'));
+  server.photoObjects.set('jobs/done/before/fictional.jpg', 'fictional');
+  const warnings = []; let accept = false;
+  const first = makeDevice(server, {}, { confirm: text => { warnings.push(text); return accept; } }), second = makeDevice(server);
+  try {
+    await Promise.all([first.login(), second.login()]);
+    first.exec("tab='Completed';completedFilter='All';render();openBulkDeletion('completed')");
+    assert.equal(first.exec('bulkDeletion.selected.size'), 0);
+    assert.equal(first.exec("bulkDeletion.candidates.some(c=>c.id==='scheduled')"), false);
+    first.element('#bulk_filter').value = 'Done'; first.exec('bulkFilter();bulkSelectShown()');
+    first.element('#bulk_filter').value = 'Paid'; first.exec('bulkFilter();bulkSelectShown()');
+    assert.match(first.element('#bulk_count').textContent, /2 selected.*1 hidden by filters/);
+    assert.match(first.element('#bulk_review_list').innerHTML, /100 Fictional Rd/);
+    assert.match(first.element('#bulk_review_list').innerHTML, /200 Fictional Rd/);
+    first.exec('deleteBulkSelected()');
+    assert.match(warnings.at(-1), /Delete 2 selected jobs/);
+    assert.match(warnings.at(-1), /1 selected record.*hidden by the current filters/);
+    assert.match(warnings.at(-1), /photo files are NOT deleted/i);
+    assert.ok(first.exec('S.jobs.done && S.jobs.paid')); assert.equal(first.exec('Object.keys(pending).length'), 0);
+    accept = true; server.failWrites = true; first.exec('deleteBulkSelected()'); await wait(45);
+    assert.equal(first.exec('S.jobs.done'), undefined); assert.equal(first.exec('S.jobs.paid'), undefined);
+    assert.ok(first.exec('S.jobs.scheduled && S.jobs.invoiced && S.clients.c1 && S.estimates.e1'));
+    assert.equal(server.rows.has('jobs/done'), true); assert.equal(server.photoObjects.size, 1);
+    assert.match(first.storage.get('mib_pending_v1'), /"deleted":true/);
+    server.failWrites = false; first.client.reconnect(); await wait(150);
+    assert.equal(second.exec('S.jobs.done'), undefined); assert.equal(second.exec('S.jobs.paid'), undefined);
+    assert.ok(second.exec('S.jobs.scheduled && S.jobs.invoiced && S.estimates.e1 && S.clients.c1'));
+    assert.equal(server.photoObjects.size, 1); assert.equal(first.element('#st').textContent, 'Synced across devices');
+  } finally { first.dispose(); second.dispose(); }
+});
+
+test('bulk job picker inherits its view, excludes malformed records, and escapes displayed data', async () => {
+  const server = new FakeServer();
+  seedPrice(server, 'clients', record('Client <img src=x onerror=alert(1)>', 'c1'));
+  seedPrice(server, 'jobs', { id:`j'\" onclick=\"alert(2)`, client:'c1', status:'Done', service:'Mow <script>', date:'2026-10-01' });
+  seedPrice(server, 'jobs', { id:'paid', client:'c1', status:'Paid', service:'Paid work', date:'2026-10-02' });
+  server.rows.set('jobs/bad', { coll:'jobs', id:'bad', data:{id:'different', client:'c1', status:'Done', service:'Bad ID', date:'2026-10-03'} });
+  const warnings=[], device=makeDevice(server, {}, {confirm:message=>{warnings.push(message);return false}});
+  try {
+    await device.login(); device.exec("jf='Open';tab='Jobs';render();openBulkDeletion('jobs')");
+    assert.match(device.element('#dlg').innerHTML, /value="Open" selected/);
+    assert.doesNotMatch(device.element('#bulk_list').innerHTML, /Paid work/);
+    assert.match(device.element('#bulk_list').innerHTML, /&lt;img/); assert.doesNotMatch(device.element('#bulk_list').innerHTML, /<img/);
+    assert.match(device.element('#bulk_list').innerHTML, /disabled/); assert.doesNotMatch(device.element('#bulk_list').innerHTML, /onclick=\"alert\(2\)/);
+    device.exec('bulkSelectShown()'); assert.equal(device.exec('bulkDeletion.selected.size'), 1);
+    device.exec('deleteBulkSelected()'); assert.match(warnings.at(-1), /Delete 1 selected job/);
+    assert.equal(device.exec('Object.keys(pending).length'), 0);
+    device.element('#bulk_filter').value='All'; device.exec('bulkFilter();bulkSelectShown()');
+    assert.equal(device.exec('bulkDeletion.selected.size'), 2); device.exec('bulkClear()'); assert.equal(device.exec('bulkDeletion.selected.size'), 0);
+  } finally { device.dispose(); }
+});
+
+test('bulk clients require a fresh keep/delete choice, confirm counts, and can keep estimates', async () => {
+  const server=new FakeServer();
+  seedPrice(server,'clients',record('Fictional One','c1'));
+  seedPrice(server,'clients',{...record('Fictional Two','c2'),stage:'Recurring'});
+  seedPrice(server,'clients',{...record('Unselected Client','c3'),stage:'Won'});
+  for(const id of ['1','2','3']){
+    seedPrice(server,'jobs',{id:'j'+id,client:'c'+id,status:id==='2'?'Paid':'Scheduled',service:'Job '+id,date:'2026-10-0'+id});
+    seedPrice(server,'estimates',priceEstimate('e'+id,'c'+id,id==='3'?'Unselected Client':'Fictional '+(id==='1'?'One':'Two')));
+  }
+  server.photoObjects.set('jobs/j2/after/fictional.jpg','fictional');
+  const warnings=[];let accept=false;const first=makeDevice(server,{}, {confirm:message=>{warnings.push(message);return accept}}),second=makeDevice(server);
+  try{
+    await Promise.all([first.login(),second.login()]);first.exec("tab='Clients';q='';render();openBulkDeletion('clients')");
+    selectBulk(first,'c1');first.element('#bulk_estimate_choice').value='keep';
+    first.element('#bulk_search').value='Fictional Two';first.exec('bulkFilter()');selectBulk(first,'c2');
+    assert.equal(first.element('#bulk_estimate_choice').value,'');
+    assert.match(first.element('#bulk_count').textContent,/2 selected.*1 hidden.*2 linked jobs.*2 saved estimates/);
+    first.exec('deleteBulkSelected()');assert.match(first.element('#bulk_status').textContent,/Choose whether to keep or delete/i);assert.equal(warnings.length,0);
+    first.element('#bulk_estimate_choice').value='keep';first.exec('deleteBulkSelected()');
+    assert.match(warnings.at(-1),/2 clients AND 2 linked jobs/);assert.match(warnings.at(-1),/KEEP 2 saved estimates/);
+    assert.match(warnings.at(-1),/1 selected record.*hidden/);assert.equal(first.exec('Object.keys(S.clients).length'),3);
+    accept=true;first.exec('deleteBulkSelected()');await wait(140);
+    assert.equal(second.exec('S.clients.c1'),undefined);assert.equal(second.exec('S.clients.c2'),undefined);
+    assert.ok(second.exec('S.clients.c3 && S.jobs.j3 && S.estimates.e1 && S.estimates.e2 && S.estimates.e3'));
+    assert.equal(second.exec('S.jobs.j1'),undefined);assert.equal(second.exec('S.jobs.j2'),undefined);assert.equal(server.photoObjects.size,1);
+  }finally{first.dispose();second.dispose()}
+});
+
+test('bulk clients can delete estimates but reject stale records, changed choices and insufficient storage', async () => {
+  const server=new FakeServer();
+  for(const id of ['1','2']){
+    seedPrice(server,'clients',{...record('Client '+id,'c'+id),stage:id==='1'?'Lead':'Won'});
+    seedPrice(server,'jobs',{id:'j'+id,client:'c'+id,status:'Done',service:'Work '+id,date:'2026-10-0'+id});
+    seedPrice(server,'estimates',priceEstimate('e'+id,'c'+id,'Client '+id));
+  }
+  server.photoObjects.set('jobs/j1/before/fictional.jpg','fictional');
+  let device,changeChoice=false;const warnings=[];
+  device=makeDevice(server,{}, {confirm:message=>{warnings.push(message);if(changeChoice)device.element('#bulk_estimate_choice').value='keep';return true}});
+  try{
+    await device.login();device.exec("openBulkDeletion('clients');bulkSelectShown()");device.element('#bulk_estimate_choice').value='delete';
+    device.exec("S.jobs.j1.service='Changed after selection';deleteBulkSelected()");
+    assert.match(device.element('#bulk_status').textContent,/changed.*select again/i);assert.equal(warnings.length,0);assert.equal(device.exec('Object.keys(pending).length'),0);
+    device.exec("openBulkDeletion('clients');bulkSelectShown()");device.element('#bulk_estimate_choice').value='delete';changeChoice=true;device.exec('deleteBulkSelected()');
+    assert.match(warnings.at(-1),/DELETE 2 saved estimates/);assert.match(device.element('#bulk_status').textContent,/choice changed/i);
+    assert.equal(device.exec('Object.keys(S.clients).length'),2);assert.equal(device.exec('Object.keys(pending).length'),0);
+    changeChoice=false;device.element('#bulk_estimate_choice').value='delete';
+    device.exec("globalThis.savedSetItem=localStorage.setItem;localStorage.setItem=(k,v)=>{if(k.startsWith('mib_delete_probe_'))throw Error('quota');return savedSetItem(k,v)};deleteBulkSelected()");
+    assert.match(device.element('#bulk_status').textContent,/Not enough device storage/i);assert.equal(device.exec('Object.keys(S.clients).length'),2);
+    device.exec('localStorage.setItem=savedSetItem;deleteBulkSelected()');await wait(130);
+    assert.equal(device.exec('Object.keys(S.clients).length'),0);assert.equal(device.exec('Object.keys(S.jobs).length'),0);assert.equal(device.exec('Object.keys(S.estimates).length'),0);
+    assert.equal(server.rows.size,0);assert.equal(server.photoObjects.size,1);
+  }finally{device.dispose()}
+});
+
+test('bulk estimate deletion leaves linked jobs and photos, rejecting linked-job changes during confirmation', async () => {
+  const server=new FakeServer();seedPrice(server,'clients',record('Fictional Client','c1'));
+  for(const id of ['1','2','3']){
+    seedPrice(server,'estimates',priceEstimate('e'+id));
+    seedPrice(server,'jobs',{id:'j'+id,client:'c1',sourceEstimateId:'e'+id,status:'Scheduled',service:'Work '+id,date:'2026-11-0'+id});
+  }
+  server.photoObjects.set('jobs/j1/before/fictional.jpg','fictional');
+  let device,mutate=false,accept=false;const warnings=[];
+  device=makeDevice(server,{}, {confirm:message=>{warnings.push(message);if(mutate)device.exec("S.jobs.j1.service='changed during confirmation'");return accept}});
+  try{
+    await device.login();device.exec("tab='Estimates';render();openBulkDeletion('estimates')");selectBulk(device,'e1');selectBulk(device,'e2');
+    device.exec('deleteBulkSelected()');assert.match(warnings.at(-1),/Delete 2 selected saved estimates/);assert.match(warnings.at(-1),/2 linked jobs.*remain unchanged/);
+    assert.equal(device.exec('Object.keys(S.estimates).length'),3);
+    accept=true;mutate=true;device.exec('deleteBulkSelected()');assert.match(device.element('#bulk_status').textContent,/changed.*select again/i);
+    assert.equal(device.exec('Object.keys(pending).length'),0);assert.equal(device.exec('Object.keys(S.estimates).length'),3);
+    mutate=false;device.exec("openBulkDeletion('estimates')");selectBulk(device,'e1');selectBulk(device,'e2');
+    device.exec('deleteBulkSelected()');await wait(120);
+    assert.equal(server.rows.has('estimates/e1'),false);assert.equal(server.rows.has('estimates/e2'),false);assert.equal(server.rows.has('estimates/e3'),true);
+    assert.equal(server.rows.has('jobs/j1'),true);assert.equal(server.rows.has('jobs/j2'),true);assert.equal(server.photoObjects.size,1);
+  }finally{device.dispose()}
+});
+
+test('bulk deletion refuses unsynced state and a selection changed during confirmation', async () => {
+  const server=new FakeServer();seedPrice(server,'clients',record('Fictional Client','c1'));
+  for(const id of ['1','2'])seedPrice(server,'jobs',{id:'j'+id,client:'c1',status:'Done',service:'Work '+id,date:'2026-10-0'+id});
+  let device,mutateSelection=true,confirms=0;const alerts=[];
+  device=makeDevice(server,{}, {alert:message=>alerts.push(message),confirm:()=>{confirms++;if(mutateSelection)device.exec("bulkDeletion.selected.add('j2')");return true}});
+  try{
+    device.exec("openBulkDeletion('jobs')");assert.match(alerts.at(-1),/Synced across devices/);
+    await device.login();device.exec("openBulkDeletion('jobs')");selectBulk(device,'j1');device.exec('deleteBulkSelected()');
+    assert.match(device.element('#bulk_status').textContent,/selection changed/i);assert.equal(device.exec('Object.keys(S.jobs).length'),2);assert.equal(device.exec('Object.keys(pending).length'),0);
+    mutateSelection=false;device.exec("openBulkDeletion('jobs')");selectBulk(device,'j1');device.exec('hasSnapshot=false;head();deleteBulkSelected()');
+    assert.match(device.element('#bulk_status').textContent,/Synced across devices/);assert.equal(confirms,1);
+    assert.equal(device.exec('Object.keys(S.jobs).length'),2);assert.equal(server.rows.size,3);
+  }finally{device.dispose()}
+});
+
+test('bulk client deletion retries a partial batch without restoring deleted jobs, estimates or clients', async () => {
+  const server=new FakeServer();
+  for(const id of ['1','2']){
+    seedPrice(server,'clients',record('Fictional '+id,'c'+id));
+    seedPrice(server,'jobs',{id:'j'+id,client:'c'+id,status:'Done',service:'Work '+id,date:'2026-10-0'+id});
+    seedPrice(server,'estimates',priceEstimate('e'+id,'c'+id,'Fictional '+id));
+  }
+  server.photoObjects.set('jobs/j1/after/fictional.jpg','fictional');
+  const originalBroadcast=server.broadcast.bind(server);let deletes=0;
+  server.broadcast=event=>{originalBroadcast(event);if(event.eventType==='DELETE'&&++deletes===1)server.failWrites=true};
+  const first=makeDevice(server,{}, {confirm:()=>true}),second=makeDevice(server);
+  try{
+    await Promise.all([first.login(),second.login()]);first.exec("openBulkDeletion('clients');bulkSelectShown()");
+    first.element('#bulk_estimate_choice').value='delete';first.exec('deleteBulkSelected()');await wait(80);
+    assert.equal(deletes,1);assert.equal(server.rows.size,5);assert.equal(first.exec('Object.keys(pending).length'),5);
+    assert.equal(first.exec('Object.keys(S.clients).length+Object.keys(S.jobs).length+Object.keys(S.estimates).length'),0);
+    assert.notEqual(first.element('#st').textContent,'Synced across devices');
+    server.failWrites=false;server.broadcast=originalBroadcast;first.client.reconnect();await wait(180);
+    assert.equal(server.rows.size,0);assert.equal(first.exec('Object.keys(pending).length'),0);
+    assert.equal(second.exec('Object.keys(S.clients).length+Object.keys(S.jobs).length+Object.keys(S.estimates).length'),0);
+    assert.equal(server.photoObjects.size,1);assert.equal(first.element('#st').textContent,'Synced across devices');
+  }finally{first.dispose();second.dispose()}
+});
+
+test('bulk clients with malformed linked records are disabled without preventing safe selections', async () => {
+  const server=new FakeServer();seedPrice(server,'clients',record('Needs review','c1'));seedPrice(server,'clients',record('Safe client','c2'));
+  server.rows.set('jobs/bad',{coll:'jobs',id:'bad',data:{id:'wrong',client:'c1',status:'Done',service:'Malformed linked job',date:'2026-10-01'}});
+  const device=makeDevice(server,{}, {confirm:()=>true});
+  try{
+    await device.login();device.exec("openBulkDeletion('clients');bulkSelectShown()");
+    assert.equal(device.exec("bulkDeletion.candidates.find(c=>c.id==='c1').valid"),false);
+    assert.equal(device.exec("bulkDeletion.candidates.find(c=>c.id==='c2').valid"),true);
+    assert.equal(device.exec('bulkDeletion.selected.size'),1);assert.match(device.element('#bulk_list').innerHTML,/disabled/);
+    device.exec('deleteBulkSelected()');await wait(100);
+    assert.ok(device.exec('S.clients.c1 && S.jobs.bad'));assert.equal(device.exec('S.clients.c2'),undefined);
+    assert.equal(server.rows.has('clients/c1'),true);assert.equal(server.rows.has('jobs/bad'),true);assert.equal(server.rows.has('clients/c2'),false);
+  }finally{device.dispose()}
+});
+
+test('bulk pickers show identifying details so similarly named records can be reviewed safely', async () => {
+  const server=new FakeServer();
+  seedPrice(server,'clients',{...record('Same Name','c1'),props:'111 Fictional Road',phone:'555-0101'});
+  seedPrice(server,'clients',{...record('Same Name','c2'),props:'222 Fictional Road',phone:'555-0102'});
+  seedPrice(server,'jobs',{id:'j1',client:'c1',service:'Mow',status:'Done',date:'2026-10-01',price:11});
+  seedPrice(server,'jobs',{id:'j2',client:'c2',service:'Mow',status:'Done',date:'2026-10-01',price:22});
+  seedPrice(server,'estimates',priceEstimate('e1','c1','Same Name'));
+  const e2=priceEstimate('e2','c2','Same Name');e2.lines[0].unitCents=9900;e2.totalCents=9900;seedPrice(server,'estimates',e2);
+  const warnings=[],device=makeDevice(server,{}, {confirm:message=>{warnings.push(message);return false}});
+  try{
+    await device.login();device.exec("openBulkDeletion('clients')");
+    assert.match(device.element('#bulk_list').innerHTML,/111 Fictional Road/);assert.match(device.element('#bulk_list').innerHTML,/222 Fictional Road/);
+    assert.match(device.element('#bulk_list').innerHTML,/555-0101/);selectBulk(device,'c1');device.element('#bulk_estimate_choice').value='keep';device.exec('deleteBulkSelected()');
+    assert.match(warnings.at(-1),/Selected details:[\s\S]*111 Fictional Road/);
+    device.exec("openBulkDeletion('jobs')");assert.match(device.element('#bulk_list').innerHTML,/\$11/);assert.match(device.element('#bulk_list').innerHTML,/\$22/);
+    device.exec("openBulkDeletion('estimates')");assert.match(device.element('#bulk_list').innerHTML,/\$125\.00/);assert.match(device.element('#bulk_list').innerHTML,/\$99\.00/);
+    assert.equal(device.exec('Object.keys(pending).length'),0);
+  }finally{device.dispose()}
+});

@@ -140,7 +140,7 @@ function vPipe(){return`<div class="board">${ST.map((s,i)=>{const cs=sorted(S.cl
  return`<div class="card" onclick="openClient('${c.id}')"><b>${E(c.name)}</b><div class="m">${E(props(c)[0]||"No address")}</div><div class="m">${n?"Next: "+E(n.date+" · "+n.service):"No job scheduled"}</div>
  <div class="mv"><span>${i>0?`<button onclick="event.stopPropagation();mv('${c.id}',-1)">◀</button>`:""}</span><span>${i<4?`<button onclick="event.stopPropagation();mv('${c.id}',1)">▶</button>`:""}</span></div></div>`}).join("")||'<p class="m">Empty</p>'}</div>`}).join("")}</div>`}
 function mv(id,d){const c=S.clients[id];c.stage=ST[ST.indexOf(c.stage)+d];w("clients",c);render()}
-function vClients(){return`<input id="q" type="search" placeholder="Search clients…" value="${E(q)}" oninput="q=this.value;clist()"><div id="cl"></div>`}
+function vClients(){return`<div class="row"><button class="dg" onclick="openBulkDeletion('clients')">Select clients to delete</button></div><input id="q" type="search" placeholder="Search clients…" value="${E(q)}" oninput="q=this.value;clist()"><div id="cl"></div>`}
 function clist(){const k=q.toLowerCase(),L=sorted(S.clients).filter(c=>!k||[c.name,c.contact,c.phone,c.email,c.props,c.notes,c.type].join(" ").toLowerCase().includes(k));
  $("#cl").innerHTML=L.map(c=>{const js=jobsOf(c.id),u=unp(js);return`<div class="card" onclick="openClient('${c.id}')"><div class="sp"><b>${E(c.name)}</b><span><span class="chip">${E(c.stage)}</span></span></div>
  <div class="m">${E(c.type)}${c.contact?" · "+E(c.contact):""}</div><div class="m">${js.length} job${js.length==1?"":"s"} · Unpaid ${money(u)}</div>
@@ -415,14 +415,14 @@ function roadSave(){
  $("#rr_status").textContent=storageOK?"Route order saved. Keep this page open until it says Synced across devices.":"The order is in memory but could not be saved locally. Use Backup and keep this page open until synced.";render()
 }
 function vJobs(){const od=today();let L=arr(S.jobs).filter(j=>jf=="All"||(jf=="Open"?j.status!="Paid":j.status==jf)).sort((a,b)=>a.date>b.date?1:-1);
- return`<select onchange="jf=this.value;render()">${["Open",...JS,"All"].map(o=>`<option${o==jf?" selected":""}>${o}</option>`).join("")}</select>`+(L.map(j=>{const late=j.status=="Scheduled"&&j.date<od,nx=JS[JS.indexOf(j.status)+1];
+ return`<div class="row"><button class="dg" onclick="openBulkDeletion('jobs')">Select jobs to delete</button></div><select onchange="jf=this.value;render()">${["Open",...JS,"All"].map(o=>`<option${o==jf?" selected":""}>${o}</option>`).join("")}</select>`+(L.map(j=>{const late=j.status=="Scheduled"&&j.date<od,nx=JS[JS.indexOf(j.status)+1];
  return`<div class="card" onclick="openJob('${j.id}')"><div class="sp"><b>${E(cname(j.client))}</b><b>${money(j.price)}</b></div><div class="m">${E(j.service)}${j.prop?" · "+E(j.prop):""}</div>
  <div class="m">${E(j.date)} <span class="chip">${j.status}</span>${jobDateLabel(j)?`<span class="chip">${E(jobDateLabel(j))}</span>`:""}${storedEstimate(j.estimatedMinutes)?`<span class="chip">${E(estimateText(j.estimatedMinutes))} work</span>`:""}${late?'<span class="chip bad">Overdue</span>':""}${j.repeat&&j.repeat!="One-time"?`<span class="chip">${E(j.repeat)}</span>`:""}</div>
  <div class="row">${nx?`<button onclick="event.stopPropagation();setStatus('${j.id}','${nx}')">→ ${nx}</button>`:""}<button onclick="event.stopPropagation();openDoc('${j.id}')">${j.status=="Scheduled"?"Quote":"Invoice"}</button><button data-job="${E(j.id)}" onclick="event.stopPropagation();openJobPhotos(this.dataset.job)">Before / after photos</button><button class="dg" data-job="${E(j.id)}" onclick="event.stopPropagation();delJob(this.dataset.job)">Delete job</button></div></div>`}).join("")||'<p class="m">No jobs here.</p>')}
 /* Completed work is a view of existing job statuses, not a separate copy. */
 const COMPLETED_STATES=["Done","Invoiced","Paid"];
 let completedQuery="",completedFilter="All";
-function vCompleted(){return `<div class="card"><h2>Completed work</h2><p class="m">Jobs marked Done, Invoiced or Paid appear here. To finish a job, tap → Done in Jobs or Mark Done on Route. Done and Invoiced jobs also remain in Jobs → Open until marked Paid.</p><p class="m">Dates below are scheduled job dates, not completion dates.</p></div>
+function vCompleted(){return `<div class="card"><h2>Completed work</h2><p class="m">Jobs marked Done, Invoiced or Paid appear here. To finish a job, tap → Done in Jobs or Mark Done on Route. Done and Invoiced jobs also remain in Jobs → Open until marked Paid.</p><p class="m">Dates below are scheduled job dates, not completion dates.</p><div class="bt"><button class="dg" onclick="openBulkDeletion('completed')">Select completed jobs to delete</button></div></div>
  <label for="completed_search">Search completed jobs</label><input id="completed_search" type="search" placeholder="Client, property, service or date" value="${E(completedQuery)}" oninput="completedQuery=this.value;completedList()">
  <label for="completed_filter">Status</label><select id="completed_filter" onchange="completedFilter=this.value;completedList()">${["All",...COMPLETED_STATES].map(s=>`<option${s===completedFilter?" selected":""}>${E(s)}</option>`).join("")}</select>
  <p id="completed_count" class="m" role="status" aria-live="polite"></p><div id="completed_list"></div>`}
@@ -489,7 +489,7 @@ function estimateName(e){return String(e.clientName||cname(e.client)||"(unnamed 
 function vEstimates(){return `<div class="card"><h2>Estimates &amp; quotes</h2><p class="m">Create a customer price estimate before scheduling, or open a quote from an existing job. Status is for your team's tracking; nothing is sent automatically.</p><div class="bt"><button class="pri" onclick="openEstimate()">+ New estimate</button></div></div>
  <label for="est_search">Search estimates and jobs</label><input id="est_search" type="search" placeholder="Client, property or service" value="${E(estimateQuery)}" oninput="estimateQuery=this.value;estimateLists()">
  <label for="est_filter">Saved estimate status</label><select id="est_filter" onchange="estimateFilter=this.value;estimateLists()">${["All",...ESTIMATE_STATES].map(s=>`<option${s===estimateFilter?" selected":""}>${E(s)}</option>`).join("")}</select>
- <h3>Saved customer estimates</h3><div id="est_saved"></div><h3>Quotes from existing jobs</h3><p class="m">These quotes use each job's current details and price, not a saved snapshot. Opening or copying a quote does not send it.</p><div id="est_jobs"></div>`}
+ <h3>Saved customer estimates</h3><div class="bt"><button class="dg" onclick="openBulkDeletion('estimates')">Select estimates to delete</button></div><div id="est_saved"></div><h3>Quotes from existing jobs</h3><p class="m">These quotes use each job's current details and price, not a saved snapshot. Opening or copying a quote does not send it.</p><div id="est_jobs"></div>`}
 function estimateLists(){
  const target=$("#est_saved"),jobsTarget=$("#est_jobs");if(!target||!jobsTarget)return;const query=estimateQuery.trim().toLowerCase();
  const matches=parts=>!query||parts.map(v=>String(v==null?"":v)).join(" ").toLowerCase().includes(query);
@@ -505,11 +505,11 @@ function spawn(j){if(j.repeat&&j.repeat!="One-time"&&!j.spawned&&j.status!="Sche
 function setStatus(id,s){const j=S.jobs[id];j.status=s;w("jobs",j);spawn(j);render()}
 /* dialogs */
 const dlg=h=>{clearPhotoView();$("#dlg").innerHTML=h;if(!$("#dlg").open)$("#dlg").showModal()},closeD=()=>{$("#dlg").close();later()};
-$("#dlg").addEventListener("close",()=>{roadSeq++;roadPlan=null;roadBusy=false;pickedRoute=null;weekSeq++;weekPlan=null;weekBusy=false;leadDeletion=null;clientDeletion=null;estimateDraft=null;estimateSchedule=null;clearPhotoView();if(pend)setTimeout(later,0)});
+$("#dlg").addEventListener("close",()=>{roadSeq++;roadPlan=null;roadBusy=false;pickedRoute=null;weekSeq++;weekPlan=null;weekBusy=false;leadDeletion=null;clientDeletion=null;bulkDeletion=null;estimateDraft=null;estimateSchedule=null;clearPhotoView();if(pend)setTimeout(later,0)});
 document.addEventListener("focusout",()=>setTimeout(()=>{if(pend&&!busy())render()},80));
 const bt=(id,key,del)=>`<div class="bt"><button class="pri" onclick="${key}('${id||""}')">Save</button>${id&&del?`<button class="dg" onclick="${del}('${id}')">Delete</button>`:""}<button onclick="closeD()">Cancel</button></div>`;
 /* Destructive changes require a current shared snapshot and an explicit count. */
-let leadDeletion=null,clientDeletion=null;
+let leadDeletion=null,clientDeletion=null,bulkDeletion=null;
 function deleteReady(){if(!db||!hasSnapshot||!synced)throw new Error("Wait until the CRM says Synced across devices before deleting. Use one device at a time.")}
 function clientDeleteSnapshot(ids,leadsOnly=false){
  deleteReady();if(!ids.length||new Set(ids).size!==ids.length)throw new Error("Select at least one record.");
@@ -573,6 +573,96 @@ function deleteSelectedLeads(){
   if(clientDeleteSnapshot(ids,true).signature!==snap.signature)throw new Error("A selected lead or its linked jobs changed, or a saved estimate changed. Close and select again.");
   deleteBatch(entries);leadDeletion=null;if(!storageOK)alert("The deletion is in memory but could not be saved on this device. Use Backup and keep this page open until synced.");closeD();render()
  }catch(e){const status=$("#lead_status");if(status)status.textContent=e.message||"Could not delete the selected leads."}
+}
+/* Bulk deletion uses the same outbox and confirmation safeguards as individual deletion. */
+const bulkOwn=(o,id)=>Object.prototype.hasOwnProperty.call(o,id);
+const bulkPlain=value=>String(value==null?"":value).replace(/[\x00-\x1f\x7f\u200e\u200f\u202a-\u202e\u2066-\u2069]/g," ").slice(0,160);
+function bulkJobSignature(id){
+ deleteReady();const job=bulkOwn(S.jobs,id)?S.jobs[id]:null;
+ if(typeof id!=="string"||!id||!job||job.id!==id)throw new Error("A selected job changed or has an invalid ID. Close and review it again.");
+ const client=bulkOwn(S.clients,job.client)?S.clients[job.client]:null;return JSON.stringify({job,client:client||null})
+}
+function bulkEstimateSnapshot(id){
+ deleteReady();const estimate=bulkOwn(S.estimates,id)?S.estimates[id]:null;
+ if(typeof id!=="string"||!id||!estimate||estimate.id!==id)throw new Error("A selected estimate changed or has an invalid ID. Close and review it again.");
+ const client=bulkOwn(S.clients,estimate.client)?S.clients[estimate.client]:null,jobs=estimateJobs(id).slice().sort((a,b)=>String(a.id).localeCompare(String(b.id)));
+ return {linked:jobs.length,signature:JSON.stringify({estimate,client:client||null,jobs})}
+}
+function bulkCandidate(kind,id,item){
+ const clientMode=kind==="clients",estimateMode=kind==="estimates";
+ const name=String(clientMode?(item&&item.name||"(unnamed client)"):estimateMode?(item&&estimateName(item)||"(unnamed client)"):(item&&cname(item.client)||"(deleted client)"));
+ const base={id,name,status:String(item&&((clientMode?item.stage:item.status)||"")),detail:"",search:name.toLowerCase(),jobs:0,estimates:0,valid:false,signature:""};
+ try{
+  if(!item||typeof item!=="object"||typeof item.id!=="string"||!id||item.id!==id)throw new Error("This record has an invalid ID. Review it before deleting.");
+  if(clientMode){const snap=clientDeleteSnapshot([id]);base.jobs=snap.jobs.length;base.estimates=snap.estimates.length;base.signature=snap.signature;
+   base.detail=[item.stage||"Unknown stage",item.type,item.contact,item.phone,item.email,props(item)[0],base.jobs+" linked job"+(base.jobs===1?"":"s"),base.estimates+" saved estimate"+(base.estimates===1?"":"s")].filter(Boolean).join(" · ");
+   base.search=[name,item.contact,item.phone,item.email,item.props,item.notes,item.type,item.stage].map(x=>String(x==null?"":x)).join(" ").toLowerCase()
+  }else if(estimateMode){const snap=bulkEstimateSnapshot(id);base.jobs=snap.linked;base.signature=snap.signature;let amount="Price needs review";try{amount=estimateMoney(estimateStored(item).totalCents)}catch(e){}
+   base.detail=[item.service||"Service not set",item.property||"No property entered",item.date||"Date not set",item.status||"Unknown status",amount,base.jobs+" linked job"+(base.jobs===1?"":"s")].join(" · ");
+   base.search=[name,item.property,item.service,item.date,item.status].map(x=>String(x==null?"":x)).join(" ").toLowerCase()
+  }else{base.signature=bulkJobSignature(id);const address=jaddr(item)||"No property",price=item.price==null||item.price===""?"Price not set":Number.isFinite(Number(item.price))?money(item.price):"Price needs review";
+   base.detail=[item.service||"Service not set",address,"Scheduled: "+(item.date||"not set"),item.status||"Unknown status",price].join(" · ");
+   base.search=[name,address,item.service,item.date,item.status].map(x=>String(x==null?"":x)).join(" ").toLowerCase()
+  }
+  base.valid=true
+ }catch(e){base.detail=e.message||"This record needs review before deletion."}
+ return base
+}
+function openBulkDeletion(kind){
+ try{
+  if(!["clients","jobs","completed","estimates"].includes(kind))throw new Error("Choose a valid record type.");deleteReady();
+  const coll=kind==="completed"?"jobs":kind,options=kind==="clients"?["All",...ST]:kind==="estimates"?["All",...ESTIMATE_STATES]:kind==="completed"?["All",...COMPLETED_STATES]:["All","Open",...JS];
+  let filter=kind==="jobs"?jf:kind==="completed"?completedFilter:kind==="estimates"?estimateFilter:"All";if(!options.includes(filter))filter="All";
+  const search=kind==="clients"?q:kind==="completed"?completedQuery:kind==="estimates"?estimateQuery:"";
+  const candidates=Object.entries(S[coll]).filter(([,item])=>kind!=="completed"||(item&&COMPLETED_STATES.includes(item.status))).map(([id,item])=>bulkCandidate(kind,id,item)).sort((a,b)=>a.name.localeCompare(b.name)||a.detail.localeCompare(b.detail)||a.id.localeCompare(b.id));
+  bulkDeletion={kind,coll,candidates,selected:new Set(),shown:[],initialFilter:filter,choiceSelection:""};
+  const subject=kind==="completed"?"completed jobs":kind,title="Select "+subject+" to delete",description=kind==="clients"?"Deleting clients also deletes all their linked jobs, including scheduled and historical jobs. Choose whether to keep or delete their saved estimates. Private photo files remain in storage.":kind==="estimates"?"Only saved customer estimates are deleted. Linked jobs and quotes from existing jobs remain unchanged.":"Clients and saved estimates remain. Private photo files are NOT deleted from storage and will no longer be visible after a job is deleted; delete unwanted photos from each job first.";
+  dlg(`<h2>${E(title)}</h2><p class="m">${E(description)} Use one device at a time.</p><p class="m">Select shown applies only to the filtered list. Selections hidden by search or filters stay selected; review them before deleting.</p><label for="bulk_search">Search ${E(subject)}</label><input id="bulk_search" type="search" placeholder="Search ${E(subject)}" value="${E(search)}" oninput="bulkFilter()"><label for="bulk_filter">${kind==="clients"?"Stage":"Status"}</label><select id="bulk_filter" onchange="bulkFilter()">${options.map(s=>`<option value="${E(s)}"${s===filter?" selected":""}>${E(s)}</option>`).join("")}</select><div class="bt"><button onclick="bulkSelectShown()">Select shown</button><button onclick="bulkClear()">Clear selection</button></div><p id="bulk_count" role="status" aria-live="polite"></p><div id="bulk_list"></div><details id="bulk_review" hidden><summary id="bulk_review_title"></summary><ul id="bulk_review_list"></ul></details>${kind==="clients"?`<div id="bulk_estimate_option" hidden><label for="bulk_estimate_choice">What should happen to the selected clients' saved estimates?</label><select id="bulk_estimate_choice"><option value="">Choose keep or delete…</option><option value="keep">Keep all selected estimates</option><option value="delete">Delete all selected estimates</option></select><p class="m">Kept estimates retain customer details. To make different choices, delete clients in separate groups.</p></div>`:""}<p id="bulk_status" class="m" role="status" aria-live="polite"></p><div class="bt"><button class="dg" id="bulk_delete" onclick="deleteBulkSelected()">Delete selected ${E(subject)}</button><button onclick="closeD()">Cancel</button></div>`);
+  $("#dlg").scrollTop=0;bulkFilter()
+ }catch(e){bulkDeletion=null;alert(e.message||"Could not open selection.")}
+}
+function bulkFilter(){
+ const p=bulkDeletion;if(!p)return;const query=String($("#bulk_search").value||"").trim().toLowerCase(),filter=$("#bulk_filter").value||p.initialFilter;
+ p.shown=[];p.candidates.forEach((c,i)=>{const statusMatch=filter==="All"||(p.kind==="jobs"&&filter==="Open"?c.status!=="Paid":c.status===filter);if(statusMatch&&(!query||c.search.includes(query)))p.shown.push(i)});
+ $("#bulk_list").innerHTML=p.shown.map(i=>{const c=p.candidates[i];return `<label class="pick-stop"><input type="checkbox" data-index="${i}" onchange="bulkToggle(this)"${p.selected.has(c.id)?" checked":""}${c.valid?"":" disabled"}><span><b>${E(c.name)}</b><span class="m">${E(c.detail)}</span>${c.valid?"":'<span class="m">Cannot select until this record is reviewed.</span>'}</span></label>`}).join("")||'<p class="m">No records match.</p>';
+ $("#bulk_status").textContent="";bulkCount()
+}
+function bulkCount(){
+ const p=bulkDeletion;if(!p)return;const selected=p.candidates.map((c,i)=>({c,i})).filter(x=>p.selected.has(x.c.id)),shown=new Set(p.shown),hidden=selected.filter(x=>!shown.has(x.i)).length,jobs=selected.reduce((n,x)=>n+x.c.jobs,0),estimates=selected.reduce((n,x)=>n+x.c.estimates,0);
+ let summary=selected.length+" selected"+(hidden?" · "+hidden+" hidden by filters":"");if(p.kind==="clients")summary+=" · "+jobs+" linked jobs · "+estimates+" saved estimates";if(p.kind==="estimates")summary+=" · "+jobs+" linked jobs remain";
+ $("#bulk_count").textContent=summary;$("#bulk_delete").disabled=!selected.length;$("#bulk_review").hidden=!selected.length;$("#bulk_review_title").textContent="Review all "+selected.length+" selected (including hidden)";
+ $("#bulk_review_list").innerHTML=selected.map(({c,i})=>`<li><b>${E(c.name)}</b> — ${E(c.detail)} <button type="button" data-index="${i}" onclick="bulkRemove(this)" aria-label="Remove ${E(c.name)} from selection">Remove</button></li>`).join("");
+ if(p.kind==="clients"){const selection=JSON.stringify(selected.map(x=>x.c.id).sort());if(p.choiceSelection!==selection){$("#bulk_estimate_choice").value="";p.choiceSelection=selection}$("#bulk_estimate_option").hidden=!estimates}
+}
+function bulkToggle(input){const p=bulkDeletion,c=p&&p.candidates[+input.dataset.index];if(!c||!c.valid){input.checked=false;return}input.checked?p.selected.add(c.id):p.selected.delete(c.id);$("#bulk_status").textContent="";bulkCount()}
+function bulkSelectShown(){const p=bulkDeletion;if(!p)return;p.shown.forEach(i=>{const c=p.candidates[i];if(c.valid)p.selected.add(c.id)});bulkFilter()}
+function bulkClear(){if(bulkDeletion){bulkDeletion.selected.clear();bulkFilter()}}
+function bulkRemove(button){const p=bulkDeletion,c=p&&p.candidates[+button.dataset.index];if(c){p.selected.delete(c.id);bulkFilter()}}
+function bulkSelected(p){
+ deleteReady();if(!p||p!==bulkDeletion)throw new Error("The selection changed. Close and review it again.");
+ const chosen=p.candidates.filter(c=>p.selected.has(c.id));if(!chosen.length||chosen.length!==p.selected.size||chosen.some(c=>!c.valid))throw new Error("Select at least one valid record.");
+ chosen.forEach(c=>{const signature=p.kind==="clients"?clientDeleteSnapshot([c.id]).signature:p.kind==="estimates"?bulkEstimateSnapshot(c.id).signature:bulkJobSignature(c.id);
+  if(signature!==c.signature)throw new Error("A selected record or its linked details changed. Close and select again.")});return chosen
+}
+function bulkWarning(p,chosen,clientSnap,choice){
+ const shown=new Set(p.shown.map(i=>p.candidates[i].id)),hidden=chosen.filter(c=>!shown.has(c.id)).length,hiddenNote=hidden?"\n\nIncludes "+hidden+" selected record"+(hidden===1?"":"s")+" hidden by the current filters.":"";
+ const samples=chosen.slice(0,5).map(c=>bulkPlain(c.name)+" — "+bulkPlain(c.detail)).join("\n"),more=chosen.length>5?"\n...and "+(chosen.length-5)+" more; review the full selection in the dialog.":"";
+ if(p.kind==="clients")return deletionWarning(chosen.length,clientSnap.jobs.length,false,clientSnap.clients,clientSnap.estimates.length,choice)+hiddenNote+"\n\nSelected details:\n"+samples+more;
+ if(p.kind==="estimates"){const jobs=chosen.reduce((n,c)=>n+c.jobs,0);return "Delete "+chosen.length+" selected saved estimate"+(chosen.length===1?"":"s")+"? This cannot be undone.\n\nSelected:\n"+samples+more+hiddenNote+"\n\n"+jobs+" linked job"+(jobs===1?"":"s")+" will remain unchanged, as will quotes from existing jobs. Use one device at a time."}
+ return "Delete "+chosen.length+" selected job"+(chosen.length===1?"":"s")+"? This cannot be undone.\n\nSelected:\n"+samples+more+hiddenNote+"\n\nClients and saved estimates will remain. Private photo files are NOT deleted from storage and will no longer be visible in the CRM. Delete unwanted photos from each job first. Use one device at a time."
+}
+function deleteBulkSelected(){
+ try{
+  const p=bulkDeletion,chosen=bulkSelected(p),ids=chosen.map(c=>c.id),selection=JSON.stringify(ids);let snap=null,choice="",entries;
+  if(p.kind==="clients"){snap=clientDeleteSnapshot(ids);choice=snap.estimates.length?$("#bulk_estimate_choice").value:"";entries=deletionEntries(snap,choice)}
+  else entries=ids.map(id=>({coll:p.coll,id}));
+  if(!deleteSpace(entries))throw new Error("Not enough device storage to queue this deletion. Free space and try again.");
+  if(!confirm(bulkWarning(p,chosen,snap,choice)))return;
+  const after=bulkSelected(p);if(JSON.stringify(after.map(c=>c.id))!==selection)throw new Error("The selection changed. Close and review it again.");
+  if(snap&&(clientDeleteSnapshot(ids).signature!==snap.signature||(snap.estimates.length&&$("#bulk_estimate_choice").value!==choice)))throw new Error("The selected clients, linked records or estimate choice changed. Close and review them again.");
+  if(!deleteSpace(entries))throw new Error("Not enough device storage to queue this deletion. Free space and try again.");
+  deleteBatch(entries);bulkDeletion=null;if(!storageOK)alert("The deletion is in memory but could not be saved on this device. Use Backup and keep this page open until synced.");closeD();render()
+ }catch(e){const status=$("#bulk_status");if(status)status.textContent=e.message||"Could not delete the selected records."}
 }
 function openClient(id){const c=id?S.clients[id]:{type:TY[0],stage:"Lead"},v=k=>E(c[k]);
  dlg(`<h2>${id?"Edit":"New"} client</h2>`+F("Name",`<input id="c_name" value="${v("name")}">`)+F("Contact",`<input id="c_contact" value="${v("contact")}">`)+F("Phone",`<input id="c_phone" type="tel" value="${v("phone")}">`)+F("Email",`<input id="c_email" type="email" value="${v("email")}">`)+F("Type",sel(TY,c.type,"c_type"))+F("Stage",sel(ST,c.stage,"c_stage"))+F("Properties (one address, unit or GPS coordinate per line)",`<textarea id="c_props" rows="3">${v("props")}</textarea>`)+F("Notes (gate codes, mower access, pets)",`<textarea id="c_notes" rows="3">${v("notes")}</textarea>`)+bt(id,"saveClient","delClient"))}
