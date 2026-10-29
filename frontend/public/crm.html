@@ -138,11 +138,12 @@ async function boot(){try{const r=await sb.auth.getSession();if(r.data&&r.data.s
 window.addEventListener("online",()=>{if(db){load();scheduleFlush()}});window.addEventListener("offline",()=>{channelReady=false;hasSnapshot=false;head()});
 /* render */
 function render(){pend=false;head();
- const L=arr(S.clients),J=arr(S.jobs);
+ const L=arr(S.clients),J=arr(S.jobs),tabScroll=$("#tabs").scrollLeft;
  $("#stats").innerHTML=[[L.filter(c=>c.stage=="Lead"||c.stage=="Quoted").length,"Open leads"],[L.filter(c=>c.stage=="Recurring").length,"Recurring"],[J.filter(j=>j.status=="Scheduled").length,"Scheduled"],[money(unp(J)),"Unpaid"]].map(a=>`<div class="stat"><b>${a[0]}</b><span>${a[1]}</span></div>`).join("");
- $("#tabs").innerHTML=TABS.map(t=>`<button class="${t==tab?"on":""}" onclick="tab='${t}';render()">${t}</button>`).join("");
+ $("#tabs").innerHTML=TABS.map(t=>`<button class="${t==tab?"on":""}" onclick="tab='${t}';render();revealActiveTab()">${t}</button>`).join("");$("#tabs").scrollLeft=tabScroll;
  $("#main").innerHTML=JOB_CATEGORIES.includes(tab)?vJobs(tab):({Pipeline:vPipe,Clients:vClients,Properties:vProps,Estimates:vEstimates,Route:vRoute,Jobs:vJobs,Completed:vCompleted,"Due & overdue":vDue})[tab]();
  if(tab=="Clients")clist();if(tab==="Estimates")estimateLists();if(tab==="Completed")completedList()}
+function revealActiveTab(){const bar=$("#tabs"),active=bar&&bar.querySelector("button.on");if(!active)return;const b=bar.getBoundingClientRect(),a=active.getBoundingClientRect();if(a.left<b.left)bar.scrollLeft-=Math.ceil(b.left-a.left);else if(a.right>b.right)bar.scrollLeft+=Math.ceil(a.right-b.right)}
 const sorted=o=>arr(o).sort((a,b)=>(a.name||"").localeCompare(b.name||""));
 function vPipe(){return`<div class="board">${ST.map((s,i)=>{const cs=sorted(S.clients).filter(c=>c.stage==s);
  return`<div class="col"><h3>${s}<span class="m">${cs.length}</span></h3>${s==="Lead"?'<button class="dg" onclick="openLeadDeletion()">Select leads to delete</button>':""}${cs.map(c=>{const n=nextJob(c.id);
@@ -478,7 +479,7 @@ function vDue(){
 }
 /* Customer price estimates are independent from scheduled jobs and work-time estimates. */
 const ESTIMATE_STATES=["Draft","Sent","Accepted","Declined"],ESTIMATE_LINE_LIMIT=50;
-let estimateQuery="",estimateFilter="All",estimateDraft=null,estimateSchedule=null,estimateDocument=null;
+let estimateQuery="",estimateFilter="All",estimateDraft=null,estimateSchedule=null,estimateDocument=null,aiQuote=null;
 function estimateQuantity(milli){return String(milli/1000)}
 function estimateMoney(cents){const remainder=cents%100,dollars=(cents-remainder)/100;return "$"+dollars.toLocaleString("en-US")+"."+String(remainder).padStart(2,"0")}
 function estimateLineCents(line){const product=line.quantityMilli*line.unitCents,remainder=product%1000;return (product-remainder)/1000+(remainder>=500?1:0)}
@@ -510,7 +511,7 @@ function estimateItemsParse(items){
 function estimateStored(e){const totalCents=estimateSum(e&&e.lines);if(!Number.isSafeInteger(e.totalCents)||e.totalCents!==totalCents)throw new Error("This estimate's total needs review. Edit it before sharing or scheduling.");return {lines:e.lines,totalCents}}
 function estimateJobs(id){return arr(S.jobs).filter(j=>j&&j.sourceEstimateId!=null&&String(j.sourceEstimateId)===String(id))}
 function estimateName(e){return String(e.clientName||cname(e.client)||"(unnamed client)")}
-function vEstimates(){return `<div class="card"><h2>Estimates &amp; quotes</h2><p class="m">Create a customer price estimate before scheduling, or open a quote from an existing job. Status is for your team's tracking; nothing is sent automatically.</p><div class="bt"><button class="pri" onclick="openEstimate()">+ New estimate</button></div></div>
+function vEstimates(){return `<div class="card"><h2>Estimates &amp; quotes</h2><p class="m">Create a customer price estimate before scheduling, or open a quote from an existing job. Status is for your team's tracking; nothing is sent automatically.</p><div class="bt"><button class="pri" onclick="openEstimate()">+ New estimate</button><button onclick="openAIQuote()">Photo estimate with AI</button></div></div>
  <label for="est_search">Search estimates and jobs</label><input id="est_search" type="search" placeholder="Client, property or service" value="${E(estimateQuery)}" oninput="estimateQuery=this.value;estimateLists()">
  <label for="est_filter">Saved estimate status</label><select id="est_filter" onchange="estimateFilter=this.value;estimateLists()">${["All",...ESTIMATE_STATES].map(s=>`<option${s===estimateFilter?" selected":""}>${E(s)}</option>`).join("")}</select>
  <h3>Saved customer estimates</h3><div class="bt"><button class="dg" onclick="openBulkDeletion('estimates')">Select estimates to delete</button></div><div id="est_saved"></div><h3>Quotes from existing jobs</h3><p class="m">These quotes use each job's current details and price, not a saved snapshot. Opening or copying a quote does not send it.</p><div id="est_jobs"></div>`}
@@ -528,8 +529,8 @@ function estimateLists(){
 function spawn(j){if(j.repeat&&j.repeat!="One-time"&&!j.spawned&&COMPLETED_STATES.includes(j.status)&&validDate(j.date)){const n=Object.assign({},j,{id:uid("j"),date:addD(j.date,j.repeat=="Weekly"?7:14,j.repeat=="Monthly"),status:"Scheduled",spawned:false});delete n.ord;delete n.dateRequirement;delete n.requiredDate;delete n.sourceAppfolio;delete n.workDescription;delete n.workOrderDetails;j.spawned=true;w("jobs",n);w("jobs",j)}}
 function setStatus(id,s){const j=S.jobs[id];j.status=s;w("jobs",j);spawn(j);render()}
 /* dialogs */
-const dlg=h=>{clearPhotoView();$("#dlg").innerHTML=h;if(!$("#dlg").open)$("#dlg").showModal()},closeD=()=>{$("#dlg").close();later()};
-$("#dlg").addEventListener("close",()=>{roadSeq++;roadPlan=null;roadBusy=false;pickedRoute=null;weekSeq++;weekPlan=null;weekBusy=false;appfolioReadSeq++;appfolioImport=null;leadDeletion=null;clientDeletion=null;bulkDeletion=null;bulkCategoryAssignment=null;jobEditor=null;estimateDraft=null;estimateSchedule=null;clearPhotoView();if(pend)setTimeout(later,0)});
+const dlg=h=>{clearPhotoView();clearAIQuote();$("#dlg").innerHTML=h;if(!$("#dlg").open)$("#dlg").showModal()},closeD=()=>{$("#dlg").close();later()};
+$("#dlg").addEventListener("close",()=>{roadSeq++;roadPlan=null;roadBusy=false;pickedRoute=null;weekSeq++;weekPlan=null;weekBusy=false;appfolioReadSeq++;appfolioImport=null;leadDeletion=null;clientDeletion=null;bulkDeletion=null;bulkCategoryAssignment=null;jobEditor=null;estimateDraft=null;estimateSchedule=null;clearPhotoView();clearAIQuote();if(pend)setTimeout(later,0)});
 document.addEventListener("focusout",()=>setTimeout(()=>{if(pend&&!busy())render()},80));
 const bt=(id,key,del)=>`<div class="bt"><button class="pri" data-id="${E(id||"")}" onclick="${key}(this.dataset.id)">Save</button>${id&&del?`<button class="dg" data-id="${E(id)}" onclick="${del}(this.dataset.id)">Delete</button>`:""}<button onclick="closeD()">Cancel</button></div>`;
 /* Destructive changes require a current shared snapshot and an explicit count. */
@@ -799,26 +800,28 @@ function estimateNewId(prefix,coll){
   const id=prefix+token;if(!S[coll][id]&&!pending[key(coll,id)])return id
  }throw new Error("Could not generate a unique ID. Try again.")
 }
-function openEstimate(id){
+function openEstimate(id,prefill=null){
  const e=id?S.estimates[id]:null,clients=sorted(S.clients);if(id&&!e){alert("That estimate no longer exists.");return}
  if(!id&&!clients.length){alert("Add a client first, then create an estimate.");openClient();return}
  if(e&&Array.isArray(e.lines)&&e.lines.length>ESTIMATE_LINE_LIMIT){alert("This estimate has too many lines to edit safely.");return}
- const clientId=e?String(e.client==null?"":e.client):String(clients[0].id),orphan=e&&!S.clients[clientId],status=e?e.status:"Draft",service=e?e.service:"";
- const rows=e&&Array.isArray(e.lines)&&e.lines.length?e.lines.map(x=>({description:String(x&&x.description||""),quantity:x&&Number.isSafeInteger(x.quantityMilli)?estimateQuantity(x.quantityMilli):"",rate:x&&Number.isSafeInteger(x.unitCents)?(x.unitCents/100).toFixed(2):""})):[{description:"",quantity:"1",rate:""}];
- estimateDraft={id:id||"",signature:e?JSON.stringify(e):"",clientId,clientSignature:S.clients[clientId]?JSON.stringify(S.clients[clientId]):null,rows,saved:false};
+ if(prefill&&(id||!S.clients[prefill.client]||JSON.stringify(S.clients[prefill.client])!==prefill.clientSignature)){alert("The selected client changed. Close and review it before creating an estimate.");return}
+ const clientId=e?String(e.client==null?"":e.client):prefill?prefill.client:String(clients[0].id),orphan=e&&!S.clients[clientId],status=e?e.status:"Draft",service=e?e.service:prefill?prefill.service:"";
+ const rows=prefill?prefill.rows:e&&Array.isArray(e.lines)&&e.lines.length?e.lines.map(x=>({description:String(x&&x.description||""),quantity:x&&Number.isSafeInteger(x.quantityMilli)?estimateQuantity(x.quantityMilli):"",rate:x&&Number.isSafeInteger(x.unitCents)?(x.unitCents/100).toFixed(2):""})):[{description:"",quantity:"1",rate:""}];
+ estimateDraft={id:id||"",signature:e?JSON.stringify(e):"",clientId,clientSignature:S.clients[clientId]?JSON.stringify(S.clients[clientId]):null,rows,saved:false,aiGenerated:!!prefill,aiRatesUsed:!!(prefill&&prefill.aiRatesUsed),aiRateSnapshot:prefill?prefill.rateRaw:null,aiReviewSignature:""};
  const options=(orphan?`<option value="${E(clientId)}" selected>Deleted client — ${E(estimateName(e))} (kept estimate)</option>`:"")+clients.map(c=>`<option value="${E(c.id)}"${String(c.id)===clientId?" selected":""}>${E(c.name||"(unnamed)")}</option>`).join("");
  dlg(`<h2>${e?"Edit":"New"} customer estimate</h2><p class="m">Enter your own prices. Status is for tracking only; saving does not send anything or create a job. Check the property if you change clients.</p>
  <label for="es_client">Client</label><select id="es_client" onchange="estimateClientChanged()">${options}</select>
  <label for="es_service">Service</label><select id="es_service"><option value="">Choose a service…</option>${SV.map(s=>`<option value="${E(s)}"${s===service?" selected":""}>${E(s)}</option>`).join("")}</select>
- <label for="es_property">Property / unit (optional until scheduling)</label><input id="es_property" list="es_properties" maxlength="500" value="${E(e&&e.property||"")}" placeholder="Street address or GPS coordinates"><datalist id="es_properties">${pl(clientId)}</datalist>
+ <label for="es_property">Property / unit (optional until scheduling)</label><input id="es_property" list="es_properties" maxlength="500" value="${E(e&&e.property||prefill&&prefill.property||"")}" placeholder="Street address or GPS coordinates"><datalist id="es_properties">${pl(clientId)}</datalist>
  <label for="es_date">Estimate date</label><input id="es_date" type="date" value="${E(e&&e.date||today())}">
  <label for="es_status">Status (tracking only)</label><select id="es_status"><option value="">Choose a status…</option>${ESTIMATE_STATES.map(s=>`<option value="${s}"${s===status?" selected":""}>${s}</option>`).join("")}</select>
  <h3>Price details</h3><p class="m">Add work or materials one line at a time. For a flat price, use quantity 1. Tax is not calculated automatically; add it as a line if needed.</p><div id="es_lines"></div><div class="bt"><button type="button" onclick="estimateAddLine()">+ Add line</button></div><p id="es_total" role="status" aria-live="polite"></p>
- <label for="es_notes">Customer notes (shown on the estimate)</label><textarea id="es_notes" rows="3" maxlength="5000">${E(e&&e.notes||"")}</textarea><label for="es_team_notes">Team-only notes (not shown on the estimate)</label><textarea id="es_team_notes" rows="2" maxlength="5000">${E(e&&e.teamNotes||"")}</textarea>
+ <label for="es_notes">Customer notes (shown on the estimate)</label><textarea id="es_notes" rows="3" maxlength="5000">${E(e&&e.notes||"")}</textarea><label for="es_team_notes">Team-only notes (not shown on the estimate)</label><textarea id="es_team_notes" rows="3" maxlength="5000">${E(e&&e.teamNotes||prefill&&prefill.teamNotes||"")}</textarea>
+ ${prefill?`<div class="card"><b>AI-generated draft — review required</b><p class="m">${E(prefill.notice)} Verify the scope, measurements, quantities, rates, materials, access, hidden conditions and total. Photos cannot reveal everything. Nothing has been saved or sent.</p><label class="pick-stop"><input id="es_ai_review" type="checkbox" onchange="estimateAIReviewChanged(this)"><span>I reviewed and corrected the scope, quantities, rates and total.</span></label></div>`:""}
  ${e&&estimateJobs(e.id).length?'<p class="m">Changes here do not change any linked job. Edit the job separately if needed.</p>':""}<p id="es_error" class="m" role="alert"></p><div class="bt"><button class="pri" onclick="saveEstimate()">Save estimate</button><button onclick="closeD()">Cancel</button></div>`);
  estimateRows()
 }
-function estimateClientChanged(){const clientId=String($("#es_client").value||""),list=$("#es_properties");if(list)list.innerHTML=pl(clientId);if(estimateDraft){estimateDraft.clientId=clientId;estimateDraft.clientSignature=S.clients[clientId]?JSON.stringify(S.clients[clientId]):null}}
+function estimateClientChanged(){const clientId=String($("#es_client").value||""),list=$("#es_properties"),p=estimateDraft;if(list)list.innerHTML=pl(clientId);if(p){if(p.aiGenerated&&p.clientId!==clientId){$("#es_property").value="";const check=$("#es_ai_review");if(check)check.checked=false;p.aiReviewSignature=""}p.clientId=clientId;p.clientSignature=S.clients[clientId]?JSON.stringify(S.clients[clientId]):null}}
 function estimateRows(){
  if(!estimateDraft||!$("#es_lines"))return;$("#es_lines").innerHTML=estimateDraft.rows.map((row,i)=>`<div class="card estimate-line"><b>Line ${i+1}</b><label>Work or material<input data-i="${i}" data-field="description" maxlength="200" value="${E(row.description)}" oninput="estimateRowInput(this)" placeholder="Description"></label><div class="estimate-grid"><label>Quantity<input type="number" inputmode="decimal" min="0.001" step="0.001" data-i="${i}" data-field="quantity" value="${E(row.quantity)}" oninput="estimateRowInput(this)"></label><label>Rate ($)<input type="number" inputmode="decimal" min="0" step="0.01" data-i="${i}" data-field="rate" value="${E(row.rate)}" oninput="estimateRowInput(this)"></label></div><button type="button" data-i="${i}" onclick="estimateRemoveLine(this)">Remove line</button></div>`).join("");estimateUpdateTotal()
 }
@@ -826,9 +829,18 @@ function estimateRowInput(input){const p=estimateDraft,i=Number(input.dataset.i)
 function estimateUpdateTotal(){const el=$("#es_total");if(!el||!estimateDraft)return;try{el.textContent="Total: "+estimateMoney(estimateParseRows(estimateDraft.rows).totalCents)}catch(e){el.textContent="Complete each line to calculate the total."}}
 function estimateAddLine(){if(!estimateDraft)return;if(estimateDraft.rows.length>=ESTIMATE_LINE_LIMIT){$("#es_error").textContent="Use no more than "+ESTIMATE_LINE_LIMIT+" line items.";return}estimateDraft.rows.push({description:"",quantity:"1",rate:""});$("#es_error").textContent="";estimateRows()}
 function estimateRemoveLine(button){const p=estimateDraft,i=Number(button.dataset.i);if(!p||!Number.isInteger(i)||!p.rows[i])return;p.rows.splice(i,1);if(!p.rows.length)p.rows.push({description:"",quantity:"1",rate:""});estimateRows()}
+function estimateAIReviewSignature(){
+ const p=estimateDraft;if(!p||!p.aiGenerated)return "";return JSON.stringify({client:$("#es_client").value,service:$("#es_service").value,property:$("#es_property").value,date:$("#es_date").value,status:$("#es_status").value,notes:$("#es_notes").value,teamNotes:$("#es_team_notes").value,rows:p.rows,rates:p.aiRatesUsed&&S.meta?S.meta.rates:null})
+}
+function estimateAIReviewChanged(input){if(estimateDraft&&estimateDraft.aiGenerated)estimateDraft.aiReviewSignature=input.checked?estimateAIReviewSignature():""}
 function saveEstimate(){
  const p=estimateDraft;if(!p||p.saved)return;
  try{
+  if(p.aiGenerated){const check=$("#es_ai_review"),currentRate=S.meta&&S.meta.rates;
+   if(p.aiRatesUsed&&currentRate!==p.aiRateSnapshot){p.aiRateSnapshot=currentRate;p.aiReviewSignature="";if(check)check.checked=false;throw new Error("The rate card changed. Verify all prices and check the review box again before saving.")}
+   if(!check||!check.checked)throw new Error("Review the AI scope, quantities, rates and total, then check the review box before saving.");
+   if(p.aiReviewSignature!==estimateAIReviewSignature()){check.checked=false;p.aiReviewSignature="";throw new Error("The draft changed after review. Check the details and review box again before saving.")}
+  }
   const previous=p.id?S.estimates[p.id]:null;if(p.id&&(!previous||JSON.stringify(previous)!==p.signature))throw new Error("This estimate changed. Cancel and reopen it before saving.");
   const client=String($("#es_client").value||""),current=S.clients[client];if(client!==p.clientId||(current?JSON.stringify(current):null)!==p.clientSignature)throw new Error("The selected client changed. Cancel and review the estimate again.");
   if(!current&&!(previous&&String(previous.client)===client))throw new Error("Choose an existing client, or keep the original deleted client for this saved estimate.");
@@ -843,6 +855,139 @@ function saveEstimate(){
   p.saved=true;w("estimates",record);if(!storageOK)alert("The estimate is in memory but could not be saved locally. Use Backup and keep this page open until synced.");closeD();render()
  }catch(e){const error=$("#es_error");if(error)error.textContent=e.message||"Could not save this estimate."}
 }
+/* AI photo estimates are ephemeral until the normal estimate editor saves them. */
+const AI_PHOTO_LIMIT=3,AI_PHOTO_INPUT_LIMIT=20*1024*1024,AI_PHOTO_OUTPUT_LIMIT=750000,AI_RATE_LIMIT=50;
+function clearAIQuote(){
+ const p=aiQuote;aiQuote=null;if(!p)return;if(p.controller)try{p.controller.abort()}catch(e){}
+ (p.urls||[]).forEach(url=>{try{URL.revokeObjectURL(url)}catch(e){}});p.urls=[];p.files=[]
+}
+function aiCurrent(p){return aiQuote===p&&$("#dlg").open&&!!$("#ai_status")}
+function aiRateCard(){
+ const raw=S.meta&&S.meta.rates;
+ if(typeof raw!=="string"||!raw.trim()||raw.replace(/\r\n/g,"\n").trim()===DEF.trim())return {raw,rates:[],message:"Starter rates are placeholders. Update Rates with your real prices before using them here; otherwise enter prices manually."};
+ const lines=raw.split(/\r?\n/).map(s=>s.trim()).filter(Boolean),seen=new Set(),out=[];
+ if(!lines.length||lines.length>AI_RATE_LIMIT)return {raw,rates:[],message:"The rate card needs 1 to 50 valid lines. Edit Rates or enter prices manually."};
+ try{
+  lines.forEach((line,i)=>{
+   const parts=line.split("|");if(parts.length!==2)throw new Error("bad rate");const name=estimateDescription(parts[0],i+1),cents=estimateScaled(parts[1],2,"Rate");
+   if(cents>99999999999||seen.has(name.toLowerCase()))throw new Error("bad rate");seen.add(name.toLowerCase());out.push({id:i,name,cents})
+  });
+ }catch(e){return {raw,rates:[],message:"A rate is invalid or duplicated. Edit Rates (name | price, up to 2 decimals) or enter prices manually."}}
+ return {raw,rates:out,message:"Saved rates are optional. Only their names are sent; prices stay in the CRM. Verify the entire rate card before using it."}
+}
+function openAIQuote(){
+ const clients=sorted(S.clients);if(!clients.length){alert("Add a client first, then create a photo estimate.");return}
+ const card=aiRateCard();
+ dlg(`<h2>Photo estimate with AI</h2>
+ <p class="m">Choose up to 3 photos and describe the work. The result is a suggestion, not a final quote. Check measurements, access and hidden conditions before using any price.</p>
+ <p class="m"><b>Before you generate:</b> the selected photos (including anything visible in them), work description, service and optional rate names will be sent to OpenAI. Client and property fields stay in the CRM unless you include them in the photos or description. Photos are resized and re-encoded on your device to remove metadata, but visible details remain.</p>
+ <p class="m">Administrator setup is required before first use. Each request may incur separately billed OpenAI API charges; ChatGPT Plus does not cover general API use. OpenAI may retain data under its API policies. Nothing is saved or sent to a customer automatically.</p>
+ <fieldset id="ai_form" style="border:0;padding:0;margin:0;min-width:0">
+ <label for="ai_client">Client (kept in the CRM)</label><select id="ai_client" onchange="aiClientChanged()"><option value="">Choose a client…</option>${clients.map(c=>`<option value="${E(c.id)}">${E(c.name||"(unnamed)")}</option>`).join("")}</select>
+ <label for="ai_property">Property / unit (optional; kept in the CRM)</label><input id="ai_property" list="ai_properties" maxlength="500" placeholder="Street address or GPS coordinates"><datalist id="ai_properties"></datalist>
+ <label for="ai_service">Service</label><select id="ai_service"><option value="">Choose a service…</option>${SV.map(s=>`<option value="${E(s)}">${E(s)}</option>`).join("")}</select>
+ <label for="ai_description">Describe the work, measurements and known conditions</label><textarea id="ai_description" rows="5" maxlength="2000" placeholder="For example: clean two rooms, approximately 12 by 14 feet each. Access is through the front door."></textarea>
+ <label for="ai_photos">Photos (1 to 3, up to 20 MB each)</label><input id="ai_photos" type="file" accept="image/*" multiple onchange="aiPhotosChanged(this)"><div id="ai_photo_list" class="m"></div>
+ <p class="m">${E(card.message)}</p><label class="pick-stop"><input id="ai_use_rates" type="checkbox"${card.rates.length?"":" disabled"}><span>I verified that my saved rate card contains current, real prices. Send the rate names and use matching prices in this draft.</span></label>
+ <label class="pick-stop"><input id="ai_consent" type="checkbox"><span>I agree to send the selected photos and description to OpenAI and understand this request may incur API charges.</span></label>
+ </fieldset><p id="ai_status" class="m" role="status" aria-live="polite"></p><div id="ai_result"></div>
+ <div class="bt"><button id="ai_generate" class="pri" type="button" onclick="generateAIQuote()">Generate draft</button><button type="button" onclick="closeD()">Cancel / close</button></div>
+ <p class="m">Closing after a request starts may not stop processing or charges. Requests are never automatically retried.</p>`);
+ aiQuote={files:[],urls:[],busy:false,controller:null,rateRaw:card.raw,result:null}
+}
+function aiClientChanged(){const client=String($("#ai_client").value||"");$("#ai_properties").innerHTML=pl(client);$("#ai_property").value=""}
+function aiPhotosChanged(input){
+ const p=aiQuote;if(!p||p.busy)return;(p.urls||[]).forEach(url=>{try{URL.revokeObjectURL(url)}catch(e){}});p.urls=[];p.files=[];$("#ai_photo_list").innerHTML="";$("#ai_status").textContent="";
+ const files=Array.from(input.files||[]);if(!files.length)return;
+ if(files.length>AI_PHOTO_LIMIT){input.value="";$("#ai_status").textContent="Choose no more than 3 photos. None were sent.";return}
+ if(files.some(f=>!/^image\/(jpeg|png|webp|heic|heif)$/i.test(String(f.type||""))||!Number.isFinite(f.size)||f.size<1||f.size>AI_PHOTO_INPUT_LIMIT)){
+  input.value="";$("#ai_status").textContent="Choose JPEG, PNG, WebP or HEIC photos, each no larger than 20 MB. None were sent.";return
+ }
+ try{files.forEach(f=>p.urls.push(URL.createObjectURL(f)));p.files=files;$("#ai_photo_list").innerHTML=`<p>Selected photos (not sent yet):</p><div class="row">${files.map((f,i)=>`<div style="width:100px;max-width:100%"><img src="${E(p.urls[i])}" alt="Selected photo ${i+1}" style="width:100%;height:75px;object-fit:cover;border-radius:6px"><div>${E(String(f.name||"Photo").slice(0,100))}</div></div>`).join("")}</div>`}
+ catch(e){(p.urls||[]).forEach(url=>{try{URL.revokeObjectURL(url)}catch(x){}});p.urls=[];p.files=[];input.value="";$("#ai_status").textContent="Could not preview those photos. None were sent."}
+}
+function aiCanvasBlob(canvas,quality){return new Promise((resolve,reject)=>{try{canvas.toBlob(blob=>blob?resolve(blob):reject(new Error("Could not prepare a photo on this device.")),"image/jpeg",quality)}catch(e){reject(new Error("Could not prepare a photo on this device."))}})}
+function aiReadData(blob){return new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>typeof reader.result==="string"?resolve(reader.result):reject(new Error("Could not read a prepared photo."));reader.onerror=()=>reject(new Error("Could not read a prepared photo."));reader.readAsDataURL(blob)})}
+async function prepareAIPhoto(file){
+ const canvas=await new Promise((resolve,reject)=>{
+  let url,img;try{url=URL.createObjectURL(file);img=new Image()}catch(e){if(url)try{URL.revokeObjectURL(url)}catch(x){}reject(new Error("This device cannot read that photo."));return}
+  const release=()=>{try{URL.revokeObjectURL(url)}catch(e){}};
+  img.onerror=()=>{release();reject(new Error("This device could not read a photo. Try a JPEG or PNG."))};
+  img.onload=()=>{try{
+   const w=img.naturalWidth,h=img.naturalHeight;if(!w||!h||w>20000||h>20000||w*h>80000000)throw new Error("A photo has unsupported dimensions.");
+   const scale=Math.min(1,1200/Math.max(w,h)),c=document.createElement("canvas");c.width=Math.max(1,Math.round(w*scale));c.height=Math.max(1,Math.round(h*scale));
+   const ctx=c.getContext("2d");if(!ctx)throw new Error("Could not prepare a photo on this device.");ctx.drawImage(img,0,0,c.width,c.height);release();resolve(c)
+  }catch(e){release();reject(e)}};img.src=url
+ });
+ for(const quality of [0.78,0.62,0.46]){const blob=await aiCanvasBlob(canvas,quality);if(blob.type==="image/jpeg"&&blob.size>0&&blob.size<=AI_PHOTO_OUTPUT_LIMIT)return aiReadData(blob)}
+ throw new Error("A prepared photo is still too large. Try a smaller image.")
+}
+function aiBusy(p,busy){p.busy=busy;const form=$("#ai_form"),button=$("#ai_generate");if(form)form.disabled=busy;if(button)button.disabled=busy}
+function aiCleanResult(value,rates){
+ const keys=(o,k)=>o&&typeof o==="object"&&!Array.isArray(o)&&Object.keys(o).length===k.length&&k.every(x=>Object.prototype.hasOwnProperty.call(o,x));
+ const text=(s,max)=>typeof s==="string"&&!!s.trim()&&s.length<=max&&!/[\x00-\x1f\x7f]/.test(s);
+ const fail=()=>{throw new Error("The AI draft was incomplete or invalid. No estimate was saved.")};
+ if(!keys(value,["summary","lines","questions","cautions"])||!text(value.summary,800)||!Array.isArray(value.lines)||value.lines.length<1||value.lines.length>8||
+  !Array.isArray(value.questions)||value.questions.length>6||!Array.isArray(value.cautions)||value.cautions.length>6||!value.questions.every(s=>text(s,250))||!value.cautions.every(s=>text(s,250)))fail();
+ const ids=new Set(rates.map(r=>r.id)),lines=value.lines.map((line,i)=>{
+  if(!keys(line,["description","quantity","rate_id","basis"])||!text(line.description,200)||/[|$€£]/.test(line.description)||/\bUSD\b/i.test(line.description)||!text(line.basis,250)||!(line.rate_id===null||(Number.isInteger(line.rate_id)&&ids.has(line.rate_id))))fail();
+  let description;try{description=estimateDescription(line.description,i+1);if(line.quantity!==null&&(typeof line.quantity!=="string"||estimateScaled(line.quantity,3,"Quantity")<1))fail()}catch(e){fail()}
+  return {description,quantity:line.quantity,rate_id:line.rate_id,basis:line.basis.trim()}
+ });return {summary:value.summary.trim(),lines,questions:value.questions.map(s=>s.trim()),cautions:value.cautions.map(s=>s.trim())}
+}
+async function generateAIQuote(){
+ const p=aiQuote;if(!p||p.busy||p.result)return;let sent=false,openaiAttempted=false;
+ try{
+  if(!db||!hasSnapshot||!synced)throw new Error("Wait until the CRM says Synced across devices before generating.");
+  const client=String($("#ai_client").value||""),clientRecord=S.clients[client],service=$("#ai_service").value,property=$("#ai_property").value.trim(),description=$("#ai_description").value.trim();
+  if(!clientRecord||String(clientRecord.id)!==client)throw new Error("Choose an existing client.");if(!SV.includes(service))throw new Error("Choose a service.");
+  if(property.length>500||/[\x00-\x1f\x7f]/.test(property))throw new Error("Use a property up to 500 characters without control characters.");
+  if(description.length<5||description.length>2000||/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/.test(description))throw new Error("Describe the work in 5 to 2,000 characters.");
+  if(!p.files.length||p.files.length>AI_PHOTO_LIMIT)throw new Error("Choose 1 to 3 photos.");
+  if(!$("#ai_consent").checked)throw new Error("Agree to the OpenAI photo and cost disclosure before generating.");
+  const useRates=$("#ai_use_rates").checked,card=aiRateCard();
+  if(useRates&&(card.raw!==p.rateRaw||!card.rates.length))throw new Error("The rate card changed or needs review. Close this window and check Rates before using it.");
+  p.client=client;p.clientSignature=JSON.stringify(clientRecord);p.service=service;p.property=property;p.description=description;p.rateRaw=card.raw;p.rates=useRates?card.rates:[];p.useRates=useRates;
+  aiBusy(p,true);const photos=[];
+  for(let i=0;i<p.files.length;i++){$("#ai_status").textContent="Preparing photo "+(i+1)+" of "+p.files.length+" on this device…";photos.push(await prepareAIPhoto(p.files[i]));if(!aiCurrent(p))return}
+  let session;try{session=await sb.auth.getSession()}catch(e){throw new Error("Could not check your CRM session. Sign in and try again.")}
+  if(!aiCurrent(p))return;const token=session&&session.data&&session.data.session&&session.data.session.access_token;
+  if(!/^[A-Za-z0-9._~-]{1,8192}$/.test(String(token||"")))throw new Error("Your CRM session expired. Sign in again.");
+  if(!synced||!S.clients[client]||JSON.stringify(S.clients[client])!==p.clientSignature)throw new Error("The client or sync state changed. No request was sent; review it before generating.");
+  if(useRates&&(!S.meta||S.meta.rates!==p.rateRaw))throw new Error("The rate card changed. No request was sent; review Rates before generating.");
+  const body={consent:true,service,description,photos,rates:p.rates.map(r=>({id:r.id,name:r.name}))};p.controller=new AbortController();
+  $("#ai_status").textContent="Sending to OpenAI and preparing a draft… Keep this window open.";sent=true;openaiAttempted=true;
+  let response;try{response=await fetch("/api/crm-quote",{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+token},body:JSON.stringify(body),cache:"no-store",signal:p.controller.signal})}
+  catch(e){throw new Error("Could not confirm the OpenAI request. It may still be charged; check usage before trying again.")}
+  if(!aiCurrent(p))return;let data;try{data=await response.json()}catch(e){throw new Error("The response could not be read. Check OpenAI usage before trying again.")}
+  if(!response.ok){openaiAttempted=!data||data.openaiAttempted!==false;throw new Error(String(data&&data.error||"Could not prepare the draft. Check OpenAI usage before trying again.").slice(0,300))}
+  p.result=aiCleanResult(data&&data.draft,p.rates);p.controller=null;$("#ai_form").hidden=true;$("#ai_generate").hidden=true;showAIResult(p)
+ }catch(e){if(aiCurrent(p)){$("#ai_status").textContent=(e&&e.message||"Could not prepare the photo estimate.")+(openaiAttempted?" No estimate was saved. OpenAI may charge for this attempt; check usage before retrying.":sent?" No OpenAI request was made.":" No request was sent.");if(sent&&$("#ai_consent"))$("#ai_consent").checked=false}}
+ finally{if(aiCurrent(p)){p.controller=null;aiBusy(p,false)}}
+}
+function showAIResult(p){
+ if(!aiCurrent(p)||!p.result)return;const d=p.result,stable=!p.useRates||(S.meta&&S.meta.rates===p.rateRaw);
+ const list=(title,items)=>items.length?`<h3>${E(title)}</h3><ul>${items.map(x=>`<li>${E(x)}</li>`).join("")}</ul>`:"";
+ $("#ai_result").innerHTML=`<h3>Suggested draft — not saved</h3><p>${E(d.summary)}</p><p class="m">Review every line. A photo cannot reliably show measurements or hidden conditions. ${stable?"":"Your rate card changed; matching prices will be left blank."}</p>
+ ${d.lines.map((line,i)=>{const rate=stable?p.rates.find(r=>r.id===line.rate_id):null;return `<div class="card"><b>${i+1}. ${E(line.description)}</b><div class="m">Quantity: ${line.quantity===null?"Needs review / measurement":E(line.quantity)} · Rate: ${rate?E(rate.name)+" — "+estimateMoney(rate.cents):"Enter manually"}</div><div class="m">${E(line.basis)}</div></div>`}).join("")}
+ ${list("Questions to check",d.questions)}${list("Cautions",d.cautions)}<div class="bt"><button class="pri" type="button" onclick="aiToEstimate()">Review in estimate editor</button></div>`;
+ $("#ai_status").textContent="Draft ready for review. Nothing has been saved or sent to a customer."
+}
+function aiToEstimate(){
+ const p=aiQuote;if(!p||!p.result||p.busy)return;const client=S.clients[p.client];
+ if(!client){$("#ai_status").textContent="The chosen client was deleted. The draft is not saved; review the suggestions here before closing.";return}
+ if(JSON.stringify(client)!==p.clientSignature){
+  if(!confirm("The selected client changed while this draft was open. Use the current client details? The property will be cleared for review; nothing has been saved."))return;
+  p.clientSignature=JSON.stringify(client);p.property="";p.clientChanged=true
+ }
+ const changedClient=!!p.clientChanged,stable=!p.useRates||(S.meta&&S.meta.rates===p.rateRaw),d=p.result;
+ const rows=d.lines.map(line=>{const rate=stable?p.rates.find(r=>r.id===line.rate_id):null;return {description:line.description,quantity:line.quantity===null?"":line.quantity,rate:rate?String(Math.floor(rate.cents/100))+"."+String(rate.cents%100).padStart(2,"0"):""}});
+ let notes=["AI photo draft — verify the scope, measurements and prices.",...d.cautions.map(x=>"Caution: "+x),...d.questions.map(x=>"Question: "+x),"AI scope: "+d.summary,...d.lines.map((line,i)=>"Line "+(i+1)+" basis: "+line.basis),"Work description: "+p.description].join("\n");
+ let shortened=false;if(notes.length>5000){if(!confirm("The team notes exceed 5,000 characters and must be shortened. Continue? Cancel to copy any important details from the AI suggestions first."))return;notes=notes.slice(0,4950)+"\n[AI notes shortened; review and complete manually.]";shortened=true}
+ const notice=(stable?"Matched rates, if any, came from the saved card and still require review.":"The rate card changed; matching prices were left blank.")+(changedClient?" Client details changed; the property was cleared.":"")+(shortened?" Team notes were shortened; review and complete them.":"");
+ openEstimate(null,{client:p.client,clientSignature:p.clientSignature,service:p.service,property:changedClient?"":p.property,rows,teamNotes:notes,notice,aiRatesUsed:!!(p.useRates&&stable&&rows.some(row=>row.rate!=="")),rateRaw:p.rateRaw})
+}
+
 function estimateShareable(e){
  const totals=estimateStored(e);if(!String(e.clientName||"").trim()||!SV.includes(e.service)||!validDate(e.date))throw new Error("Edit this estimate to complete its client, service and date before sharing.");return totals
 }

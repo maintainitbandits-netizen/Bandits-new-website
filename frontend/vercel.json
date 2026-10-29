@@ -1,5 +1,8 @@
 {
   "buildCommand": "npm run build && node scripts/prerender-fall-cleanup.cjs",
+  "functions": {
+    "api/crm-quote.js": { "maxDuration": 60 }
+  },
   "redirects": [
     {
       "source": "/:city(pflugerville|round-rock|cedar-park|georgetown|leander|austin|taylor|hutto)-lawn-care",
