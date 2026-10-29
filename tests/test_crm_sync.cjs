@@ -3057,7 +3057,7 @@ test('website-aligned service choices are manual and never categorize existing j
     await device.login();device.exec("openJob('j1')");
     for(const option of ['Landscaping / design','Fertilization / weed control','Make-ready / tenant turnover','Move-in / move-out cleaning','Flower bed planting','Seasonal yard cleanup','Mulch / rock installation'])assert.match(device.element('#dlg').innerHTML,new RegExp(option));
     assert.equal(device.exec('S.jobs.j1.workCategory'),undefined);assert.equal(device.exec('Object.keys(pending).length'),0);
-    fillJobForCategory(device,'j1','');device.element('#j_service').value='Landscaping / design';device.exec("saveJob('j1')");await wait(120);
+    fillJobForCategory(device,'j1','');await wait(120);device.exec("openJob('j1')");device.element('#j_service').value='Landscaping / design';device.exec("saveJob('j1')");await wait(120);
     assert.equal(server.rows.get('jobs/j1').data.service,'Landscaping / design');assert.equal(server.rows.get('jobs/j1').data.workCategory,undefined);
   }finally{device.dispose()}
 });
@@ -3095,5 +3095,172 @@ test('job editor warns when the shared rate card still uses starter placeholders
     assert.doesNotMatch(device.element('#dlg').innerHTML,/placeholder starter rates/i);
     assert.match(device.element('#dlg').innerHTML,/Fictional custom rate/);
     assert.equal(device.exec('Object.keys(pending).length'),0);
+  }finally{device.dispose()}
+});
+
+// Property editing and recurrence tests use only the in-memory fictional CRM.
+function setJobEditorFields(device, job, overrides = {}) {
+  const values = {
+    j_client:job.client, j_service:job.service || 'Other', j_prop:job.prop || '', j_date:job.date || '',
+    j_category:job.workCategory || '', j_rule:job.dateRequirement || 'any', j_required:job.requiredDate || '',
+    j_minutes:job.estimatedMinutes == null ? '' : String(job.estimatedMinutes), j_status:job.status,
+    j_rep:job.repeat || 'One-time', j_items:job.items || '', j_price:job.price == null ? '' : String(job.price),
+    j_notes:job.notes || '',
+    ...(job.sourceAppfolio ? { j_af_number:job.sourceAppfolio.number || '' } : {}),
+    ...(job.sourceAppfolio || typeof job.workDescription === 'string' || typeof job.workOrderDetails === 'string'
+      ? { j_work_description:job.workDescription || '', j_work_details:job.workOrderDetails || '' } : {}),
+    ...overrides,
+  };
+  for(const [field,value] of Object.entries(values))device.element('#'+field).value=value;
+}
+
+test('Properties shows and edits the correct scheduled and unscheduled jobs, including fallback addresses and unusual IDs', async () => {
+  const server=new FakeServer();
+  seedPrice(server,'clients',{...record('Fictional <Owner>','c1'),props:'100 Example Road\n200 Example Road'});
+  const oddId=`j'\" onclick=\"alert(1)`;
+  const jobs=[
+    {id:oddId,client:'c1',prop:'',service:'Mow <script>',date:'2026-11-04',status:'Scheduled',repeat:'Every 2 weeks',price:85.25},
+    {id:'later',client:'c1',prop:'100 Example Road',service:'Other',date:'2026-12-01',status:'Scheduled',repeat:'Weekly',price:50},
+    {id:'unscheduled',client:'c1',prop:'100 Example Road',service:'Cleaning',date:'',status:'Unscheduled',repeat:'One-time',price:''},
+    {id:'second',client:'c1',prop:'200 Example Road',service:'Other',date:'2026-11-05',status:'Scheduled',repeat:'One-time',price:0},
+  ];
+  jobs.forEach(j=>seedPrice(server,'jobs',j));const device=makeDevice(server);
+  try{
+    await device.login();const html=device.exec('vProps()');
+    assert.match(html,/Earliest scheduled: 2026-11-04/);assert.match(html,/Every 2 weeks \(biweekly\)/);assert.match(html,/\$85\.25/);
+    assert.match(html,/View all scheduled and unscheduled jobs \(3\)/);assert.match(html,/Unscheduled.*Price not set/);
+    assert.match(html,/\+ Job creates a new job/);assert.match(html,/Edit next job/);
+    assert.match(html,/Mow &lt;script&gt;/);assert.doesNotMatch(html,/<script>|onclick=\"alert\(1\)/);
+    assert.equal(device.exec('Object.keys(pending).length'),0);assert.deepEqual(server.rows.get(`jobs/${oddId}`).data,jobs[0]);
+  }finally{device.dispose()}
+});
+
+test('an unscheduled AppFolio job can save a biweekly repeat and price without scheduling; its next visit is created after completion', async () => {
+  const server=new FakeServer();seedPrice(server,'clients',{...record('Fictional Manager','c1'),props:'100 Example Road'});
+  const job={id:'unscheduled',client:'c1',prop:'100 Example Road',service:'Other',date:'',status:'Unscheduled',repeat:'One-time',price:'',items:'',notes:'Fictional note',workCategory:'Maintenance',sourceAppfolio:{managerId:'c1',number:'250-1'},workDescription:'Fictional description',workOrderDetails:'Fictional private details'};
+  seedPrice(server,'jobs',job);const first=makeDevice(server),second=makeDevice(server);
+  try{
+    await Promise.all([first.login(),second.login()]);first.exec("openJob('unscheduled')");
+    setJobEditorFields(first,job,{j_rep:'Every 2 weeks',j_price:'123.45'});first.exec("saveJob('unscheduled')");await wait(140);
+    assert.equal(first.element('#job_save_message').textContent,'Job changes synced across devices.');
+    assert.equal(server.rows.get('jobs/unscheduled').data.status,'Unscheduled');
+    assert.equal(server.rows.get('jobs/unscheduled').data.date,'');assert.equal(server.rows.get('jobs/unscheduled').data.repeat,'Every 2 weeks');
+    assert.equal(server.rows.get('jobs/unscheduled').data.price,123.45);assert.equal(server.rows.get('jobs/unscheduled').data.workOrderDetails,job.workOrderDetails);
+    assert.equal(first.exec('Object.keys(S.jobs).length'),1);assert.equal(first.exec('dayJobs().length'),0);
+    assert.equal(second.exec("S.jobs.unscheduled.repeat"),'Every 2 weeks');
+    const saved=clone(first.exec('S.jobs.unscheduled'));first.exec("openJob('unscheduled')");
+    setJobEditorFields(first,saved,{j_status:'Scheduled',j_date:'2026-11-04'});first.exec("saveJob('unscheduled')");await wait(120);
+    assert.equal(first.exec('Object.keys(S.jobs).length'),1);assert.equal(second.exec('S.jobs.unscheduled.status'),'Scheduled');
+    first.exec("setStatus('unscheduled','Done')");await wait(140);
+    const next=clone(second.exec("Object.values(S.jobs).find(j=>j.id!=='unscheduled')"));
+    assert.equal(next.date,'2026-11-18');assert.equal(next.status,'Scheduled');assert.equal(next.repeat,'Every 2 weeks');assert.equal(next.price,123.45);
+    assert.equal(next.workCategory,'Maintenance');assert.equal(next.sourceAppfolio,undefined);assert.equal(next.workDescription,undefined);assert.equal(next.workOrderDetails,undefined);
+    assert.equal(server.rows.get('jobs/unscheduled').data.sourceAppfolio.number,'250-1');
+  }finally{first.dispose();second.dispose()}
+});
+
+test('job save notice distinguishes unsynced changes, retry success and local storage failure', async () => {
+  const server=new FakeServer();seedPrice(server,'clients',{...record('Fictional Client','c1'),props:'100 Example Road'});
+  const job={id:'j1',client:'c1',prop:'100 Example Road',service:'Mow',date:'2026-11-04',status:'Scheduled',repeat:'One-time',price:50};
+  seedPrice(server,'jobs',job);const first=makeDevice(server),second=makeDevice(server);
+  try{
+    await Promise.all([first.login(),second.login()]);server.failWrites=true;
+    first.exec("openJob('j1')");setJobEditorFields(first,job,{j_rep:'Every 2 weeks',j_price:'99.50'});first.exec("saveJob('j1')");await wait(70);
+    assert.match(first.element('#job_save_message').textContent,/Job changes saved on this device; waiting to sync/i);
+    assert.notEqual(first.element('#st').textContent,'Synced across devices');assert.equal(server.rows.get('jobs/j1').data.price,50);
+    assert.match(first.storage.get('mib_pending_v1'),/99\.5/);assert.equal(second.exec('S.jobs.j1.price'),50);
+    server.failWrites=false;first.client.reconnect();await wait(150);
+    assert.equal(first.element('#job_save_message').textContent,'Job changes synced across devices.');
+    assert.equal(second.exec('S.jobs.j1.price'),99.5);assert.equal(second.exec('S.jobs.j1.repeat'),'Every 2 weeks');
+    first.exec('dismissJobSaveNotice()');assert.equal(first.element('#job_save_notice').hidden,true);
+
+    const changed=clone(first.exec('S.jobs.j1'));server.failWrites=true;first.exec("openJob('j1')");setJobEditorFields(first,changed,{j_price:'110'});
+    const setItem=first.context.localStorage.setItem;first.context.localStorage.setItem=()=>{throw Error('fictional quota')};
+    first.exec("saveJob('j1')");await wait(40);
+    assert.match(first.element('#job_save_message').textContent,/could not be saved on this device.*Backup/i);
+    assert.equal(first.exec('S.jobs.j1.price'),110);assert.equal(server.rows.get('jobs/j1').data.price,99.5);
+    first.context.localStorage.setItem=setItem;first.exec('persist();head()');
+  }finally{first.dispose();second.dispose()}
+});
+
+test('job editor preserves unknown services and requires an explicit choice for an unrecognized repeat', async () => {
+  const server=new FakeServer();seedPrice(server,'clients',record('Fictional Client','c1'));
+  const job={id:'j1',client:'c1',prop:'100 Example Road',service:'Legacy service <safe>',date:'2026-11-04',status:'Scheduled',repeat:'Biweekly',price:40};
+  seedPrice(server,'jobs',job);const alerts=[],device=makeDevice(server,{}, {alert:message=>alerts.push(message)});
+  try{
+    await device.login();device.exec("openJob('j1')");
+    assert.match(device.element('#dlg').innerHTML,/value="Legacy service &lt;safe&gt;" selected/);
+    assert.match(device.element('#dlg').innerHTML,/value="Biweekly" selected/);
+    setJobEditorFields(device,job,{j_price:'45'});device.exec("saveJob('j1')");
+    assert.match(alerts.at(-1),/supported repeat.*biweekly/i);assert.match(device.element('#j_save_error').textContent,/supported repeat/i);
+    assert.equal(device.exec('Object.keys(pending).length'),0);assert.deepEqual(server.rows.get('jobs/j1').data,job);
+    device.element('#j_rep').value='Every 2 weeks';device.exec("saveJob('j1')");await wait(130);
+    assert.equal(server.rows.get('jobs/j1').data.service,job.service);assert.equal(server.rows.get('jobs/j1').data.repeat,'Every 2 weeks');
+    assert.equal(server.rows.get('jobs/j1').data.price,45);
+  }finally{device.dispose()}
+});
+
+test('job editor rejects invalid prices and explains a canceled estimate-price confirmation without writes', async () => {
+  const server=new FakeServer();seedPrice(server,'clients',record('Fictional Client','c1'));
+  const job={id:'j1',client:'c1',prop:'100 Example Road',service:'Other',date:'2026-11-04',status:'Scheduled',repeat:'One-time',price:20,items:'Fictional work | 1 | 20',sourceEstimateId:'e1'};
+  seedPrice(server,'jobs',job);const warnings=[],alerts=[],device=makeDevice(server,{}, {confirm:text=>{warnings.push(text);return false},alert:text=>alerts.push(text)});
+  try{
+    await device.login();device.exec("openJob('j1')");setJobEditorFields(device,job,{j_rep:'Every 2 weeks',j_price:'not a number'});device.exec("saveJob('j1')");
+    assert.match(alerts.at(-1),/valid job price/i);assert.equal(device.exec('Object.keys(pending).length'),0);
+    device.element('#j_price').value='25';device.exec("saveJob('j1')");
+    assert.match(warnings.at(-1),/line items total.*job price/i);assert.match(device.element('#j_save_error').textContent,/No changes saved/i);
+    assert.equal(device.exec('Object.keys(pending).length'),0);assert.deepEqual(server.rows.get('jobs/j1').data,job);
+  }finally{device.dispose()}
+});
+
+test('an unexpected save error warns that the outcome is uncertain instead of encouraging duplicate jobs', async () => {
+  const server=new FakeServer();seedPrice(server,'clients',record('Fictional Client','c1'));
+  const job={id:'j1',client:'c1',prop:'100 Example Road',service:'Other',date:'2026-11-04',status:'Scheduled',repeat:'One-time',price:20};
+  seedPrice(server,'jobs',job);const alerts=[],device=makeDevice(server,{}, {alert:text=>alerts.push(text)});
+  try{
+    await device.login();device.exec("openJob('j1')");setJobEditorFields(device,job,{j_price:'25'});
+    device.exec("globalThis.originalWrite=w;w=(coll,record)=>{originalWrite(coll,record);throw Error('fictional error after queue')};saveJob('j1')");
+    assert.match(device.element('#job_save_message').textContent,/save may be incomplete.*before trying again/i);
+    assert.match(device.element('#j_save_error').textContent,/check Jobs.*avoid a duplicate/i);
+    assert.equal(device.element('#dlg button[onclick^="saveJob"]').disabled,true);
+    assert.match(alerts.at(-1),/check Jobs.*avoid a duplicate/i);assert.equal(device.exec('S.jobs.j1.price'),25);
+    device.exec('w=originalWrite');await wait(120);assert.equal(server.rows.get('jobs/j1').data.price,25);
+  }finally{device.dispose()}
+});
+
+test('job editor refuses to overwrite a job or client changed by another device', async () => {
+  const server=new FakeServer();seedPrice(server,'clients',{...record('Fictional Client','c1'),props:'100 Example Road'});
+  const job={id:'j1',client:'c1',prop:'100 Example Road',service:'Mow',date:'2026-11-04',status:'Scheduled',repeat:'One-time',price:50,notes:'Original'};
+  seedPrice(server,'jobs',job);const alerts=[],first=makeDevice(server,{}, {alert:text=>alerts.push(text)}),second=makeDevice(server);
+  try{
+    await Promise.all([first.login(),second.login()]);first.exec("openJob('j1')");setJobEditorFields(first,job,{j_rep:'Every 2 weeks',j_price:'85'});
+    second.exec("w('jobs',Object.assign({},S.jobs.j1,{notes:'Changed on another device'}))");await wait(130);
+    first.exec("saveJob('j1')");assert.match(first.element('#j_save_error').textContent,/job or its client changed/i);
+    assert.equal(first.exec('Object.keys(pending).length'),0);assert.equal(server.rows.get('jobs/j1').data.price,50);
+    assert.equal(server.rows.get('jobs/j1').data.notes,'Changed on another device');
+
+    const latest=clone(first.exec('S.jobs.j1'));first.exec("openJob('j1')");setJobEditorFields(first,latest,{j_rep:'Every 2 weeks',j_price:'85'});
+    second.exec("w('clients',Object.assign({},S.clients.c1,{props:'200 Changed Example Road'}))");await wait(130);
+    first.exec("saveJob('j1')");assert.match(alerts.at(-1),/job or its client changed/i);
+    assert.equal(first.exec('Object.keys(pending).length'),0);assert.equal(server.rows.get('jobs/j1').data.price,50);
+    assert.equal(server.rows.get('clients/c1').data.props,'200 Changed Example Road');
+  }finally{first.dispose();second.dispose()}
+});
+
+test('estimate-linked job save rechecks form and client after price confirmation', async () => {
+  const server=new FakeServer();seedPrice(server,'clients',record('Fictional Client','c1'));
+  const job={id:'j1',client:'c1',prop:'100 Example Road',service:'Other',date:'2026-11-04',status:'Scheduled',repeat:'One-time',price:20,items:'Fictional work | 1 | 20',sourceEstimateId:'e1'};
+  seedPrice(server,'jobs',job);let mode='fields',device;const alerts=[];
+  device=makeDevice(server,{}, {alert:text=>alerts.push(text),confirm:()=>{
+    if(mode==='fields')device.element('#j_price').value='30';
+    if(mode==='client')device.exec("S.clients.c1.name='Changed Fictional Client'");
+    return true;
+  }});
+  try{
+    await device.login();device.exec("openJob('j1')");setJobEditorFields(device,job,{j_price:'25',j_rep:'Every 2 weeks'});
+    device.exec("saveJob('j1')");assert.match(alerts.at(-1),/fields changed during confirmation/i);assert.equal(device.exec('Object.keys(pending).length'),0);
+    mode='client';device.exec("openJob('j1')");setJobEditorFields(device,job,{j_price:'25',j_rep:'Every 2 weeks'});
+    device.exec("saveJob('j1')");assert.match(alerts.at(-1),/job or its client changed/i);assert.equal(device.exec('Object.keys(pending).length'),0);
+    assert.deepEqual(server.rows.get('jobs/j1').data,job);
   }finally{device.dispose()}
 });

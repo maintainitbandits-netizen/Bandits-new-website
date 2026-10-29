@@ -553,3 +553,166 @@ test('phone Completed tab tracks finished work across Done, Invoiced and Paid wi
     }
   } finally { await browser.close(); }
 });
+
+test('phone Properties edits the intended job and clearly shows biweekly price, additional jobs and sync', {skip:!canRun&&'Install browser dependencies externally'}, async () => {
+  const browser=await makeBrowser();
+  try{
+    for(const width of [320,390]){
+      const {context,page,errors}=await setup(browser,width);
+      try{
+        await page.evaluate(()=>{
+          S.clients.c1.props='100 First Fictional Property\n200 Second Fictional Property';
+          __mock.rows.get('clients/c1').data=JSON.parse(JSON.stringify(S.clients.c1));
+          Object.assign(S.jobs.j1,{prop:'',service:'Mow',date:'2026-11-04',status:'Scheduled',repeat:'One-time',price:35,items:'',notes:'Fictional original'});
+          __mock.rows.get('jobs/j1').data=JSON.parse(JSON.stringify(S.jobs.j1));
+          const later={id:'later',client:'c1',prop:'100 First Fictional Property',service:'Other',date:'2026-12-01',status:'Scheduled',repeat:'Weekly',price:75,items:'',notes:''};
+          S.jobs.later=later;__mock.rows.set('jobs/later',{coll:'jobs',id:'later',data:JSON.parse(JSON.stringify(later))});
+        });
+        await page.getByRole('button',{name:'Properties',exact:true}).click();
+        const card=()=>page.locator('#main .card',{hasText:'100 First Fictional Property'});
+        await noOverflow(page,`${width} properties`);
+        assert.match(await card().innerText(),/Earliest scheduled: 2026-11-04.*Mow/s);
+        assert.match(await card().innerText(),/Repeat: One-time.*\$35/);
+        assert.match(await card().innerText(),/View all scheduled and unscheduled jobs \(2\)/);
+        assert.match(await card().innerText(),/\+ Job creates a new job/);
+        await card().getByRole('button',{name:'Edit next job',exact:true}).click();await noOverflow(page,`${width} property job editor`);
+        assert.equal(await page.locator('#j_service').inputValue(),'Mow','legacy service must not be silently replaced');
+        assert.match(await page.locator('#j_rep').innerText(),/Every 2 weeks \(biweekly\)/);
+        await page.locator('#j_rep').selectOption('Every 2 weeks');await page.locator('#j_price').fill('85.25');
+        await page.locator('#dlg').getByRole('button',{name:'Save',exact:true}).click();
+        await page.waitForFunction(()=>document.querySelector('#st').textContent==='Synced across devices'&&__mock.rows.get('jobs/j1').data.price===85.25);
+        assert.match(await page.locator('#job_save_message').innerText(),/Job changes synced across devices/);
+        assert.match(await card().innerText(),/Repeat: Every 2 weeks \(biweekly\).*\$85\.25/);
+        assert.equal(await page.evaluate(()=>__mock.rows.get('jobs/j1').data.service),'Mow');
+        assert.equal(await page.evaluate(()=>__mock.rows.get('jobs/j1').data.prop),'');
+        assert.equal(await page.evaluate(()=>__mock.rows.get('jobs/j1').data.notes),'Fictional original');
+        assert.equal(await page.evaluate(()=>__mock.rows.get('jobs/later').data.price),75);
+        await page.locator('#job_save_notice').getByRole('button',{name:'Dismiss'}).click();
+
+        await card().locator('summary').click();
+        const later=()=>card().locator('li',{hasText:'2026-12-01'});
+        assert.match(await later().innerText(),/Weekly.*\$75/);
+        await later().getByRole('button',{name:'Edit job',exact:true}).click();
+        await page.locator('#j_price').fill('88');await page.locator('#dlg').getByRole('button',{name:'Save',exact:true}).click();
+        await page.waitForFunction(()=>document.querySelector('#st').textContent==='Synced across devices'&&__mock.rows.get('jobs/later').data.price===88);
+        assert.equal(await page.evaluate(()=>__mock.rows.get('jobs/j1').data.price),85.25);
+        await page.locator('#job_save_notice').getByRole('button',{name:'Dismiss'}).click();
+        await card().getByRole('link',{name:'+ Job',exact:true}).click();
+        await page.locator('#j_date').fill('2026-12-15');await page.locator('#j_rep').selectOption('Every 2 weeks');await page.locator('#j_price').fill('95');
+        await page.locator('#dlg').getByRole('button',{name:'Save',exact:true}).click();
+        await page.waitForFunction(()=>document.querySelector('#st').textContent==='Synced across devices'&&[...__mock.rows.values()].some(row=>row.coll==='jobs'&&row.data.date==='2026-12-15'&&row.data.prop==='100 First Fictional Property'));
+        assert.match(await page.locator('#job_save_message').innerText(),/New job synced across devices/);
+        assert.match(await card().innerText(),/View all scheduled and unscheduled jobs \(3\)/);
+        await card().locator('summary').click();assert.match(await card().innerText(),/2026-12-15.*Every 2 weeks \(biweekly\).*\$95/s);
+        assert.equal(await page.evaluate(()=>__mock.rows.get('jobs/j1').data.price),85.25);
+        assert.deepEqual(errors,[]);
+      }finally{await context.close()}
+    }
+  }finally{await browser.close()}
+});
+
+test('phone Properties can save biweekly and price on an unscheduled work order without creating a visit', {skip:!canRun&&'Install browser dependencies externally'}, async () => {
+  const browser=await makeBrowser();
+  try{
+    const {context,page,errors}=await setup(browser,320);
+    try{
+      await page.evaluate(()=>{
+        S.clients.c1.props='555 Fictional Rental';__mock.rows.get('clients/c1').data=JSON.parse(JSON.stringify(S.clients.c1));
+        const data={id:'af-1',client:'c1',prop:'555 Fictional Rental',service:'Other',date:'',status:'Unscheduled',repeat:'One-time',price:'',items:'',notes:'',sourceAppfolio:{managerId:'c1',number:'250-1'},workDescription:'Fictional work',workOrderDetails:'Private fictional details'};
+        S.jobs['af-1']=data;__mock.rows.set('jobs/af-1',{coll:'jobs',id:'af-1',data:JSON.parse(JSON.stringify(data))});
+      });
+      await page.getByRole('button',{name:'Properties',exact:true}).click();
+      const card=()=>page.locator('#main .card',{hasText:'555 Fictional Rental'});
+      assert.match(await card().innerText(),/Earliest scheduled: —/);assert.match(await card().innerText(),/Unscheduled job: Other.*Price not set/);
+      await card().getByRole('button',{name:'Edit unscheduled job',exact:true}).click();
+      const before=await page.evaluate(()=>Object.keys(S.jobs).length);
+      assert.match(await page.locator('#dlg').innerText(),/set a repeat while a job is unscheduled/i);
+      await page.locator('#j_rep').selectOption('Every 2 weeks');await page.locator('#j_price').fill('90');
+      await page.locator('#dlg').getByRole('button',{name:'Save',exact:true}).click();
+      await page.waitForFunction(()=>document.querySelector('#st').textContent==='Synced across devices'&&__mock.rows.get('jobs/af-1').data.price===90);
+      assert.equal(await page.evaluate(()=>S.jobs['af-1'].status),'Unscheduled');assert.equal(await page.evaluate(()=>S.jobs['af-1'].date),'');
+      assert.equal(await page.evaluate(()=>Object.keys(S.jobs).length),before);
+      assert.match(await card().innerText(),/Unscheduled job: Other.*Every 2 weeks \(biweekly\).*\$90/s);
+      await page.locator('#job_save_notice').getByRole('button',{name:'Dismiss'}).click();
+      await card().locator('summary').click();assert.match(await card().innerText(),/Unscheduled.*Every 2 weeks \(biweekly\).*\$90/s);
+      await card().locator('li',{hasText:'Unscheduled'}).getByRole('button',{name:'Edit job'}).click();
+      await page.locator('#j_status').selectOption('Scheduled');await page.locator('#j_date').fill('2026-11-04');
+      await page.locator('#dlg').getByRole('button',{name:'Save',exact:true}).click();
+      await page.waitForFunction(()=>document.querySelector('#st').textContent==='Synced across devices'&&S.jobs['af-1'].status==='Scheduled');
+      assert.match(await card().innerText(),/Every 2 weeks \(biweekly\).*\$90/);
+      await page.locator('#job_save_notice').getByRole('button',{name:'Dismiss'}).click();
+      await page.getByRole('button',{name:'Jobs',exact:true}).click();
+      await page.locator('#main .card',{hasText:'AppFolio #250-1'}).getByRole('button',{name:'→ Done',exact:true}).click();
+      await page.waitForFunction(()=>document.querySelector('#st').textContent==='Synced across devices'&&Object.values(S.jobs).some(j=>j.id!=='af-1'&&j.prop==='555 Fictional Rental'));
+      const next=await page.evaluate(()=>Object.values(S.jobs).find(j=>j.id!=='af-1'&&j.prop==='555 Fictional Rental'));
+      assert.equal(next.date,'2026-11-18');assert.equal(next.repeat,'Every 2 weeks');assert.equal(next.price,90);
+      assert.equal(next.sourceAppfolio,undefined);assert.equal(next.workOrderDetails,undefined);
+      assert.deepEqual(errors,[]);
+    }finally{await context.close()}
+  }finally{await browser.close()}
+});
+
+test('phone job saves make offline retry and invalid legacy repeats explicit', {skip:!canRun&&'Install browser dependencies externally'}, async () => {
+  const browser=await makeBrowser();
+  try{
+    const {context,page,errors}=await setup(browser,390);const alerts=[];
+    page.on('dialog',dialog=>{alerts.push(dialog.message());return dialog.accept()});
+    try{
+      await page.evaluate(()=>{
+        S.clients.c1.props='100 Example Road, Austin, TX 78701';__mock.rows.get('clients/c1').data=JSON.parse(JSON.stringify(S.clients.c1));
+        Object.assign(S.jobs.j1,{repeat:'Biweekly',price:50,items:'',notes:''});__mock.rows.get('jobs/j1').data=JSON.parse(JSON.stringify(S.jobs.j1));
+      });
+      await page.getByRole('button',{name:'Properties',exact:true}).click();
+      const card=()=>page.locator('#main .card',{hasText:'100 Example Road'});
+      await card().getByRole('button',{name:'Edit next job'}).click();
+      await page.evaluate(()=>{const row=__mock.rows.get('jobs/j1');row.data.notes='Fictional change from another device';__mock.listener({eventType:'UPDATE',new:JSON.parse(JSON.stringify(row))})});
+      await page.locator('#j_price').fill('80');await page.locator('#dlg').getByRole('button',{name:'Save',exact:true}).click();
+      assert.match(alerts.at(-1),/job or its client changed/i);assert.match(await page.locator('#j_save_error').innerText(),/close and reopen/i);
+      assert.equal(await page.evaluate(()=>__mock.writes.length),0);
+      await page.locator('#dlg').getByRole('button',{name:'Cancel',exact:true}).click();await card().getByRole('button',{name:'Edit next job'}).click();
+      assert.equal(await page.locator('#j_notes').inputValue(),'Fictional change from another device');
+      assert.equal(await page.locator('#j_rep').inputValue(),'Biweekly');
+      await page.locator('#j_price').fill('80');await page.locator('#dlg').getByRole('button',{name:'Save',exact:true}).click();
+      assert.match(alerts.at(-1),/supported repeat.*biweekly/i);assert.match(await page.locator('#j_save_error').innerText(),/supported repeat/i);
+      assert.equal(await page.evaluate(()=>__mock.writes.length),0);
+      await page.locator('#j_rep').selectOption('Every 2 weeks');await page.evaluate(()=>__mock.blockWrites=true);
+      await page.locator('#dlg').getByRole('button',{name:'Save',exact:true}).click();
+      await page.waitForFunction(()=>document.querySelector('#job_save_message').textContent.includes('waiting to sync'));
+      assert.notEqual(await page.locator('#st').innerText(),'Synced across devices');
+      assert.equal(await page.evaluate(()=>__mock.rows.get('jobs/j1').data.price),50);
+      assert.match(await page.evaluate(()=>localStorage.getItem('mib_pending_v1')),/Every 2 weeks/);
+      await page.evaluate(()=>{__mock.blockWrites=false;window.dispatchEvent(new Event('online'))});
+      await page.waitForFunction(()=>document.querySelector('#st').textContent==='Synced across devices'&&__mock.rows.get('jobs/j1').data.price===80);
+      assert.match(await page.locator('#job_save_message').innerText(),/Job changes synced across devices/);
+      assert.equal(await page.evaluate(()=>__mock.rows.get('jobs/j1').data.repeat),'Every 2 weeks');
+      assert.deepEqual(errors,[]);
+    }finally{await context.close()}
+  }finally{await browser.close()}
+});
+
+test('an uncertain phone save disables repeat submission and asks the user to check existing jobs', {skip:!canRun&&'Install browser dependencies externally'}, async () => {
+  const browser=await makeBrowser();
+  try{
+    const {context,page,errors}=await setup(browser,390);const alerts=[];
+    page.on('dialog',dialog=>{alerts.push(dialog.message());return dialog.accept()});
+    try{
+      await page.evaluate(()=>{
+        S.clients.c1.props='100 Example Road, Austin, TX 78701';__mock.rows.get('clients/c1').data=JSON.parse(JSON.stringify(S.clients.c1));
+        window.originalWrite=w;w=(coll,record)=>{originalWrite(coll,record);throw Error('fictional error after queuing')};
+      });
+      await page.getByRole('button',{name:'Properties',exact:true}).click();
+      await page.locator('#main .card',{hasText:'100 Example Road'}).getByRole('link',{name:'+ Job',exact:true}).click();
+      await page.locator('#j_date').fill('2026-12-20');await page.locator('#j_price').fill('85');
+      await page.locator('#dlg').getByRole('button',{name:'Save',exact:true}).click();
+      assert.match(alerts.at(-1),/save result is uncertain.*check jobs.*duplicate/i);
+      assert.match(await page.locator('#j_save_error').innerText(),/close this editor.*check jobs/i);
+      assert.equal(await page.locator('#dlg').getByRole('button',{name:'Save',exact:true}).isDisabled(),true);
+      await page.waitForFunction(()=>[...__mock.rows.values()].some(row=>row.coll==='jobs'&&row.data.date==='2026-12-20'&&row.data.price===85));
+      assert.equal(await page.evaluate(()=>[...__mock.rows.values()].filter(row=>row.coll==='jobs'&&row.data.date==='2026-12-20').length),1);
+      await page.evaluate(()=>w=window.originalWrite);await page.locator('#dlg').getByRole('button',{name:'Cancel',exact:true}).click();
+      assert.match(await page.locator('#job_save_message').innerText(),/save may be incomplete.*before trying again/i);
+      await page.getByRole('button',{name:'Jobs',exact:true}).click();assert.match(await page.locator('#main').innerText(),/2026-12-20/);
+      assert.deepEqual(errors,[]);
+    }finally{await context.close()}
+  }finally{await browser.close()}
+});
