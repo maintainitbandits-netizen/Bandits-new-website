@@ -101,8 +101,8 @@ test('phone photo estimate sends only consented data; review and complete every 
       await page.locator('#ai_use_rates').check();await page.locator('#ai_consent').check();await page.getByRole('button',{name:'Generate draft'}).click();
       await page.waitForSelector('#ai_result h3');await noOverflow(page,`${width} result`);
       assert.equal(calls.length,1);assert.equal(calls[0].headers.authorization,'Bearer fictional.jwt');
-      const body=calls[0].body;assert.deepEqual(Object.keys(body).sort(),['answers','consent','description','disclosure','extra','photos','provider','rates','service']);
-      assert.deepEqual(body.rates,[{id:0,name:'Mulch per yard'},{id:1,name:'Cleanup'}]);assert.equal(body.consent,true);assert.equal(body.provider,'gemini');assert.equal(body.disclosure,'gemini-free-v1');assert.deepEqual(body.answers,[]);assert.equal(body.extra,'');
+      const body=calls[0].body;assert.deepEqual(Object.keys(body).sort(),['answers','consent','description','disclosure','extra','model','photos','provider','rates','service']);
+      assert.deepEqual(body.rates,[{id:0,name:'Mulch per yard'},{id:1,name:'Cleanup'}]);assert.equal(body.consent,true);assert.equal(body.provider,'gemini');assert.equal(body.disclosure,'gemini-free-v2');assert.equal(body.model,'gemini-3.8-flash');assert.deepEqual(body.answers,[]);assert.equal(body.extra,'');
       assert.doesNotMatch(JSON.stringify(body),/Fictional Customer|Fictional Road|PRIVATE CLIENT NOTE|19\.99|10\.00|sample1\.png/);
       assert.match(body.photos[0],/^data:image\/jpeg;base64,/);const jpeg=Buffer.from(body.photos[0].split(',')[1],'base64');
       assert.ok(jpeg.length<=750000);assert.equal(jpeg.includes(Buffer.from('FICTIONAL-METADATA-MARKER')),false);
@@ -148,7 +148,7 @@ test('follow-up answers are explicitly sent with the same photos, and a ballpark
       await page.locator('#ai_flat').click();assert.match(await page.locator('#ai_review_status').innerText(),/new or changed answers/i);assert.equal(await page.locator('#es_lines').count(),0);
       await page.locator('#ai_update').click();assert.match(await page.locator('#ai_followup_status').innerText(),/agree to send/i);assert.equal(calls.length,1);
       await page.locator('#ai_followup_consent').check();await page.locator('#ai_update').click();await page.waitForFunction(()=>document.querySelector('#ai_result').textContent.includes('Updated fictional scope.'));
-      assert.equal(calls.length,2);assert.deepEqual(calls[1].body.photos,calls[0].body.photos);assert.equal(calls[1].body.consent,true);assert.equal(calls[1].body.provider,'gemini');assert.equal(calls[1].body.disclosure,'gemini-free-v1');
+      assert.equal(calls.length,2);assert.deepEqual(calls[1].body.photos,calls[0].body.photos);assert.equal(calls[1].body.consent,true);assert.equal(calls[1].body.provider,'gemini');assert.equal(calls[1].body.disclosure,'gemini-free-v2');assert.equal(calls[1].body.model,'gemini-3.8-flash');
       assert.deepEqual(calls[1].body.answers,[{question:'Confirm the bed depth.',answer:'2 inches deep'}]);assert.equal(calls[1].body.extra,'The path is clear.');
       assert.doesNotMatch(JSON.stringify(calls[1].body),/Fictional Customer|Fictional Road|PRIVATE CLIENT NOTE|sample1\.png/);
       assert.equal(await page.locator('#ai_answer_0').inputValue(),'2 inches deep');assert.equal(await page.locator('#ai_extra').inputValue(),'The path is clear.');
@@ -185,6 +185,58 @@ test('an unavailable ballpark or failed follow-up never produces a fake price or
       await page.locator('#ai_previous_items').click();assert.equal(await page.locator('[data-field=rate]').first().inputValue(),'');
       assert.match(await page.locator('#es_team_notes').inputValue(),/New or changed answer not applied to this draft.*Unknown/);
       assert.match(await page.locator('#dlg').innerText(),/revise the previous scope and price manually/i);assert.equal(calls.length,2);assert.equal(await writes(page),0);assert.deepEqual(errors,[]);
+    }finally{await context.close();}
+  }finally{await browser.close();}
+});
+
+test('after a 503 the person can deliberately select Flash-Lite, with fresh consent and no automatic fallback',skip,async()=>{
+  const handler=(route,_call,calls)=>calls.length===1?route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({error:'Gemini is temporarily unavailable (G_HTTP_503).',providerAttempted:true})}):route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({draft:{...defaultDraft(),summary:'Fictional Lite result.'}})});
+  const browser=await makeBrowser();try{const {context,page,errors,calls}=await setup(browser,320,handler);
+    try{
+      await begin(page);await page.locator('#ai_use_rates').check();assert.equal(await page.locator('#ai_model').inputValue(),'gemini-3.8-flash');
+      assert.match(await page.locator('#dlg').innerText(),/Flash-Lite.*may be less detailed or unavailable/i);await noOverflow(page,'320 model selection');
+      await page.locator('#ai_consent').check();await page.getByRole('button',{name:'Generate draft'}).click();await page.waitForFunction(()=>document.querySelector('#ai_status').textContent.includes('G_HTTP_503'));
+      assert.equal(calls.length,1);assert.equal(calls[0].body.model,'gemini-3.8-flash');assert.equal(await page.locator('#ai_consent').isChecked(),false);
+      assert.match(await page.locator('#ai_photo_list').innerText(),/sample1.png/);assert.match(await page.locator('#ai_description').inputValue(),/2.5 yards/);
+      await page.locator('#ai_consent').check();await page.locator('#ai_model').selectOption('gemini-3.5-flash-lite');
+      assert.equal(await page.locator('#ai_consent').isChecked(),false);assert.equal(calls.length,1);await page.getByRole('button',{name:'Generate draft'}).click();
+      assert.match(await page.locator('#ai_status').innerText(),/Agree/);assert.equal(calls.length,1);
+      await page.locator('#ai_consent').check();await page.getByRole('button',{name:'Generate draft'}).click();await page.waitForFunction(()=>document.querySelector('#ai_result').textContent.includes('Fictional Lite result.'));
+      assert.equal(calls.length,2);assert.equal(calls[1].body.model,'gemini-3.5-flash-lite');assert.equal(calls[1].body.disclosure,'gemini-free-v2');
+      assert.match(await page.locator('#ai_result').innerText(),/Model used for this draft: Gemini 3.5 Flash-Lite/);assert.equal(await page.locator('#ai_followup_model').inputValue(),'gemini-3.5-flash-lite');
+      await noOverflow(page,'320 Lite result');await page.locator('#ai_items').click();assert.match(await page.locator('#es_team_notes').inputValue(),/AI photo draft \(Gemini 3\.5 Flash-Lite\)/);
+      assert.equal(await writes(page),0);assert.deepEqual(errors,[]);
+    }finally{await context.close();}
+  }finally{await browser.close();}
+});
+
+test('a manually selected follow-up model needs new consent and a failed update retains the previous model and answers',skip,async()=>{
+  const handler=(route,_call,calls)=>calls.length===1?route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({draft:defaultDraft()})}):route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({error:'Gemini is temporarily unavailable (G_HTTP_503).',providerAttempted:true})});
+  const browser=await makeBrowser();try{const {context,page,errors,calls}=await setup(browser,320,handler);
+    try{
+      await begin(page);await page.locator('#ai_use_rates').check();await page.locator('#ai_consent').check();await page.getByRole('button',{name:'Generate draft'}).click();await page.waitForSelector('#ai_result h3');
+      await page.locator('#ai_answer_0').fill('3 inches');await page.locator('#ai_followup_consent').check();await page.locator('#ai_followup_model').selectOption('gemini-3.5-flash-lite');
+      assert.equal(await page.locator('#ai_followup_consent').isChecked(),false);await page.locator('#ai_update').click();assert.match(await page.locator('#ai_followup_status').innerText(),/Agree to send/i);assert.equal(calls.length,1);
+      await page.locator('#ai_followup_consent').check();await page.locator('#ai_update').click();await page.waitForFunction(()=>document.querySelector('#ai_followup_status').textContent.includes('G_HTTP_503'));
+      assert.equal(calls.length,2);assert.equal(calls[1].body.model,'gemini-3.5-flash-lite');assert.deepEqual(calls[1].body.photos,calls[0].body.photos);
+      assert.equal(await page.locator('#ai_followup_consent').isChecked(),false);assert.match(await page.locator('#ai_result').innerText(),/Model used for this draft: Gemini 3.8 Flash/);
+      await page.locator('#ai_previous_items').click();const notes=await page.locator('#es_team_notes').inputValue();assert.match(notes,/Gemini 3\.8 Flash/);assert.match(notes,/not applied to this draft.*3 inches/);
+      assert.equal(await page.locator('#es_ai_review').isChecked(),false);assert.equal(await writes(page),0);assert.deepEqual(errors,[]);
+    }finally{await context.close();}
+  }finally{await browser.close();}
+});
+
+test('the person can request the other model without inventing an answer, and the result identifies it',skip,async()=>{
+  const handler=(route,_call,calls)=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({draft:{...defaultDraft(),summary:calls.length===1?'First result.':'New model result.'}})});
+  const browser=await makeBrowser();try{const {context,page,errors,calls}=await setup(browser,390,handler);
+    try{
+      await begin(page);await page.locator('#ai_use_rates').check();await page.locator('#ai_consent').check();await page.getByRole('button',{name:'Generate draft'}).click();await page.waitForSelector('#ai_result h3');
+      await page.locator('#ai_followup_model').selectOption('gemini-3.5-flash-lite');await page.locator('#ai_followup_consent').check();await page.locator('#ai_update').click();
+      await page.waitForFunction(()=>document.querySelector('#ai_result').textContent.includes('New model result.'));
+      assert.equal(calls.length,2);assert.equal(calls[1].body.model,'gemini-3.5-flash-lite');assert.deepEqual(calls[1].body.answers,[]);
+      assert.match(await page.locator('#ai_status').innerText(),/updated using your selected model/i);assert.match(await page.locator('#ai_result').innerText(),/Model used for this draft: Gemini 3.5 Flash-Lite/);
+      assert.equal(await page.locator('#ai_followup_model').inputValue(),'gemini-3.5-flash-lite');assert.equal(await page.locator('#ai_followup_consent').isChecked(),false);
+      assert.equal(await writes(page),0);assert.deepEqual(errors,[]);
     }finally{await context.close();}
   }finally{await browser.close();}
 });
@@ -337,11 +389,12 @@ test('a stopped update cannot overwrite a newer update or re-enable it early',sk
       await begin(page);await page.locator('#ai_use_rates').check();await page.locator('#ai_consent').check();await page.getByRole('button',{name:'Generate draft'}).click();await page.waitForSelector('#ai_result h3');
       await page.locator('#ai_answer_0').fill('3 inches');await page.locator('#ai_followup_consent').check();await page.locator('#ai_update').click();await first;
       await page.locator('#ai_stop').click();assert.equal(await page.locator('#ai_followup_consent').isChecked(),false);
-      await page.locator('#ai_followup_consent').check();await page.locator('#ai_update').click();await second;releaseFirst();await page.waitForTimeout(100);
+      await page.locator('#ai_followup_model').selectOption('gemini-3.5-flash-lite');await page.locator('#ai_followup_consent').check();await page.locator('#ai_update').click();await second;releaseFirst();await page.waitForTimeout(100);
       assert.equal(await page.locator('#ai_update').isDisabled(),true);assert.match(await page.locator('#ai_followup_status').innerText(),/Waiting for Gemini/);
       assert.doesNotMatch(await page.locator('#ai_result').innerText(),/Obsolete response/);releaseSecond();
       await page.waitForFunction(()=>document.querySelector('#ai_result').textContent.includes('New completed response.'));
       assert.match(await page.locator('#ai_result h3').first().innerText(),/Updated draft/);assert.match(await page.locator('#ai_status').innerText(),/updated with your answers/i);
+      assert.match(await page.locator('#ai_result').innerText(),/Model used for this draft: Gemini 3.5 Flash-Lite/);assert.equal(calls[1].body.model,'gemini-3.8-flash');assert.equal(calls[2].body.model,'gemini-3.5-flash-lite');
       assert.equal(calls.length,3);assert.equal(await writes(page),0);assert.deepEqual(errors,[]);
     }finally{releaseFirst();releaseSecond();await context.close();}
   }finally{await browser.close();}
@@ -475,10 +528,10 @@ test('changing the client in an AI estimate clears the old property and requires
 });
 
 test('browser and server contracts work together with only fictional JPEGs and mocked providers',skip,async()=>{
-  const {createHandler}=require('../frontend/lib/crm-quote');let providerBody,providerCalls=0;
+  const {createHandler}=require('../frontend/lib/crm-quote');let providerBody,providerCalls=0;const providerUrls=[];
   const fakeFetch=async(url,init)=>{
     if(url==='https://jvmvzfshgcekwocffdtv.supabase.co/auth/v1/user')return {ok:true,status:200,json:async()=>({id:'fictional-user',role:'authenticated',aud:'authenticated',is_anonymous:false})};
-    assert.equal(url,'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent');providerCalls++;providerBody=JSON.parse(init.body);
+    assert.ok(['https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent','https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent'].includes(url));providerUrls.push(url);providerCalls++;providerBody=JSON.parse(init.body);
     assert.equal(init.headers['x-goog-api-key'],'fictional-secret');
     const request=JSON.parse(providerBody.contents[0].parts[0].text);
     const response=request.answers.length?{...defaultDraft(),summary:'Revised from supplied answers.',lines:[{description:'Measure bed',quantity:'3',rate_id:null,basis:'The answer says 3 inches.'}]}:defaultDraft();
@@ -497,9 +550,9 @@ test('browser and server contracts work together with only fictional JPEGs and m
       for(const image of providerBody.contents[0].parts.slice(1)){assert.equal(image.inlineData.mimeType,'image/jpeg');assert.match(image.inlineData.data,/^[A-Za-z0-9+/]+=*$/);}
       assert.equal(providerBody.tools,undefined);assert.equal(providerBody.cachedContent,undefined);
       assert.doesNotMatch(JSON.stringify(providerBody),/Fictional Road|Fictional Customer|PRIVATE CLIENT NOTE|19\.99|sample1\.png/);
-      await page.locator('#ai_answer_0').fill('3 inches');await page.locator('#ai_followup_consent').check();await page.locator('#ai_update').click();
+      await page.locator('#ai_answer_0').fill('3 inches');await page.locator('#ai_followup_model').selectOption('gemini-3.5-flash-lite');await page.locator('#ai_followup_consent').check();await page.locator('#ai_update').click();
       await page.waitForFunction(()=>document.querySelector('#ai_result').textContent.includes('Revised from supplied answers.'));
-      assert.equal(calls.length,2);assert.equal(providerCalls,2);assert.deepEqual(calls[1].body.photos,calls[0].body.photos);
+      assert.equal(calls.length,2);assert.equal(providerCalls,2);assert.deepEqual(providerUrls,['https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent','https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent']);assert.deepEqual(calls[1].body.photos,calls[0].body.photos);
       assert.deepEqual(JSON.parse(providerBody.contents[0].parts[0].text).answers,[{question:'Confirm the bed depth.',answer:'3 inches'}]);
       assert.match(await page.locator('#ai_result').innerText(),/Quantity: 3/);
       assert.equal(await page.locator('#ai_result img').count(),0);assert.equal(await writes(page),0);assert.deepEqual(errors,[]);

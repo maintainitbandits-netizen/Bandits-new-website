@@ -6,6 +6,7 @@ const { createHandler } = require('../frontend/lib/crm-quote');
 
 const AUTH = 'https://jvmvzfshgcekwocffdtv.supabase.co/auth/v1/user';
 const GEMINI = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent';
+const GEMINI_LITE = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent';
 const ENV = { AI_QUOTES_ENABLED: 'true', CRM_GEMINI_FREE_TIER_CONFIRMED: 'true', CRM_GEMINI_API_KEY: 'fictional-secret' };
 const JPEG = 'data:image/jpeg;base64,' + Buffer.from([0xff, 0xd8, 0xff, 0xd9]).toString('base64');
 const reply = (value, status = 200) => ({ ok: status >= 200 && status < 300, status, json: async () => value });
@@ -21,7 +22,7 @@ const draft = () => ({
 });
 const candidate = (text, finishReason = 'STOP') => ({ finishReason, content: { role: 'model', parts: [{ text }] } });
 const output = d => reply({ candidates: [candidate(JSON.stringify(d))] });
-const input = () => ({ consent: true, provider:'gemini', disclosure:'gemini-free-v1', service: 'Mulch / bed refresh', description: 'Install 2.5 yards of mulch.', photos: [JPEG], rates: [{ id: 0, name: 'Mulch per yard' }], answers: [], extra: '' });
+const input = () => ({ consent: true, provider:'gemini', disclosure:'gemini-free-v2', model:'gemini-3.8-flash', service: 'Mulch / bed refresh', description: 'Install 2.5 yards of mulch.', photos: [JPEG], rates: [{ id: 0, name: 'Mulch per yard' }], answers: [], extra: '' });
 
 function harness(options = {}) {
   const calls = [], env = options.env === undefined ? ENV : options.env;
@@ -29,7 +30,7 @@ function harness(options = {}) {
     calls.push({ url, init });
     if (options.respond) return options.respond(url, init, calls);
     if (url === AUTH) return auth();
-    if (url === GEMINI) return output(draft());
+    if (url === GEMINI || url === GEMINI_LITE) return output(draft());
     throw new Error('Unexpected network request');
   };
   const handler = createHandler({ env, fetch, createGeminiSignal: options.createGeminiSignal });
@@ -97,10 +98,27 @@ test('only consented work, optional rate names and all three JPEGs go to fixed G
   assert.doesNotMatch(JSON.stringify(r.data), /fictional-secret|base64/);
 });
 
+test('only the manually selected Gemini model is called, with no retry or automatic fallback', async () => {
+  for(const [model,endpoint] of [['gemini-3.8-flash',GEMINI],['gemini-3.5-flash-lite',GEMINI_LITE]]) {
+    const request={...input(),model},h=harness(),r=await h.request(request);
+    assert.equal(r.code,200);assert.deepEqual(h.calls.map(c=>c.url),[AUTH,endpoint]);
+    assert.equal(h.calls[1].init.headers['x-goog-api-key'],'fictional-secret');
+    const provider=JSON.parse(h.calls[1].init.body);
+    assert.deepEqual(provider.generationConfig.thinkingConfig,{thinkingLevel:'medium',includeThoughts:false});
+    assert.equal(provider.generationConfig.responseFormat.text.mimeType,'APPLICATION_JSON');assert.equal(provider.tools,undefined);assert.equal(provider.cachedContent,undefined);
+    const failed=harness({respond:url=>url===AUTH?auth():reply({error:'private provider details'},503)}),error=await failed.request(request);
+    assert.equal(error.code,503);assert.match(error.data.error,/G_HTTP_503/);assert.equal(error.data.providerAttempted,true);
+    assert.deepEqual(failed.calls.map(c=>c.url),[AUTH,endpoint]);assert.doesNotMatch(JSON.stringify(error.data),/private provider details/);
+  }
+});
+
 test('rejects invalid input, price injection, extra fields, noncanonical JPEG and missing consent before Gemini', async () => {
   const cases = [
     { ...input(), consent: false }, { ...input(), provider:'cloudflare' }, { ...input(), provider:'Gemini' },
-    { ...input(), disclosure:'cloudflare-free-v1' }, { ...input(), disclosure:'gemini-free-v0' },
+    { ...input(), disclosure:'cloudflare-free-v1' }, { ...input(), disclosure:'gemini-free-v0' }, { ...input(), disclosure:'gemini-free-v1' },
+    { ...input(), model:null }, { ...input(), model:'' }, { ...input(), model:'__proto__' }, { ...input(), model:'constructor' },
+    { ...input(), model:'gemini-3.8-flash/../../other' }, { ...input(), model:'https://evil.invalid' }, { ...input(), model:['gemini-3.8-flash'] },
+    (({model,...oldGeminiForm})=>oldGeminiForm)(input()),
     { ...input(), service: '' }, { ...input(), service: 'x\nheader' },
     { ...input(), description: 'x' }, { ...input(), description: 'x'.repeat(2001) }, { ...input(), description: 'a\u0000bad input' },
     { ...input(), photos: [] }, { ...input(), photos: Array(4).fill(JPEG) },

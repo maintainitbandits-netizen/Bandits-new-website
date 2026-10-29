@@ -1,10 +1,16 @@
 'use strict';
 
-// A fixed Gemini Developer API endpoint/model prevents caller-controlled URLs,
-// provider fallback, Search grounding and unexpected paid tools. The key never
-// reaches the browser. The owner must maintain a genuinely Free-tier project.
-const MODEL = 'gemini-3.8-flash';
-const ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`;
+// Only these two fixed Gemini Developer API endpoints may be selected by the
+// person requesting a draft. Never construct a URL from caller input or switch
+// models automatically. The key remains server-only; the owner must maintain
+// a genuinely Free-tier project.
+function endpointForModel(model) {
+  switch (model) {
+    case 'gemini-3.8-flash': return 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent';
+    case 'gemini-3.5-flash-lite': return 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent';
+    default: return null;
+  }
+}
 const API_KEY = /^[\x21-\x7e]{10,512}$/;
 
 function configuredProject(env) {
@@ -36,6 +42,8 @@ function buildRequest(input, schema) {
     ] }],
     generationConfig: {
       maxOutputTokens: 8192,
+      // Both allowlisted models support medium thinking; use the same request
+      // contract while accepting that their quality and latency can differ.
       thinkingConfig: { thinkingLevel: 'medium', includeThoughts: false },
       responseFormat: { text: { mimeType: 'APPLICATION_JSON', schema } },
     },
@@ -69,4 +77,4 @@ function extractDraft(data) {
   try { return JSON.parse(text); } catch (_) { invalid(); }
 }
 
-module.exports = { configuredProject, ENDPOINT, buildRequest, extractDraft };
+module.exports = { configuredProject, endpointForModel, buildRequest, extractDraft };

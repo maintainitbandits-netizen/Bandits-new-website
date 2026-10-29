@@ -77,12 +77,13 @@ function readBody(req) {
     if (e instanceof QuoteError) throw e;
     reject(400, 'Invalid JSON request.');
   }
-  if (!keysAre(body, ['consent', 'provider', 'disclosure', 'service', 'description', 'photos', 'rates', 'answers', 'extra']))
+  if (!keysAre(body, ['consent', 'provider', 'disclosure', 'model', 'service', 'description', 'photos', 'rates', 'answers', 'extra']))
     reject(400, 'Invalid or out-of-date photo estimate form. Close and reopen it before generating.');
-  // Bind consent to the current provider and disclosure. A stale Cloudflare
-  // tab must not accidentally send photos to Gemini after a deployment changes.
-  if (body.consent !== true || body.provider !== 'gemini' || body.disclosure !== 'gemini-free-v1')
+  // The disclosure and model choice are required on every request; old forms
+  // and arbitrary caller-supplied models or URLs must fail before Gemini.
+  if (body.consent !== true || body.provider !== 'gemini' || body.disclosure !== 'gemini-free-v2')
     reject(400, 'Agree to the current Gemini photo disclosure before generating.');
+  if (!gemini.endpointForModel(body.model)) reject(400, 'Choose an available Gemini model.');
   if (!singleLine(body.service, 100)) reject(400, 'Choose a service.');
   if (typeof body.description !== 'string' || body.description.trim().length < 5 || body.description.length > 2000 ||
       /[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/.test(body.description)) reject(400, 'Enter a work description of 5 to 2,000 characters.');
@@ -119,7 +120,7 @@ function readBody(req) {
   });
   if (typeof body.extra !== 'string' || body.extra.length > 1000 ||
       /[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/.test(body.extra)) reject(400, 'Additional details are invalid or too long.');
-  return { service: body.service.trim(), description: body.description.trim(), photos, rates, answers, extra: body.extra.trim() };
+  return { model: body.model, service: body.service.trim(), description: body.description.trim(), photos, rates, answers, extra: body.extra.trim() };
 }
 
 const RESPONSE_SCHEMA = {
@@ -227,7 +228,7 @@ function createHandler(options = {}) {
       const geminiSignal = createGeminiSignal(GEMINI_TIMEOUT_MS);
       try {
         providerAttempted = true;
-        response = await fetchFn(gemini.ENDPOINT, {
+        response = await fetchFn(gemini.endpointForModel(input.model), {
           method: 'POST', headers: { 'x-goog-api-key': project.key, 'Content-Type': 'application/json', Accept: 'application/json' },
           body: JSON.stringify(gemini.buildRequest(input, RESPONSE_SCHEMA)), cache: 'no-store', redirect: 'error', signal: geminiSignal,
         });
