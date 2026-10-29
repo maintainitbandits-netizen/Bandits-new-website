@@ -24,7 +24,11 @@ function makePdf(pages) {
   const escape = s => String(s).replace(/\\/g, '\\\\').replace(/\(/g, '\\(').replace(/\)/g, '\\)');
   pages.forEach((lines, i) => {
     const pageId = 3 + i * 2, contentId = pageId + 1;
-    const stream = `BT\n/F1 11 Tf\n14 TL\n50 760 Td\n${lines.map(line => `(${escape(line)}) Tj\nT*`).join('\n')}\nET\n`;
+    const positioned = lines.length && typeof lines[0] === 'object';
+    const operators = positioned
+      ? lines.map(line => `1 0 0 1 ${line.x} ${line.y} Tm\n(${escape(line.text)}) Tj`).join('\n')
+      : `14 TL\n50 760 Td\n${lines.map(line => `(${escape(line)}) Tj\nT*`).join('\n')}`;
+    const stream = `BT\n/F1 11 Tf\n${operators}\nET\n`;
     objects[pageId] = `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 ${fontId} 0 R >> >> /Contents ${contentId} 0 R >>`;
     objects[contentId] = `<< /Length ${Buffer.byteLength(stream, 'latin1')} >>\nstream\n${stream}endstream`;
   });
@@ -42,6 +46,30 @@ function file(name, lines, extraPages = []) {
 }
 const FIRST = ['Work Order # 250-1', 'Service Address: 100 Example Road', 'Austin, TX 78701', 'Job Description: Fictional landscape cleanup', 'Private Fictional Instructions: check in at desk'];
 const SECOND = ['Work Order Number: 251-1', 'Property Address: 200 Example Lane, Austin, TX 78702', 'Job Description: Fictional make-ready cleanup'];
+// A fictional two-column layout. Values are deliberately drawn before their
+// labels, as some PDF producers do; none of the text comes from a real order.
+const COLUMN_PDF = [
+  { text: 'Fictional Property Office', x: 36, y: 730 },
+  { text: '984-8', x: 426, y: 730 },
+  { text: 'Assigned', x: 426, y: 712 },
+  { text: '12/31/2031', x: 426, y: 694 },
+  { text: '120 Example Lane Unit', x: 426, y: 610 },
+  { text: '7B', x: 426, y: 598 },
+  { text: '120 Example Lane Unit', x: 426, y: 586 },
+  { text: '7B', x: 426, y: 574 },
+  { text: 'Exampletown, TX 70001', x: 426, y: 562 },
+  { text: 'Fictional garden repair', x: 36, y: 438 },
+  { text: 'Bring a fictional tool', x: 36, y: 426 },
+  { text: 'Fictional person', x: 141, y: 210 },
+  { text: 'Work Order #', x: 280, y: 730 },
+  { text: 'Status', x: 280, y: 712 },
+  { text: 'Scheduled on', x: 280, y: 694 },
+  { text: 'Job Site', x: 280, y: 610 },
+  { text: 'Additional Field', x: 280, y: 545 },
+  { text: '--', x: 426, y: 545 },
+  { text: 'Description', x: 36, y: 460 },
+  { text: 'Created by:', x: 36, y: 210 },
+];
 // A generated blank, password-protected PDF containing no real data.
 const ENCRYPTED = 'JVBERi0xLjMKJeLjz9MKMSAwIG9iago8PAovUHJvZHVjZXIgPDU5M2QxM2NhMWU+Cj4+CmVuZG9iagoyIDAgb2JqCjw8Ci9UeXBlIC9QYWdlcwovQ291bnQgMQovS2lkcyBbIDQgMCBSIF0KPj4KZW5kb2JqCjMgMCBvYmoKPDwKL1R5cGUgL0NhdGFsb2cKL1BhZ2VzIDIgMCBSCj4+CmVuZG9iago0IDAgb2JqCjw8Ci9UeXBlIC9QYWdlCi9SZXNvdXJjZXMgPDwKPj4KL01lZGlhQm94IFsgMC4wIDAuMCA2MTIgNzkyIF0KL1BhcmVudCAyIDAgUgo+PgplbmRvYmoKNSAwIG9iago8PAovViAyCi9SIDMKL0xlbmd0aCAxMjgKL1AgNDI5NDk2NzI5MgovRmlsdGVyIC9TdGFuZGFyZAovTyA8MWFkNTQxYzcwMTZiM2I1OTQ1MmMxMmVhMGY3ZjQ3Y2QxYzJjMTRmMDhmNGJkZWE3YjE3NzQyNWEwMDQ2ZjUzND4KL1UgPDI2MmQxMzc5YmFiOGVhNzk5MzRjNzE1OWFmYTMyZDBiMjhiZjRlNWU0ZTc1OGE0MTY0MDA0ZTU2ZmZmYTAxMDg+Cj4+CmVuZG9iagp4cmVmCjAgNgowMDAwMDAwMDAwIDY1NTM1IGYgCjAwMDAwMDAwMTUgMDAwMDAgbiAKMDAwMDAwMDA1OSAwMDAwMCBuIAowMDAwMDAwMTE4IDAwMDAwIG4gCjAwMDAwMDAxNjcgMDAwMDAgbiAKMDAwMDAwMDI2MSAwMDAwMCBuIAp0cmFpbGVyCjw8Ci9TaXplIDYKL1Jvb3QgMyAwIFIKL0luZm8gMSAwIFIKL0lEIFsgPDM1NjEzMTMyNjIzNzY0MzczODM1NjEzNjY0MzUzNTM3MzUzNjM5NjI2MjM3MzA2NDMyMzQzMjMyNjEzNzMwMzk+IDwzNTYxMzEzMjYyMzc2NDM3MzgzNTYxMzY2NDM1MzUzNzM1MzYzOTYyNjIzNzMwNjQzMjM0MzIzMjYxMzczMDM5PiBdCi9FbmNyeXB0IDUgMCBSCj4+CnN0YXJ0eHJlZgo0NzYKJSVFT0YK';
 
@@ -121,6 +149,51 @@ test('PDF field suggestions are conservative and do not infer dates or statuses'
     { str: '#250-1', transform: [1, 0, 0, 1, 63, 700], width: 40, hasEOL: true },
     { str: 'Second line', transform: [1, 0, 0, 1, 10, 685], width: 80 },
   ]), ['Work Order #250-1', 'Second line']);
+  const items = COLUMN_PDF.map(row => ({ str: row.text, transform: [1, 0, 0, 1, row.x, row.y], width: row.text.length * 5.3 }));
+  const positioned = module.suggestPositionedWorkOrderFields(items);
+  assert.equal(positioned.number, '984-8');
+  assert.equal(positioned.location, '120 Example Lane Unit 7B, Exampletown, TX 70001');
+  assert.equal(positioned.description, 'Fictional garden repair\nBring a fictional tool');
+  assert.equal(positioned.complete, true);
+  assert.equal(module.suggestPositionedWorkOrderFields(items.filter(item => item.str !== 'Job Site')), null);
+  assert.equal(module.suggestPositionedWorkOrderFields([...items, items.find(item => item.str === 'Job Site')]), null);
+  assert.equal(module.suggestPositionedWorkOrderFields([...items, { str: 'Fictional text without a position' }]).complete, false);
+  const splitBody = items.filter(item => item.str !== 'Fictional garden repair').concat([
+    { str: 'Fictional ', transform: [1, 0, 0, 1, 36, 438], width: 40 },
+    { str: 'garden ', transform: [1, 0, 0, 1, 76, 438], width: 32 },
+    { str: 'repair', transform: [1, 0, 0, 1, 108, 438], width: 28 },
+  ]);
+  assert.equal(module.suggestPositionedWorkOrderFields(splitBody).description, 'Fictional garden repair\nBring a fictional tool');
+  const closeFooter = items.map(item => item.str === 'Created by:' ? { ...item, transform: [1, 0, 0, 1, 36, 408] } : item);
+  assert.equal(module.suggestPositionedWorkOrderFields(closeFooter).description, 'Fictional garden repair\nBring a fictional tool');
+});
+
+test('a fictional two-column work order is matched by position and still requires review', { skip: !canRun && 'Install browser dependencies externally' }, async () => {
+  const browser = await makeBrowser();
+  try {
+    const { context, page, errors, requests } = await setup(browser, 390);
+    try {
+      await page.getByRole('button', { name: 'Import work order PDFs' }).click();
+      await page.locator('#af_file').setInputFiles([file('fictional-columns.pdf', COLUMN_PDF)]); await loaded(page);
+      await noOverflow(page, 'two-column PDF review');
+      assert.equal(await page.locator('#af_number_0').inputValue(), '984-8');
+      assert.equal(await page.locator('#af_location_0').inputValue(), '120 Example Lane Unit 7B, Exampletown, TX 70001');
+      assert.equal(await page.locator('#af_description_0').inputValue(), 'Fictional garden repair\nBring a fictional tool');
+      assert.equal(await page.locator('#af_date_0').inputValue(), '');
+      const raw = await page.locator('#af_details_0').inputValue();
+      assert.ok(raw.indexOf('Work Order #') < raw.indexOf('Assigned'));
+      assert.match(raw, /Fictional person/); assert.match(raw, /12\/31\/2031/);
+      assert.equal(await page.evaluate(() => __mock.writes.length), 0);
+      await page.locator('#af_client_0').selectOption('c1');
+      await page.getByRole('button', { name: 'Import selected jobs' }).click(); await synced(page);
+      const job = await page.evaluate(() => Object.values(S.jobs)[0]);
+      assert.equal(job.sourceAppfolio.number, '984-8'); assert.equal(job.status, 'Unscheduled'); assert.equal(job.date, '');
+      assert.equal(job.prop, '120 Example Lane Unit 7B, Exampletown, TX 70001');
+      assert.equal(job.workDescription, 'Fictional garden repair\nBring a fictional tool'); assert.equal(job.notes, '');
+      assert.ok(requests.every(request => request.method === 'GET' && !request.postData));
+      assert.deepEqual(errors, []);
+    } finally { await context.close(); }
+  } finally { await browser.close(); }
 });
 
 test('multiple PDFs are read locally, reviewed, imported and scheduled on narrow phones', { skip: !canRun && 'Install browser dependencies externally' }, async () => {

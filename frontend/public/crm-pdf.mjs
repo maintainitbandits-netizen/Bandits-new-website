@@ -53,6 +53,94 @@ const numberValue = value => {
   return token.length <= 100 && /\d/.test(token) && /^[a-z0-9][a-z0-9./_-]*$/i.test(token) ? token : '';
 };
 
+// PDF drawing order can put an entire value column before its labels. Group
+// horizontal fragments by their visible position, without using the PDF's
+// embedded scripts, annotations, form values, or network resources.
+function positionedRows(items) {
+  const fragments = []; let complete = true;
+  for (const item of items || []) {
+    if (!item || typeof item.str !== 'string') continue;
+    const raw = item.str.replace(/[\r\n]+/g, ' '), text = clean(raw);
+    if (!text) continue;
+    const x = Array.isArray(item.transform) ? item.transform[4] : null;
+    const y = Array.isArray(item.transform) ? item.transform[5] : null;
+    if (!Number.isFinite(x) || !Number.isFinite(y)) { complete = false; continue; }
+    fragments.push({ text, x, y, leading: /^\s/.test(raw), trailing: /\s$/.test(raw), right: x + (Number.isFinite(item.width) ? Math.max(0, item.width) : 0) });
+  }
+  fragments.sort((a, b) => b.y - a.y || a.x - b.x);
+  const rows = [];
+  for (const fragment of fragments) {
+    let row = rows[rows.length - 1];
+    if (!row || Math.abs(row.y - fragment.y) > 2.5) { row = { y: fragment.y, fragments: [] }; rows.push(row); }
+    row.fragments.push(fragment);
+  }
+  for (const row of rows) {
+    row.fragments.sort((a, b) => a.x - b.x);
+    row.segments = [];
+    for (const fragment of row.fragments) {
+      const previous = row.segments[row.segments.length - 1], gap = previous ? fragment.x - previous.right : Infinity;
+      if (!previous || gap > 20) row.segments.push({ text: fragment.text, x: fragment.x, right: fragment.right, trailing: fragment.trailing });
+      else {
+        previous.text += (fragment.leading || previous.trailing || gap > 1 ? ' ' : '') + fragment.text;
+        previous.right = Math.max(previous.right, fragment.right); previous.trailing = fragment.trailing;
+      }
+    }
+    delete row.fragments;
+  }
+  return { rows, complete };
+}
+
+// Recognize the column layout in the supplied, representative work order.
+// It is deliberately narrow: unfamiliar layouts fall back to text suggestions
+// and manual review rather than assigning values from unrelated columns.
+export function suggestPositionedWorkOrderFields(items) {
+  const { rows, complete } = positionedRows(items);
+  const find = regex => {
+    const found = [];
+    rows.forEach((row, index) => row.segments.forEach(segment => { if (regex.test(segment.text)) found.push({ row, index, segment }); }));
+    return found.length === 1 ? found[0] : null;
+  };
+  const order = find(/^work\s*order\s*(?:#|no\.?|number)\s*:?$/i);
+  const site = find(/^job\s*site\s*:?$/i);
+  const description = find(/^(?:job\s+)?description\s*:?$/i);
+  if (!order || !site || !description || Math.abs(order.segment.x - site.segment.x) > 24 ||
+      site.row.y >= order.row.y || description.row.y >= site.row.y || description.segment.x >= site.segment.x - 30) return null;
+  const rightOf = (row, segment) => row.segments.filter(other => other.x >= segment.right + 8).sort((a, b) => a.x - b.x);
+  const number = numberValue((rightOf(order.row, order.segment)[0] || {}).text);
+  let location = '';
+  const first = rightOf(site.row, site.segment)[0];
+  if (first && !/^(?:--+|n\/?a)$/i.test(first.text)) {
+    const parts = [], seen = new Set(); let lastY = site.row.y;
+    for (let i = site.index; i < rows.length; i++) {
+      const row = rows[i];
+      if (site.row.y - row.y > 110) break;
+      if (i > site.index && row.segments.some(s => Math.abs(s.x - site.segment.x) <= 6)) break;
+      const text = row.segments.filter(s => s.x >= first.x - 4).map(s => s.text).join(' ').trim();
+      if (!text) continue;
+      if (lastY - row.y > 24 || /^(?:--+|n\/?a)$/i.test(text)) break;
+      const key = text.replace(/\s+/g, ' ').toLowerCase();
+      if (!seen.has(key)) { seen.add(key); parts.push(text); }
+      lastY = row.y;
+    }
+    const joined = [];
+    for (const part of parts) {
+      if (joined.length && /(?:\bunit|\bapt\.?|\bapartment|\bsuite|\bste\.?|#)\s*$/i.test(joined[joined.length - 1]) && /^#?[a-z0-9][a-z0-9/-]{0,30}$/i.test(part)) joined[joined.length - 1] += ' ' + part;
+      else joined.push(part);
+    }
+    const value = joined.join(', ');
+    if (value.length <= 500) location = value;
+  }
+  const detailLines = []; let previousY = description.row.y;
+  for (let i = description.index + 1; i < rows.length && detailLines.length < 100; i++) {
+    const row = rows[i], text = row.segments.filter(s => s.x >= description.segment.x - 4).map(s => s.text).join('  ').trim();
+    if (!text) continue;
+    if (previousY - row.y > (detailLines.length ? 20 : 32) || /^(?:created|approved|scheduled|completed|assigned|invoice)\s+(?:by|on|#)\s*:/i.test(text) || /^(?:--+|n\/?a)$/i.test(text)) break;
+    detailLines.push(text); previousY = row.y;
+  }
+  const detail = detailLines.join('\n');
+  return { number, location, description: detail.length <= 10000 ? detail : '', rows, complete };
+}
+
 // These are cautious suggestions, not claims about an official PDF layout.
 // The whole extracted text is shown for review, and the user can correct every
 // suggested field. Dates and AppFolio statuses are never inferred here.
@@ -121,12 +209,19 @@ export async function readWorkOrderPdf(file, isCancelled = () => false) {
     const doc = await task.promise;
     if (isCancelled()) throw new Error('Import was closed.');
     if (!doc.numPages || doc.numPages > PDF_PAGE_LIMIT) throw new Error('Use a PDF with 1–25 pages for each work order.');
-    const pages = []; let characters = 0, pagesWithoutText = 0;
+    const pages = []; let characters = 0, pagesWithoutText = 0, positioned = null;
     for (let n = 1; n <= doc.numPages; n++) {
       if (isCancelled()) throw new Error('Import was closed.');
       const page = await doc.getPage(n);
       const content = await page.getTextContent();
-      const text = textItemsToLines(content.items).join('\n');
+      let text = textItemsToLines(content.items).join('\n');
+      const layout = suggestPositionedWorkOrderFields(content.items);
+      if (layout) {
+        if (!positioned) positioned = { number: layout.number, location: layout.location, description: layout.description };
+        // Keep the original extraction order if any text had no coordinates;
+        // otherwise the visible row order is easier to review for this layout.
+        if (layout.complete) text = layout.rows.map(row => row.segments.map(s => s.text).join('  ')).join('\n');
+      }
       page.cleanup();
       if (!text.trim()) pagesWithoutText++;
       characters += text.length;
@@ -135,7 +230,11 @@ export async function readWorkOrderPdf(file, isCancelled = () => false) {
     }
     const text = pages.join('\n\n').trim();
     if (!text) throw new Error('No selectable text found. Image-only or scanned PDFs need OCR; enter the job manually instead.');
-    return { text, pages: doc.numPages, pagesWithoutText, ...suggestWorkOrderFields(text) };
+    const guessed = suggestWorkOrderFields(text);
+    return { text, pages: doc.numPages, pagesWithoutText,
+      number: positioned && positioned.number || guessed.number,
+      location: positioned && positioned.location || guessed.location,
+      description: positioned && positioned.description || guessed.description };
   } catch (error) {
     if (error && error.name === 'PasswordException') throw new Error('This PDF is password-protected. Unlock it on your device before importing.');
     if (error && (error.name === 'InvalidPDFException' || error.name === 'FormatError')) throw new Error('This file could not be read as a PDF. Download it again and try.');
