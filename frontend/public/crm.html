@@ -43,7 +43,7 @@ dialog::backdrop{background:#0008}.bt{display:flex;gap:6px;flex-wrap:wrap}
 </style></head><body>
 <header><h1>🌿 Maintain It Bandits</h1><div class="sub" id="st">Saved on this device</div></header>
 <div class="stats" id="stats"></div>
-<div class="bar"><button class="pri" onclick="openClient()">+ Client</button><button class="pri" onclick="openJob()">+ Job</button><button onclick="openImport()">Import addresses</button><button onclick="openWeekPlanner()">Plan workweek</button><button onclick="openRates()">Rates</button><button onclick="openBackup()">Backup</button><button onclick="logout()">Sign out</button></div>
+<div class="bar"><button class="pri" onclick="openClient()">+ Client</button><button class="pri" onclick="openJob()">+ Job</button><button onclick="openImport()">Import addresses</button><button onclick="openAppfolioImport()">Import work order PDFs</button><button onclick="openWeekPlanner()">Plan workweek</button><button onclick="openRates()">Rates</button><button onclick="openBackup()">Backup</button><button onclick="logout()">Sign out</button></div>
 <div class="tabs" id="tabs"></div>
 <main id="main"></main>
 <div id="login"><div class="card" style="width:min(360px,100%)"><h2>🌿 Maintain It Bandits</h2><p class="m">Team sign in</p><input id="em" type="email" placeholder="Email" autocomplete="username"><input id="pw" type="password" placeholder="Password" autocomplete="current-password" onkeydown="if(event.key==='Enter')login()"><button class="pri" onclick="login()">Sign in</button><p id="lerr" class="m" style="color:var(--rd)"></p></div></div>
@@ -53,7 +53,7 @@ dialog::backdrop{background:#0008}.bt{display:flex;gap:6px;flex-wrap:wrap}
 <script src="/crm-week.js"></script>
 <script>
 const $=s=>document.querySelector(s),E=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-const ST=["Lead","Quoted","Won","Recurring","Lost"],JS=["Scheduled","Done","Invoiced","Paid"],RP=["One-time","Weekly","Every 2 weeks","Monthly"],
+const ST=["Lead","Quoted","Won","Recurring","Lost"],JS=["Scheduled","Done","Invoiced","Paid"],JOB_STATUSES=["Unscheduled",...JS],RP=["One-time","Weekly","Every 2 weeks","Monthly"],
 TY=["Property manager","Homeowner","Realtor / investor","STR host","Commercial","Other / unknown"],
 SV=["Make-ready cleanup","Mow / edge / blow","Mulch / bed refresh","Trim / prune","Haul-off","Sod / seed","Pressure wash","Other"],TABS=["Pipeline","Clients","Properties","Estimates","Route","Jobs","Completed","Due & overdue"],
 DEF="Mow | 55\nMulch per yard | 85\nBed cleanup | 60\nTrim | 75\nHaul-off | 120\nPressure wash | 150\nMake-ready flat | 250";
@@ -146,7 +146,7 @@ function clist(){const k=q.toLowerCase(),L=sorted(S.clients).filter(c=>!k||[c.na
  <div class="m">${E(c.type)}${c.contact?" · "+E(c.contact):""}</div><div class="m">${js.length} job${js.length==1?"":"s"} · Unpaid ${money(u)}</div>
  <div class="row">${c.phone?`<a href="tel:${E(c.phone)}" onclick="event.stopPropagation()">📞 Call</a>`:""}${c.email?`<a href="mailto:${E(c.email)}" onclick="event.stopPropagation()">✉️ Email</a>`:""}<a href="#" onclick="event.stopPropagation();event.preventDefault();openJob(null,{client:'${c.id}'})">+ Job</a><button class="dg" data-client="${E(c.id)}" onclick="event.stopPropagation();delClient(this.dataset.client)">Delete client</button></div></div>`}).join("")||'<p class="m">No clients yet. Tap + Client.</p>'}
 function vProps(){const h=sorted(S.clients).map(c=>{const ps=props(c);if(!ps.length)return"";return`<h3>${E(c.name)}</h3>`+ps.map((p,i)=>{
- const js=jobsOf(c.id).filter(j=>same(j.prop,p)),last=js.filter(j=>j.status!="Scheduled").sort((a,b)=>a.date<b.date?1:-1)[0],n=nextJob(c.id,p);
+ const js=jobsOf(c.id).filter(j=>same(j.prop,p)),last=js.filter(j=>j.status!="Scheduled"&&j.status!=="Unscheduled").sort((a,b)=>a.date<b.date?1:-1)[0],n=nextJob(c.id,p);
  return`<div class="card"><b>${E(p)}</b><div class="m">Last service: ${last?E(last.date+" · "+last.service):"—"}</div><div class="m">Next: ${n?E(n.date+" · "+n.service):"—"}</div><div class="m">Unpaid ${money(unp(js))}</div>
  <div class="row"><a href="#" onclick="event.preventDefault();openJob(null,{client:'${c.id}',prop:this.dataset.p})" data-p="${E(p)}">+ Job</a><button class="dg" data-client="${E(c.id)}" data-index="${i}" onclick="deleteProperty(this.dataset.client,+this.dataset.index)">Delete property</button></div></div>`}).join("")}).join("");return h||'<p class="m">No properties yet. Add addresses to a client.</p>'}
 const A=a=>/^-?\d+(\.\d+)?,\s*-?\d+(\.\d+)?$/.test(a.trim())||/\b\d{5}\b/.test(a)||/\bTX\b|Texas/i.test(a)?a:a+", Austin, TX",zip=a=>(String(a).match(/\b\d{5}\b/)||["99999"])[0];
@@ -415,10 +415,10 @@ function roadSave(){
  $("#rr_status").textContent=storageOK?"Route order saved. Keep this page open until it says Synced across devices.":"The order is in memory but could not be saved locally. Use Backup and keep this page open until synced.";render()
 }
 function vJobs(){const od=today();let L=arr(S.jobs).filter(j=>jf=="All"||(jf=="Open"?j.status!="Paid":j.status==jf)).sort((a,b)=>a.date>b.date?1:-1);
- return`<div class="row"><button class="dg" onclick="openBulkDeletion('jobs')">Select jobs to delete</button></div><select onchange="jf=this.value;render()">${["Open",...JS,"All"].map(o=>`<option${o==jf?" selected":""}>${o}</option>`).join("")}</select>`+(L.map(j=>{const late=j.status=="Scheduled"&&j.date<od,nx=JS[JS.indexOf(j.status)+1];
- return`<div class="card" onclick="openJob('${j.id}')"><div class="sp"><b>${E(cname(j.client))}</b><b>${money(j.price)}</b></div><div class="m">${E(j.service)}${j.prop?" · "+E(j.prop):""}</div>
- <div class="m">${E(j.date)} <span class="chip">${j.status}</span>${jobDateLabel(j)?`<span class="chip">${E(jobDateLabel(j))}</span>`:""}${storedEstimate(j.estimatedMinutes)?`<span class="chip">${E(estimateText(j.estimatedMinutes))} work</span>`:""}${late?'<span class="chip bad">Overdue</span>':""}${j.repeat&&j.repeat!="One-time"?`<span class="chip">${E(j.repeat)}</span>`:""}</div>
- <div class="row">${nx?`<button onclick="event.stopPropagation();setStatus('${j.id}','${nx}')">→ ${nx}</button>`:""}<button onclick="event.stopPropagation();openDoc('${j.id}')">${j.status=="Scheduled"?"Quote":"Invoice"}</button><button data-job="${E(j.id)}" onclick="event.stopPropagation();openJobPhotos(this.dataset.job)">Before / after photos</button><button class="dg" data-job="${E(j.id)}" onclick="event.stopPropagation();delJob(this.dataset.job)">Delete job</button></div></div>`}).join("")||'<p class="m">No jobs here.</p>')}
+ return`<div class="row"><button class="dg" onclick="openBulkDeletion('jobs')">Select jobs to delete</button></div><select onchange="jf=this.value;render()">${["Open",...JOB_STATUSES,"All"].map(o=>`<option${o==jf?" selected":""}>${o}</option>`).join("")}</select>`+(L.map(j=>{const late=j.status==="Scheduled"&&validDate(j.date)&&j.date<od,index=JS.indexOf(j.status),nx=index<0?null:JS[index+1],quote=j.status==="Scheduled"||j.status==="Unscheduled",price=j.price==null||j.price===""?"Price not set":money(j.price);
+ return`<div class="card" onclick="openJob('${j.id}')"><div class="sp"><b>${E(cname(j.client))}</b><b>${E(price)}</b></div><div class="m">${E(j.service)}${j.prop?" · "+E(j.prop):""}${j.sourceAppfolio&&j.sourceAppfolio.number?" · AppFolio #"+E(j.sourceAppfolio.number):""}</div>
+ <div class="m">${E(j.date||"Not scheduled")} <span class="chip">${E(j.status)}</span>${jobDateLabel(j)?`<span class="chip">${E(jobDateLabel(j))}</span>`:""}${storedEstimate(j.estimatedMinutes)?`<span class="chip">${E(estimateText(j.estimatedMinutes))} work</span>`:""}${late?'<span class="chip bad">Overdue</span>':""}${j.repeat&&j.repeat!="One-time"?`<span class="chip">${E(j.repeat)}</span>`:""}</div>
+ <div class="row">${j.status==="Unscheduled"?`<button data-job="${E(j.id)}" onclick="event.stopPropagation();scheduleUnscheduledJob(this.dataset.job)">Schedule</button>`:nx?`<button onclick="event.stopPropagation();setStatus('${j.id}','${nx}')">→ ${nx}</button>`:""}<button onclick="event.stopPropagation();openDoc('${j.id}')">${quote?"Quote":"Invoice"}</button><button data-job="${E(j.id)}" onclick="event.stopPropagation();openJobPhotos(this.dataset.job)">Before / after photos</button><button class="dg" data-job="${E(j.id)}" onclick="event.stopPropagation();delJob(this.dataset.job)">Delete job</button></div></div>`}).join("")||'<p class="m">No jobs here.</p>')}
 /* Completed work is a view of existing job statuses, not a separate copy. */
 const COMPLETED_STATES=["Done","Invoiced","Paid"];
 let completedQuery="",completedFilter="All";
@@ -443,12 +443,12 @@ function editCompletedJob(id){
 }
 /* Due dates are based on the required date, not the planned appointment date. */
 function vDue(){
- const now=today(),jobs=arr(S.jobs).filter(j=>j&&j.status==="Scheduled"&&((j.dateRequirement&&j.dateRequirement!=="any")||(!j.dateRequirement&&j.requiredDate))),groups={overdue:[],today:[],upcoming:[],attention:[]};
+ const now=today(),jobs=arr(S.jobs).filter(j=>j&&["Scheduled","Unscheduled"].includes(j.status)&&((j.dateRequirement&&j.dateRequirement!=="any")||(!j.dateRequirement&&j.requiredDate))),groups={overdue:[],today:[],upcoming:[],attention:[]};
  jobs.forEach(j=>{const d=j.requiredDate,key=!validDate(d)||!["deadline","exact"].includes(j.dateRequirement)?"attention":d<now?"overdue":d===now?"today":"upcoming";groups[key].push(j)});
  const sections=[["overdue","Overdue"],["today","Due today"],["upcoming","Upcoming"],["attention","Needs a valid requirement"]];
- return `<h2>Due &amp; overdue jobs</h2><p class="m">Open scheduled jobs with a due-by or exact-day requirement. A job is overdue after its required date, even if it was scheduled earlier.</p>`+sections.map(([key,title])=>{
+ return `<h2>Due &amp; overdue jobs</h2><p class="m">Open scheduled or unscheduled jobs with a due-by or exact-day requirement. A job is overdue after its required date, even if it was scheduled earlier.</p>`+sections.map(([key,title])=>{
   const list=groups[key].sort((a,b)=>String(a.requiredDate||"").localeCompare(String(b.requiredDate||""))||String(a.date||"").localeCompare(String(b.date||""))||String(cname(a.client)).localeCompare(String(cname(b.client))));
-  const rows=list.map(j=>`<div class="card"><div class="sp"><b>${E(cname(j.client))}</b><span class="chip${key==="overdue"?" bad":""}">${E(jobDateLabel(j)||"Invalid requirement")}</span></div><div class="m">${E(jaddr(j)||"No address")} · ${E(j.service||"")}</div><div class="m">Scheduled ${E(j.date||"(date missing)")}${storedEstimate(j.estimatedMinutes)?" · "+E(estimateText(j.estimatedMinutes))+" work":""}</div><div class="row"><button data-job="${E(j.id)}" onclick="openJob(this.dataset.job)">Edit job</button><button class="dg" data-job="${E(j.id)}" onclick="delJob(this.dataset.job)">Delete job</button></div></div>`).join("");
+  const rows=list.map(j=>`<div class="card"><div class="sp"><b>${E(cname(j.client))}</b><span class="chip${key==="overdue"?" bad":""}">${E(jobDateLabel(j)||"Invalid requirement")}</span></div><div class="m">${E(jaddr(j)||"No address")} · ${E(j.service||"")}</div><div class="m">${j.status==="Unscheduled"?"Not scheduled":"Scheduled "+E(j.date||"(date missing)")}${storedEstimate(j.estimatedMinutes)?" · "+E(estimateText(j.estimatedMinutes))+" work":""}</div><div class="row"><button data-job="${E(j.id)}" onclick="openJob(this.dataset.job)">Edit job</button><button class="dg" data-job="${E(j.id)}" onclick="delJob(this.dataset.job)">Delete job</button></div></div>`).join("");
   return `<section><h3>${E(title)} (${list.length})</h3>${rows||'<p class="m">None.</p>'}</section>`
  }).join("")
 }
@@ -501,11 +501,11 @@ function estimateLists(){
  jobsTarget.innerHTML=jobs.map(j=>{const price=j.price==null||j.price===""?"Price not set":Number.isFinite(Number(j.price))?money(j.price):"Price needs review";return `<div class="card"><div class="sp"><b>${E(cname(j.client))}</b><b>${E(price)}</b></div><div class="m">${E(j.service||"Service not set")} · ${E(jaddr(j)||"No property")}</div><div class="m">Job date: ${E(j.date||"not set")} · ${E(j.status||"Unknown status")}</div><div class="row"><button data-job="${E(j.id)}" onclick="openDoc(this.dataset.job,'quote')">View quote</button><button data-job="${E(j.id)}" onclick="openJob(this.dataset.job)">Edit job</button></div></div>`}).join("")||'<p class="m">No existing jobs match.</p>'
 }
 /* jobs */
-function spawn(j){if(j.repeat&&j.repeat!="One-time"&&!j.spawned&&j.status!="Scheduled"){const n=Object.assign({},j,{id:uid("j"),date:addD(j.date,j.repeat=="Weekly"?7:14,j.repeat=="Monthly"),status:"Scheduled",spawned:false});delete n.ord;delete n.dateRequirement;delete n.requiredDate;j.spawned=true;w("jobs",n);w("jobs",j)}}
+function spawn(j){if(j.repeat&&j.repeat!="One-time"&&!j.spawned&&COMPLETED_STATES.includes(j.status)&&validDate(j.date)){const n=Object.assign({},j,{id:uid("j"),date:addD(j.date,j.repeat=="Weekly"?7:14,j.repeat=="Monthly"),status:"Scheduled",spawned:false});delete n.ord;delete n.dateRequirement;delete n.requiredDate;delete n.sourceAppfolio;delete n.workDescription;delete n.workOrderDetails;j.spawned=true;w("jobs",n);w("jobs",j)}}
 function setStatus(id,s){const j=S.jobs[id];j.status=s;w("jobs",j);spawn(j);render()}
 /* dialogs */
 const dlg=h=>{clearPhotoView();$("#dlg").innerHTML=h;if(!$("#dlg").open)$("#dlg").showModal()},closeD=()=>{$("#dlg").close();later()};
-$("#dlg").addEventListener("close",()=>{roadSeq++;roadPlan=null;roadBusy=false;pickedRoute=null;weekSeq++;weekPlan=null;weekBusy=false;leadDeletion=null;clientDeletion=null;bulkDeletion=null;estimateDraft=null;estimateSchedule=null;clearPhotoView();if(pend)setTimeout(later,0)});
+$("#dlg").addEventListener("close",()=>{roadSeq++;roadPlan=null;roadBusy=false;pickedRoute=null;weekSeq++;weekPlan=null;weekBusy=false;appfolioReadSeq++;appfolioImport=null;leadDeletion=null;clientDeletion=null;bulkDeletion=null;estimateDraft=null;estimateSchedule=null;clearPhotoView();if(pend)setTimeout(later,0)});
 document.addEventListener("focusout",()=>setTimeout(()=>{if(pend&&!busy())render()},80));
 const bt=(id,key,del)=>`<div class="bt"><button class="pri" onclick="${key}('${id||""}')">Save</button>${id&&del?`<button class="dg" onclick="${del}('${id}')">Delete</button>`:""}<button onclick="closeD()">Cancel</button></div>`;
 /* Destructive changes require a current shared snapshot and an explicit count. */
@@ -601,7 +601,7 @@ function bulkCandidate(kind,id,item){
    base.detail=[item.service||"Service not set",item.property||"No property entered",item.date||"Date not set",item.status||"Unknown status",amount,base.jobs+" linked job"+(base.jobs===1?"":"s")].join(" · ");
    base.search=[name,item.property,item.service,item.date,item.status].map(x=>String(x==null?"":x)).join(" ").toLowerCase()
   }else{base.signature=bulkJobSignature(id);const address=jaddr(item)||"No property",price=item.price==null||item.price===""?"Price not set":Number.isFinite(Number(item.price))?money(item.price):"Price needs review";
-   base.detail=[item.service||"Service not set",address,"Scheduled: "+(item.date||"not set"),item.status||"Unknown status",price].join(" · ");
+   base.detail=[item.service||"Service not set",address,item.status==="Unscheduled"?"Not scheduled":"Scheduled: "+(item.date||"not set"),item.status||"Unknown status",price].join(" · ");
    base.search=[name,address,item.service,item.date,item.status].map(x=>String(x==null?"":x)).join(" ").toLowerCase()
   }
   base.valid=true
@@ -611,7 +611,7 @@ function bulkCandidate(kind,id,item){
 function openBulkDeletion(kind){
  try{
   if(!["clients","jobs","completed","estimates"].includes(kind))throw new Error("Choose a valid record type.");deleteReady();
-  const coll=kind==="completed"?"jobs":kind,options=kind==="clients"?["All",...ST]:kind==="estimates"?["All",...ESTIMATE_STATES]:kind==="completed"?["All",...COMPLETED_STATES]:["All","Open",...JS];
+  const coll=kind==="completed"?"jobs":kind,options=kind==="clients"?["All",...ST]:kind==="estimates"?["All",...ESTIMATE_STATES]:kind==="completed"?["All",...COMPLETED_STATES]:["All","Open",...JOB_STATUSES];
   let filter=kind==="jobs"?jf:kind==="completed"?completedFilter:kind==="estimates"?estimateFilter:"All";if(!options.includes(filter))filter="All";
   const search=kind==="clients"?q:kind==="completed"?completedQuery:kind==="estimates"?estimateQuery:"";
   const candidates=Object.entries(S[coll]).filter(([,item])=>kind!=="completed"||(item&&COMPLETED_STATES.includes(item.status))).map(([id,item])=>bulkCandidate(kind,id,item)).sort((a,b)=>a.name.localeCompare(b.name)||a.detail.localeCompare(b.detail)||a.id.localeCompare(b.id));
@@ -792,15 +792,18 @@ function createJobFromEstimate(){
  }catch(e){const status=$("#es_job_error");if(status)status.textContent=e.message||"Could not schedule this job."}
 }
 const pl=cid=>props(S.clients[cid]).map(p=>`<option value="${E(p)}">`).join("");
-function openJob(id,pre){if(!arr(S.clients).length){alert("Add a client first.");openClient();return}pre=pre||{};
+function openJob(id,pre){if(id&&(!S.jobs[id]||!S.clients[S.jobs[id].client])){alert("This job or its client is missing. Restore or review it before editing.");return}if(!arr(S.clients).length){alert("Add a client first.");openClient();return}pre=pre||{};
  const j=id?S.jobs[id]:{client:pre.client||sorted(S.clients)[0].id,prop:pre.prop||"",service:SV[1],date:pre.date||today(),status:"Scheduled",repeat:"One-time",items:"",price:""};
  if(!id&&!j.prop)j.prop=props(S.clients[j.client])[0]||"";
  dlg(`<h2>${id?"Edit":"New"} job</h2>`+F("Client",`<select id="j_client" onchange="jc()">${sorted(S.clients).map(c=>`<option value="${c.id}"${c.id==j.client?" selected":""}>${E(c.name)}</option>`).join("")}</select>`)+F("Service",sel(SV,j.service,"j_service"))+
  F("Property / unit (address or GPS coordinates)",`<input id="j_prop" list="pl" value="${E(j.prop)}" placeholder="Street address or latitude, longitude"><datalist id="pl">${pl(j.client)}</datalist>`)+F("Date",`<input id="j_date" type="date" value="${E(j.date)}">`)+
  F("Date requirement",`<select id="j_rule" onchange="jobRuleChanged()"><option value="any"${!j.dateRequirement||j.dateRequirement==="any"?" selected":""}>No special date</option><option value="deadline"${j.dateRequirement==="deadline"?" selected":""}>Due by a date</option><option value="exact"${j.dateRequirement==="exact"?" selected":""}>Must be on a date</option></select>`)+
- `<div id="j_required_wrap"${!j.dateRequirement||j.dateRequirement==="any"?" hidden":""}>`+F("Required date",`<input id="j_required" type="date" value="${E(j.requiredDate||"")}">`)+`</div><p class="m">Date requirements apply to this job only; a repeating job's next occurrence has no requirement until you add one.</p>`+F("Estimated work time in minutes (optional)",`<input id="j_minutes" type="number" min="1" max="10080" step="1" inputmode="numeric" value="${E(storedEstimate(j.estimatedMinutes)||"")}" placeholder="For example, 45">`)+`<p class="m">Work time only; travel and breaks are not included. Leave blank if unknown.</p>`+F("Status",sel(JS,j.status,"j_status"))+F("Repeat",sel(RP,j.repeat,"j_rep"))+
+ `<div id="j_required_wrap"${!j.dateRequirement||j.dateRequirement==="any"?" hidden":""}>`+F("Required date",`<input id="j_required" type="date" value="${E(j.requiredDate||"")}">`)+`</div><p class="m">Date requirements apply to this job only; a repeating job's next occurrence has no requirement until you add one.</p>`+F("Estimated work time in minutes (optional)",`<input id="j_minutes" type="number" min="1" max="10080" step="1" inputmode="numeric" value="${E(storedEstimate(j.estimatedMinutes)||"")}" placeholder="For example, 45">`)+`<p class="m">Work time only; travel and breaks are not included. Leave blank if unknown.</p>`+F("Status",sel(JOB_STATUSES,j.status,"j_status"))+`<p class="m">An Unscheduled job has no planned date and stays off routes. To schedule it, choose Scheduled and enter a date.</p>`+F("Repeat",sel(RP,j.repeat,"j_rep"))+
  F("Line items (description | qty | rate)",`<textarea id="j_items" rows="4" data-estimate-cents="${j.sourceEstimateId?"1":""}" oninput="calc()">${E(j.items)}</textarea>`)+(j.sourceEstimateId?'<p class="m">For this estimate-linked job, each valid line is rounded to cents. Review the price after editing.</p><p class="m" id="j_calc_error" role="status"></p>':"")+`<select id="j_rate" onchange="addRate(this)"><option value="">Add from rate card…</option>${rates().map((r,i)=>`<option value="${i}">${E(r[0])} — ${money(r[1])}</option>`).join("")}</select>`+
- F("Price ($)",`<input id="j_price" type="number" step="0.01" value="${E(j.price)}">`)+F("Notes",`<textarea id="j_notes" rows="2">${E(j.notes)}</textarea>`)+bt(id,"saveJob","delJob"))}
+ F("Price ($)",`<input id="j_price" type="number" step="0.01" value="${E(j.price)}">`)+F("Notes",`<textarea id="j_notes" rows="2">${E(j.notes)}</textarea>`)+
+ (j.sourceAppfolio?F("AppFolio work order number",`<input id="j_af_number" value="${E(j.sourceAppfolio.number||"")}" maxlength="100">`)+`<p class="m">Duplicate checking uses this number and the original import client: ${E(cname(j.sourceAppfolio.managerId))}.</p>`:"")+
+ (j.sourceAppfolio||typeof j.workDescription==="string"||typeof j.workOrderDetails==="string"?F("Work description (team only)",`<textarea id="j_work_description" rows="3" maxlength="10000">${E(j.workDescription||"")}</textarea>`)+F("Extracted work order text (team only)",`<textarea id="j_work_details" rows="8" maxlength="50000">${E(j.workOrderDetails||"")}</textarea>`)+`<p class="m">Both fields are shared with CRM team accounts and included in backups. They are not added to quotes or invoices.</p>`:"")+bt(id,"saveJob","delJob"))}
+function scheduleUnscheduledJob(id){const j=S.jobs[id];if(!j||j.status!=="Unscheduled"||!S.clients[j.client]){alert("That unscheduled job or its client is no longer available. Refresh and review it.");return}openJob(id);$("#j_status").value="Scheduled";const date=$("#j_date");if(date&&typeof date.focus==="function")date.focus()}
 function jc(){const c=S.clients[$("#j_client").value];$("#pl").innerHTML=pl(c&&c.id);if(!$("#j_prop").value)$("#j_prop").value=props(c)[0]||""}
 function calc(){const input=$("#j_items"),t=input.value;
  if(input.dataset&&input.dataset.estimateCents==="1"){
@@ -811,9 +814,22 @@ function calc(){const input=$("#j_items"),t=input.value;
 }
 function addRate(s){const r=rates()[s.value];if(!r)return;const t=$("#j_items");t.value=(t.value.trim()?t.value.trim()+"\n":"")+r[0]+" | 1 | "+r[1];calc();s.value=""}
 function jobRuleChanged(){const wrap=$("#j_required_wrap");if(wrap)wrap.hidden=$("#j_rule").value==="any"}
-function saveJob(id){const date=$("#j_date").value||today(),rule=$("#j_rule").value||"any",required=rule==="any"?"":$("#j_required").value;
- const problem=dateProblem(rule,required,date);if(problem){alert(problem);return}
+function saveJob(id){const previous=id?S.jobs[id]:null;if(id&&!previous){alert("That job no longer exists. Refresh and try again.");return}
+ const status=$("#j_status").value,rule=$("#j_rule").value||"any",required=rule==="any"?"":$("#j_required").value,repeat=$("#j_rep").value;let date=$("#j_date").value;
+ if(!JOB_STATUSES.includes(status)){alert("Choose a valid job status.");return}
+ if(status==="Unscheduled"){
+  if(date){alert("Clear the date for an Unscheduled job, or choose Scheduled to plan it.");return}
+  if(!DATE_RULES.includes(rule)||rule!=="any"&&!validDate(required)){alert("Choose a valid date requirement and required date.");return}
+  if(repeat!=="One-time"){alert("Choose One-time while this job is unscheduled. You can set a repeat after scheduling.");return}
+ }else{
+  if(!date&&previous&&previous.status==="Unscheduled"){alert("Choose a date before scheduling or completing this job.");return}
+  date=date||today();const problem=dateProblem(rule,required,date);if(problem){alert(problem);return}
+ }
  let estimatedMinutes;try{estimatedMinutes=parseEstimate($("#j_minutes").value)}catch(e){alert(e.message);return}
+ let sourceAppfolio=previous&&previous.sourceAppfolio,workDescription=previous&&previous.workDescription,workOrderDetails=previous&&previous.workOrderDetails;
+ if(sourceAppfolio){try{const number=appfolioNumber($("#j_af_number").value);if(appfolioDuplicate(sourceAppfolio.managerId,number,id))throw new Error("Another imported job already has this work order number for that property manager.");sourceAppfolio=Object.assign({},sourceAppfolio,{number})}catch(e){alert(e.message);return}}
+ const hasWorkDetails=previous&&(sourceAppfolio||typeof workDescription==="string"||typeof workOrderDetails==="string");
+ if(hasWorkDetails){workDescription=$("#j_work_description").value;workOrderDetails=$("#j_work_details").value;if(workDescription.length>APPFOLIO_DESCRIPTION_LIMIT||/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/.test(workDescription)){alert("Work description must be no longer than 10,000 characters without unsupported control characters.");return}if(workOrderDetails.length>APPFOLIO_TEXT_LIMIT||/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/.test(workOrderDetails)){alert("Work order text must be no longer than 50,000 characters without unsupported control characters.");return}}
  if(id&&S.jobs[id]&&S.jobs[id].sourceEstimateId){
   let enteredCents;try{enteredCents=estimateScaled($("#j_price").value,2,"Job price");if(Math.round((enteredCents/100)*100)!==enteredCents)throw new Error("Job price is too large.")}catch(e){alert(e.message);return}
   if($("#j_items").value.trim()){
@@ -821,8 +837,10 @@ function saveJob(id){const date=$("#j_date").value||today(),rule=$("#j_rule").va
    const signature=JSON.stringify(S.jobs[id]);if(enteredCents!==calculated){if(!confirm("The line items total "+estimateMoney(calculated)+", but the job price is "+estimateMoney(enteredCents)+". Save the different job price anyway?"))return;if(!S.jobs[id]||JSON.stringify(S.jobs[id])!==signature){alert("The job changed. Review it before saving.");return}}
   }
  }
- const o=Object.assign({},S.jobs[id]||{},{id:id||uid("j"),client:$("#j_client").value,service:$("#j_service").value,prop:$("#j_prop").value.trim(),date,dateRequirement:rule,requiredDate:required,estimatedMinutes,status:$("#j_status").value,repeat:$("#j_rep").value,items:$("#j_items").value,price:+$("#j_price").value||0,notes:$("#j_notes").value});
- if(!id&&(o.status==="Scheduled"||o.status==="Done")){const tail=routeTail(o.date);if(Number.isSafeInteger(tail)&&tail<Number.MAX_SAFE_INTEGER)o.ord=tail+1}
+ const priceInput=$("#j_price").value,o=Object.assign({},previous||{},{id:id||uid("j"),client:$("#j_client").value,service:$("#j_service").value,prop:$("#j_prop").value.trim(),date,dateRequirement:rule,requiredDate:required,estimatedMinutes,status,repeat,items:$("#j_items").value,price:priceInput===""?"":+priceInput||0,notes:$("#j_notes").value});
+ if(sourceAppfolio)o.sourceAppfolio=sourceAppfolio;if(hasWorkDetails){o.workDescription=workDescription;o.workOrderDetails=workOrderDetails}
+ if(o.status==="Unscheduled")delete o.ord;
+ else if((!id||previous&&previous.status==="Unscheduled")&&(o.status==="Scheduled"||o.status==="Done")){const tail=routeTail(o.date);if(!Number.isSafeInteger(tail)||tail>=Number.MAX_SAFE_INTEGER){alert("Reorder this route before scheduling another stop.");return}o.ord=tail+1}
  w("jobs",o);spawn(o);closeD();render()}
 function delJob(id){
  try{deleteReady();const j=S.jobs[id];if(!j||j.id!==id)throw new Error("That job changed. Refresh and try again.");const signature=JSON.stringify(j),entries=[{coll:"jobs",id}];if(!deleteSpace(entries))throw new Error("Not enough device storage to queue this deletion.");
@@ -1021,6 +1039,152 @@ function confirmImport(){
  $("#imp_status").textContent=!storageOK?"The changes are in memory but could not be saved on this device. Use Backup now and keep this page open until synced.":"Added "+p.entries.length+" "+importDescription(p)+". Keep this page open until it says Synced across devices.";
  render()
 }
+/* Manually supplied PDFs are read locally. Their text is saved only after
+   review; the importer does not ask for credentials or separately store PDFs. */
+const APPFOLIO_FILE_LIMIT=25,APPFOLIO_TEXT_LIMIT=50000,APPFOLIO_DESCRIPTION_LIMIT=10000;
+let appfolioImport=null,appfolioReadSeq=0,appfolioReader=null;
+function appfolioNumber(value){
+ const number=String(value==null?"":value).trim().replace(/^#\s*/,"");
+ if(!number||number.length>100||!/\d/.test(number)||!/^[a-z0-9][a-z0-9 ._/-]*$/i.test(number))throw new Error("Enter a work order number containing a digit (up to 100 letters, numbers, spaces, periods, slashes, underscores or dashes).");
+ return number
+}
+function appfolioKey(value){return String(value||"").trim().replace(/^#\s*/,"").replace(/\s+/g,"").toLowerCase()}
+function appfolioDuplicate(managerId,number,excludeId){
+ const k=appfolioKey(number);if(!managerId||!k)return null;
+ return arr(S.jobs).find(j=>j&&j.id!==excludeId&&j.sourceAppfolio&&String(j.sourceAppfolio.managerId)===String(managerId)&&appfolioKey(j.sourceAppfolio.number)===k)||null
+}
+function appfolioCurrent(p,seq){return p===appfolioImport&&seq===appfolioReadSeq&&$("#dlg").open&&!!$("#af_status")}
+function appfolioSetBusy(busy){
+ const p=appfolioImport;if(!p)return;p.busy=busy;
+ const dialog=$("#dlg");if(dialog&&typeof dialog.querySelectorAll==="function")dialog.querySelectorAll("[data-af-control]").forEach(el=>{el.disabled=busy||p.saved});
+ const input=$("#af_file"),apply=$("#af_apply");if(input)input.disabled=busy||p.saved;if(apply)apply.disabled=busy||p.saved||!p.entries.some(e=>e.include&&!e.error)
+}
+function openAppfolioImport(){
+ if(!db||!hasSnapshot||!synced){alert("Wait until the CRM says Synced across devices before importing work orders. Use one device at a time.");return}
+ appfolioReadSeq++;appfolioImport={entries:[],busy:false,saved:false};
+ const clients=sorted(S.clients).map(c=>`<option value="${E(c.id)}">${E(c.name)}</option>`).join("");
+ dlg(`<h2>Import work order PDFs</h2>
+ <p class="m">In AppFolio, open each work order and download its PDF. Choose up to ${APPFOLIO_FILE_LIMIT} PDFs at once, or add more until you reach ${APPFOLIO_FILE_LIMIT}. Each PDF should contain one work order, with selectable text; up to 5 MB, 25 pages and 50,000 extracted characters per PDF.</p>
+ <p class="m">Files are read on this device, not sent to AppFolio or a PDF service. Original PDFs, images, form fields and attachments are not saved. Scans without text cannot be read; a PDF page without selectable text may contain details that are not imported.</p>
+ <p class="m"><b>Review every field and both text boxes for each job.</b> Suggested numbers, locations and descriptions may be wrong or incomplete. Remove sensitive details you do not need, such as access codes or links: saved job details are shared with all CRM team accounts and included in backups, but not in quotes or invoices.</p>
+ <p class="m">A blank planned date creates an Unscheduled job; entering a date schedules it in this CRM only. Check in AppFolio first for acceptance requests, holds, cancellations or estimates. Nothing is accepted, changed or synced back there.</p>
+ <label for="af_file">Select work order PDFs</label><input id="af_file" type="file" accept=".pdf,application/pdf" multiple onchange="appfolioFiles(this)">
+ <label for="af_batch_client">Property manager / client for the batch</label><select id="af_batch_client" data-af-control><option value="">Choose an existing client…</option>${clients}</select>
+ <div class="bt"><button data-af-control onclick="appfolioApplyClient()">Apply client to all</button><button onclick="closeD()">Close</button></div>
+ <p id="af_status" class="m" role="status" aria-live="polite">Choose one or more PDFs to begin. Add any missing clients before importing.</p>
+ <p id="af_count" class="m" role="status" aria-live="polite"></p><div id="af_list"></div>
+ <div class="bt"><button id="af_apply" class="pri" disabled onclick="appfolioAdd()">Import selected jobs</button></div>`)
+}
+function appfolioOptions(selected){return `<option value="">Choose a client…</option>`+sorted(S.clients).map(c=>`<option value="${E(c.id)}"${String(c.id)===String(selected)?" selected":""}>${E(c.name)}</option>`).join("")}
+function appfolioRender(){
+ const p=appfolioImport,list=$("#af_list");if(!p||!list)return;
+ list.innerHTML=p.entries.map((e,i)=>{
+  if(e.error)return `<div class="card"><b>${E(e.name)}</b><p class="m">Not imported: ${E(e.error)}</p></div>`;
+  const options=SV.map(s=>`<option value="${E(s)}"${s===e.service?" selected":""}>${E(s)}</option>`).join("");
+  return `<div class="card"><label class="pick-stop"><input type="checkbox" data-af-control data-af-index="${i}" onchange="appfolioEdit(this,'include')"${e.include?" checked":""}><span><b>${E(e.name)}</b><span class="m">${e.pages} page${e.pages===1?"":"s"}${e.pagesWithoutText?" · "+e.pagesWithoutText+" page(s) without selectable text":""}</span></span></label>
+  ${e.pagesWithoutText?'<p class="m">Some pages contained no selectable text. Check the original for missing images or details.</p>':""}
+  <label for="af_client_${i}">Property manager / client</label><select id="af_client_${i}" data-af-control data-af-index="${i}" onchange="appfolioEdit(this,'managerId')">${appfolioOptions(e.managerId)}</select>
+  <label for="af_number_${i}">AppFolio work order number</label><input id="af_number_${i}" data-af-control data-af-index="${i}" maxlength="100" value="${E(e.number)}" oninput="appfolioEdit(this,'number')" placeholder="For example, 250-1">
+  <label for="af_location_${i}">Property / unit address</label><input id="af_location_${i}" data-af-control data-af-index="${i}" maxlength="500" value="${E(e.location)}" oninput="appfolioEdit(this,'location')" placeholder="Enter the job location">
+  <label for="af_service_${i}">CRM service</label><select id="af_service_${i}" data-af-control data-af-index="${i}" onchange="appfolioEdit(this,'service')">${options}</select>
+  <label for="af_date_${i}">Planned CRM date (optional)</label><input id="af_date_${i}" type="date" data-af-control data-af-index="${i}" value="${E(e.date)}" onchange="appfolioEdit(this,'date')">
+  <label for="af_description_${i}">Work description (team only, required)</label><textarea id="af_description_${i}" rows="3" maxlength="10000" data-af-control data-af-index="${i}" oninput="appfolioEdit(this,'description')" placeholder="Describe the work requested">${E(e.description||"")}</textarea>
+  <p class="m">Check and complete this description against the original PDF. Suggestions may omit details.</p>
+  <label for="af_details_${i}">Extracted work order text to save (team only)</label><textarea id="af_details_${i}" rows="8" maxlength="50000" data-af-control data-af-index="${i}" oninput="appfolioEdit(this,'details')">${E(e.details)}</textarea>
+  <p class="m">Review and remove anything you do not want in the shared CRM from both boxes. Neither is added to customer quotes or invoices.</p><p id="af_issue_${i}" class="m" role="status"></p></div>`
+ }).join("");
+ appfolioRefresh();appfolioSetBusy(p.busy)
+}
+function appfolioRefresh(){
+ const p=appfolioImport;if(!p)return;
+ p.entries.forEach((e,i)=>{const issue=$("#af_issue_"+i);if(!issue||e.error)return;let message="";
+  if(e.include&&e.managerId&&appfolioKey(e.number)){
+   if(appfolioDuplicate(e.managerId,e.number))message="This work order is already imported for this client. Uncheck it or correct the number/client.";
+   else if(p.entries.some((other,k)=>k!==i&&other.include&&!other.error&&other.managerId===e.managerId&&appfolioKey(other.number)===appfolioKey(e.number)))message="Another selected PDF has this number for the same client. Uncheck the duplicate or correct it."
+  }
+  issue.textContent=message
+ });
+ const count=p.entries.filter(e=>e.include&&!e.error).length,errors=p.entries.filter(e=>e.error).length;
+ const status=$("#af_count");if(status)status.textContent=p.entries.length?p.entries.length+" PDF"+(p.entries.length===1?"":"s")+" loaded · "+count+" selected"+(errors?" · "+errors+" could not be read":""):"";
+ const apply=$("#af_apply");if(apply)apply.disabled=p.busy||p.saved||!count
+}
+const appfolioClientName=name=>String(name||"").trim();
+function appfolioSelectedName(input){const option=input&&input.selectedOptions&&input.selectedOptions[0];return appfolioClientName(option?option.textContent:(S.clients[input&&input.value]||{}).name)}
+function appfolioEdit(input,field){
+ const p=appfolioImport,i=Number(input.dataset.afIndex);if(!p||p.busy||p.saved||!Number.isInteger(i)||!p.entries[i]||p.entries[i].error||!["include","managerId","number","location","service","date","description","details"].includes(field))return;
+ p.entries[i][field]=field==="include"?!!input.checked:input.value;if(field==="managerId")p.entries[i].managerName=appfolioSelectedName(input);appfolioRefresh()
+}
+function appfolioApplyClient(){
+ const p=appfolioImport;if(!p||p.busy||p.saved)return;const control=$("#af_batch_client"),id=control.value;
+ if(!id||!Object.prototype.hasOwnProperty.call(S.clients,id)||!S.clients[id]){$("#af_status").textContent="Choose an existing client before applying it to the PDFs.";return}
+ const name=appfolioSelectedName(control);if(name!==appfolioClientName(S.clients[id].name)){$("#af_status").textContent="The client changed. Close and reopen the import to review the current client list.";return}
+ p.entries.forEach(e=>{if(!e.error){e.managerId=id;e.managerName=name}});appfolioRender();$("#af_status").textContent="Client applied. Review each work order and change its client if needed."
+}
+async function appfolioFiles(input){
+ const p=appfolioImport;if(!p||p.busy||p.saved)return;const files=Array.from(input.files||[]);input.value="";if(!files.length)return;
+ if(p.entries.length+files.length>APPFOLIO_FILE_LIMIT){$("#af_status").textContent="Choose no more than "+APPFOLIO_FILE_LIMIT+" PDFs per batch, including the ones already loaded. Close and start a new batch if needed.";return}
+ const seq=++appfolioReadSeq;appfolioSetBusy(true);$("#af_status").textContent="Loading the PDF reader on this device…";
+ try{
+  if(!appfolioReader)appfolioReader=import('/crm-pdf.mjs').catch(error=>{appfolioReader=null;throw error});
+  const reader=await appfolioReader;if(!appfolioCurrent(p,seq))return;
+  for(let i=0;i<files.length;i++){
+   if(!appfolioCurrent(p,seq))return;const file=files[i],name=String(file.name||"PDF "+(p.entries.length+1)).slice(0,255);$("#af_status").textContent="Reading PDF "+(i+1)+" of "+files.length+" on this device…";
+   try{
+    const result=await reader.readWorkOrderPdf(file,()=>!appfolioCurrent(p,seq));if(!appfolioCurrent(p,seq))return;
+    p.entries.push({name,include:true,error:"",managerId:"",managerName:"",number:result.number||"",location:result.location||"",service:"Other",date:"",description:result.description||"",details:result.text,pages:result.pages,pagesWithoutText:result.pagesWithoutText})
+   }catch(error){
+    if(!appfolioCurrent(p,seq))return;
+    const message=error&&typeof error.message==="string"?error.message:"Could not read this PDF. Download it again and try.";
+    p.entries.push({name,include:false,error:message.slice(0,350)})
+   }
+  }
+  if(appfolioCurrent(p,seq)){appfolioRender();$("#af_status").textContent="PDFs read. Review each selected job, then import. Nothing has been saved yet."}
+ }catch(error){if(appfolioCurrent(p,seq))$("#af_status").textContent="Could not load the PDF reader. Check your connection, refresh the CRM and try again. No jobs were added."}
+ finally{if(appfolioCurrent(p,seq))appfolioSetBusy(false)}
+}
+function appfolioPlan(p){
+ if(!p||p!==appfolioImport||p.busy||p.saved)throw new Error("Close and start the PDF import again.");
+ if(!db||!hasSnapshot||!synced)throw new Error("Wait until the CRM says Synced across devices before importing. Use one device at a time.");
+ const entries=p.entries.filter(e=>e.include&&!e.error);if(!entries.length)throw new Error("Select at least one readable PDF.");
+ const seen=new Set(),tails={};
+ const jobs=entries.map((e,i)=>{
+  const prefix="Selected PDF "+(i+1)+" ("+e.name+"): ",client=Object.prototype.hasOwnProperty.call(S.clients,e.managerId)?S.clients[e.managerId]:null;
+  if(!client||String(client.id)!==String(e.managerId))throw new Error(prefix+"choose an existing property manager / client.");
+  if(appfolioClientName(e.managerName)!==appfolioClientName(client.name))throw new Error(prefix+"the client changed. Close and reopen the import to review the current client list.");
+  let number;try{number=appfolioNumber(e.number)}catch(error){throw new Error(prefix+error.message)}
+  const key=JSON.stringify([String(e.managerId),appfolioKey(number)]);if(seen.has(key))throw new Error(prefix+"the same work order number is selected twice for this client. Uncheck a duplicate.");seen.add(key);
+  if(appfolioDuplicate(e.managerId,number))throw new Error(prefix+"this work order is already imported for this client. Uncheck it or correct the number/client.");
+  let location;try{location=importAddress(e.location,i+1)}catch(error){throw new Error(prefix+error.message)}if(!location)throw new Error(prefix+"enter the property / unit address.");
+  if(!SV.includes(e.service))throw new Error(prefix+"choose a valid CRM service.");
+  const date=String(e.date||"");if(date&&!validDate(date))throw new Error(prefix+"choose a valid planned date or leave it blank.");
+  const description=String(e.description||"").trim();if(!description)throw new Error(prefix+"enter the work description.");if(description.length>APPFOLIO_DESCRIPTION_LIMIT||/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/.test(description))throw new Error(prefix+"the work description must be no longer than 10,000 characters and contain no unsupported control characters.");
+  const details=String(e.details||"");if(details.length>APPFOLIO_TEXT_LIMIT||/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/.test(details))throw new Error(prefix+"work order text must be no longer than 50,000 characters and contain no unsupported control characters.");
+  if(date&&!Object.prototype.hasOwnProperty.call(tails,date))tails[date]=routeTail(date);
+  return {managerId:String(e.managerId),managerName:String(client.name||""),number,location,service:e.service,date,description,details}
+ });
+ Object.entries(tails).forEach(([date,tail])=>{const count=jobs.filter(j=>j.date===date).length;if(!Number.isSafeInteger(tail)||tail>Number.MAX_SAFE_INTEGER-count)throw new Error("Reorder the "+date+" route before adding scheduled jobs.")});
+ return {jobs,tails}
+}
+function appfolioRecords(plan){
+ const reserved=new Set(Object.keys(S.jobs)),nextByDay=Object.assign({},plan.tails);
+ return plan.jobs.map(e=>{
+  const base=typeof crypto!=="undefined"&&typeof crypto.randomUUID==="function"?"j"+crypto.randomUUID().replace(/-/g,""):uid("j")+Math.random().toString(36).slice(2,10);let id=base,n=1;while(reserved.has(id))id=base+"_"+n++;reserved.add(id);
+  const job={id,client:e.managerId,service:e.service,prop:e.location,date:e.date,dateRequirement:"any",requiredDate:"",estimatedMinutes:null,status:e.date?"Scheduled":"Unscheduled",repeat:"One-time",items:"",price:"",notes:"",workDescription:e.description,workOrderDetails:e.details,sourceAppfolio:{managerId:e.managerId,number:e.number}};
+  if(e.date){nextByDay[e.date]++;job.ord=nextByDay[e.date]}return job
+ })
+}
+function appfolioAdd(){
+ const state=appfolioImport,status=$("#af_status");if(!state||!status)return;let queued=false;
+ try{
+  const plan=appfolioPlan(state),scheduled=plan.jobs.filter(j=>j.date).length,unscheduled=plan.jobs.length-scheduled;
+  if(!confirm("Import "+plan.jobs.length+" reviewed work order"+(plan.jobs.length===1?"":"s")+" as "+scheduled+" scheduled and "+unscheduled+" unscheduled CRM job(s)? Existing records will not be replaced. AppFolio will not be changed."))return;
+  const latest=appfolioPlan(state);if(JSON.stringify(latest)!==JSON.stringify(plan))throw new Error("The selected jobs or CRM changed. Review them again before importing.");
+  const records=appfolioRecords(latest);if(!importStorageAvailable("jobs",records))throw new Error("Not enough device storage to save this batch. Free space or use fewer PDFs.");
+  state.saved=true;appfolioSetBusy(false);queued=true;wBatch("jobs",records);render();
+  status.textContent=storageOK?"Added "+records.length+" job"+(records.length===1?"":"s")+". Keep this page open until it says Synced across devices. Unselected or unreadable files were not added.":"The jobs are in memory but could not be saved on this device. Use Backup now and keep this page open until synced."
+ }catch(error){status.textContent=queued?"Jobs may have been added. Keep this page open until synced and check Jobs before retrying.":error.message||"Could not import these jobs. No jobs were added."}
+}
+
 /* Weekly work-order planning: no CRM records change until the final save.
    Geographic grouping is a suggestion; each new-stops-only driving order is
    explicitly sent to the existing authenticated routing endpoint. */
@@ -1523,13 +1687,14 @@ function lines(j){
  const parsed=parseItems(j.items);return parsed.length?parsed:[{d:j.service,q:1,r:+j.price||0}]
 }
 const docLineAmount=i=>Number.isSafeInteger(i.amountCents)?estimateMoney(i.amountCents):money(i.q*i.r);
-function openDoc(id,kind){const j=S.jobs[id];if(!j){alert("That job no longer exists.");return}const c=S.clients[j.client]||{},k=kind==="quote"?"Quote":j.status=="Scheduled"?"Quote":"Invoice";estimateDocument=null;
+const workOrderNeedsPrice=j=>(j.sourceAppfolio||typeof j.workDescription==="string"||typeof j.workOrderDetails==="string")&&(j.price==null||j.price==="");
+function openDoc(id,kind){const j=S.jobs[id];if(!j){alert("That job no longer exists.");return}if(workOrderNeedsPrice(j)){alert("This work order has no price. Edit the job and enter a price before opening a quote or invoice.");return}const c=S.clients[j.client]||{},k=kind==="quote"?"Quote":["Scheduled","Unscheduled"].includes(j.status)?"Quote":"Invoice";estimateDocument=null;
  $("#doc").innerHTML=`<div class="sheet"><div class="bt noprint" style="margin-bottom:14px"><button data-job="${E(id)}" data-kind="${E(k)}" onclick="dcopy(this.dataset.job,this.dataset.kind)">Copy text</button><button class="pri" onclick="dprint()">Print / PDF</button><button onclick="$('#doc').hidden=true;later()">Close</button></div>
  <h2 style="font-size:22px;margin:0">Maintain It Bandits</h2><div class="m">Lawn care &amp; landscaping · Austin, TX</div><h2 style="margin-top:16px">${k}</h2>
  <div><b>Client:</b> ${E(c.name)}</div><div><b>Property:</b> ${E(jaddr(j)||"—")}</div><div><b>Date:</b> ${E(j.date)}</div>
  <table><tr><th>Description</th><th class="r">Qty</th><th class="r">Rate</th><th class="r">Amount</th></tr>${lines(j).map(i=>`<tr><td>${E(i.d)}</td><td class="r">${i.q}</td><td class="r">${money(i.r)}</td><td class="r">${docLineAmount(i)}</td></tr>`).join("")}</table>
  <div class="tot">Total: ${money(j.price)}</div>${j.notes?`<p><b>Notes:</b> ${E(j.notes)}</p>`:""}<p>Thank you for your business.</p></div>`;$("#doc").hidden=false;$("#doc").scrollTop=0}
-async function dcopy(id,kind){const j=S.jobs[id];if(!j){alert("That job no longer exists.");return}const c=S.clients[j.client]||{},k=kind==="Quote"||kind==="Invoice"?kind:j.status=="Scheduled"?"Quote":"Invoice";
+async function dcopy(id,kind){const j=S.jobs[id];if(!j){alert("That job no longer exists.");return}if(workOrderNeedsPrice(j)){alert("This work order has no price. Edit the job and enter a price before copying a quote or invoice.");return}const c=S.clients[j.client]||{},k=kind==="Quote"||kind==="Invoice"?kind:["Scheduled","Unscheduled"].includes(j.status)?"Quote":"Invoice";
  const t=["Maintain It Bandits — "+k,"Client: "+(c.name||""),"Property: "+(jaddr(j)||"—"),"Date: "+j.date,"",...lines(j).map(i=>`${i.d} — ${i.q} x ${money(i.r)} = ${docLineAmount(i)}`),"","Total: "+money(j.price),j.notes?"Notes: "+j.notes:"","","Thank you for your business."].join("\n");
  alert(await copy(t)?"Copied.":"Copy failed.")}
 function dprint(){try{window.print()}catch(e){alert("Printing isn’t available here. Use Copy text instead.")}}
