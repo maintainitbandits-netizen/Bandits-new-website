@@ -1,5 +1,5 @@
 // Phone/browser tests use fictional in-memory records and intercepted network
-// requests only. No live CRM, customer images, or Cloudflare API calls are made.
+// requests only. No live CRM, customer images, or Gemini API calls are made.
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -91,16 +91,18 @@ test('phone photo estimate sends only consented data; review and complete every 
     try{
       await begin(page);await noOverflow(page,`${width} input`);
       const disclosure=await page.locator('#dlg').innerText();
-      assert.match(disclosure,/sent to Cloudflare Workers AI/);assert.match(disclosure,/Workers Free account/);
-      assert.match(disclosure,/paid account may incur charges/);assert.match(disclosure,/cannot verify the plan/);
-      assert.equal(await page.locator('#dlg a[href="https://developers.cloudflare.com/workers-ai/platform/data-usage/"]').count(),1);
+      assert.match(disclosure,/sent through Vercel to Google Gemini/);assert.match(disclosure,/Gemini API Free-tier project/);
+      assert.match(disclosure,/cannot verify its tier or prevent charges/);assert.match(disclosure,/people may review them/);
+      assert.match(disclosure,/not to send sensitive, confidential or personal information/);
+      assert.match(await page.locator('label:has(#ai_consent)').innerText(),/confirm.*no personal, sensitive or confidential information/i);
+      assert.equal(await page.locator('#dlg a[href="https://ai.google.dev/gemini-api/terms#unpaid-services"]').count(),1);
       assert.match(await page.locator('#ai_photo_list').innerText(),/sample1.png/);assert.equal(await writes(page),0);
       await page.getByRole('button',{name:'Generate draft'}).click();assert.match(await page.locator('#ai_status').innerText(),/Agree/);assert.equal(calls.length,0);
       await page.locator('#ai_use_rates').check();await page.locator('#ai_consent').check();await page.getByRole('button',{name:'Generate draft'}).click();
       await page.waitForSelector('#ai_result h3');await noOverflow(page,`${width} result`);
       assert.equal(calls.length,1);assert.equal(calls[0].headers.authorization,'Bearer fictional.jwt');
-      const body=calls[0].body;assert.deepEqual(Object.keys(body).sort(),['answers','consent','description','extra','photos','rates','service']);
-      assert.deepEqual(body.rates,[{id:0,name:'Mulch per yard'},{id:1,name:'Cleanup'}]);assert.equal(body.consent,true);assert.deepEqual(body.answers,[]);assert.equal(body.extra,'');
+      const body=calls[0].body;assert.deepEqual(Object.keys(body).sort(),['answers','consent','description','disclosure','extra','photos','provider','rates','service']);
+      assert.deepEqual(body.rates,[{id:0,name:'Mulch per yard'},{id:1,name:'Cleanup'}]);assert.equal(body.consent,true);assert.equal(body.provider,'gemini');assert.equal(body.disclosure,'gemini-free-v1');assert.deepEqual(body.answers,[]);assert.equal(body.extra,'');
       assert.doesNotMatch(JSON.stringify(body),/Fictional Customer|Fictional Road|PRIVATE CLIENT NOTE|19\.99|10\.00|sample1\.png/);
       assert.match(body.photos[0],/^data:image\/jpeg;base64,/);const jpeg=Buffer.from(body.photos[0].split(',')[1],'base64');
       assert.ok(jpeg.length<=750000);assert.equal(jpeg.includes(Buffer.from('FICTIONAL-METADATA-MARKER')),false);
@@ -139,12 +141,14 @@ test('follow-up answers are explicitly sent with the same photos, and a ballpark
       await begin(page,{rates:false});await photo(page,3);await page.locator('#ai_consent').check();await page.getByRole('button',{name:'Generate draft'}).click();await page.waitForSelector('#ai_result h3');
       assert.match(await page.locator('#ai_result').innerText(),/Total AI ballpark: \$100\.00 – \$240\.00/);
       assert.match(await page.locator('#ai_result').innerText(),/unverified AI guess/);assert.equal(calls.length,1);assert.equal(await writes(page),0);await noOverflow(page,'320 initial follow-up');
+      assert.match(await page.locator('#ai_followup_form').innerText(),/Google may use them to improve its products and people may review them/);
+      assert.match(await page.locator('label:has(#ai_followup_consent)').innerText(),/no personal, sensitive or confidential information/);
       assert.equal(await page.evaluate(()=>{const d=document.querySelector('#dlg').getBoundingClientRect(),h=document.querySelector('#ai_result h3').getBoundingClientRect();return h.top>=d.top&&h.top<d.bottom;}),true);
       await page.locator('#ai_answer_0').fill('2 inches deep');await page.locator('#ai_extra').fill('The path is clear.');
       await page.locator('#ai_flat').click();assert.match(await page.locator('#ai_review_status').innerText(),/unsent answers/i);assert.equal(await page.locator('#es_lines').count(),0);
       await page.locator('#ai_update').click();assert.match(await page.locator('#ai_followup_status').innerText(),/agree to send/i);assert.equal(calls.length,1);
       await page.locator('#ai_followup_consent').check();await page.locator('#ai_update').click();await page.waitForFunction(()=>document.querySelector('#ai_result').textContent.includes('Updated fictional scope.'));
-      assert.equal(calls.length,2);assert.deepEqual(calls[1].body.photos,calls[0].body.photos);assert.equal(calls[1].body.consent,true);
+      assert.equal(calls.length,2);assert.deepEqual(calls[1].body.photos,calls[0].body.photos);assert.equal(calls[1].body.consent,true);assert.equal(calls[1].body.provider,'gemini');assert.equal(calls[1].body.disclosure,'gemini-free-v1');
       assert.deepEqual(calls[1].body.answers,[{question:'Confirm the bed depth.',answer:'2 inches deep'}]);assert.equal(calls[1].body.extra,'The path is clear.');
       assert.doesNotMatch(JSON.stringify(calls[1].body),/Fictional Customer|Fictional Road|PRIVATE CLIENT NOTE|sample1\.png/);
       assert.equal(await page.locator('#ai_answer_0').inputValue(),'2 inches deep');assert.equal(await page.locator('#ai_extra').inputValue(),'The path is clear.');
@@ -167,7 +171,7 @@ test('follow-up answers are explicitly sent with the same photos, and a ballpark
 
 test('an unavailable ballpark or failed follow-up never produces a fake price or automatic retry',skip,async()=>{
   const browser=await makeBrowser(),missing={...defaultDraft(),lines:defaultDraft().lines.map(line=>({...line,rate_id:null})),ballpark:{low:null,high:null,basis:'Need measurements.'}};
-  const handler=(route,_call,calls)=>calls.length===1?route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({draft:missing})}):route.fulfill({status:429,contentType:'application/json',body:JSON.stringify({error:'Cloudflare is busy or its daily allowance was reached.',providerAttempted:true})});
+  const handler=(route,_call,calls)=>calls.length===1?route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({draft:missing})}):route.fulfill({status:429,contentType:'application/json',body:JSON.stringify({error:'Gemini is busy or its allowance was reached.',providerAttempted:true})});
   try{const {context,page,errors,calls}=await setup(browser,390,handler);
     try{
       await begin(page,{rates:false});await page.locator('#ai_consent').check();await page.getByRole('button',{name:'Generate draft'}).click();await page.waitForSelector('#ai_result h3');
@@ -236,14 +240,14 @@ test('closing an in-flight follow-up does not overwrite a new editor or retry',s
 test('disabled setup, quota and invalid AI output never save, retry or leave consent checked',skip,async()=>{
   const browser=await makeBrowser();try{for(const mode of ['disabled','quota','invalid']){
     const handler=route=>route.fulfill(mode==='disabled'?{status:503,contentType:'application/json',body:JSON.stringify({error:'Photo estimates are not enabled yet.',providerAttempted:false})}:
-      mode==='quota'?{status:429,contentType:'application/json',body:JSON.stringify({error:'Cloudflare is busy or its daily allowance or rate limit was reached.',providerAttempted:true})}:
+      mode==='quota'?{status:429,contentType:'application/json',body:JSON.stringify({error:'Gemini is busy or its allowance or rate limit was reached.',providerAttempted:true})}:
       {status:200,contentType:'application/json',body:JSON.stringify({draft:{...defaultDraft(),total:1}})});
     const {context,page,errors,calls}=await setup(browser,320,handler);
     try{
       await begin(page);await page.locator('#ai_use_rates').check();await page.locator('#ai_consent').check();await page.getByRole('button',{name:'Generate draft'}).click();
       await page.waitForFunction(()=>{const s=document.querySelector('#ai_status');return s&&/not enabled|invalid|allowance/.test(s.textContent);});
       assert.equal(await page.locator('#ai_consent').isChecked(),false);assert.equal(calls.length,1);assert.equal(await writes(page),0);
-      if(mode==='disabled')assert.match(await page.locator('#ai_status').innerText(),/No Cloudflare request was made/);else assert.match(await page.locator('#ai_status').innerText(),/may have used allowance/);
+      if(mode==='disabled')assert.match(await page.locator('#ai_status').innerText(),/No Gemini request was made/);else assert.match(await page.locator('#ai_status').innerText(),/may have used allowance/);
       assert.equal(await page.locator('#ai_result h3').count(),0);assert.deepEqual(errors,[]);
     }finally{await context.close();}
   }}finally{await browser.close();}
@@ -291,12 +295,13 @@ test('browser and server contracts work together with only fictional JPEGs and m
   const {createHandler}=require('../frontend/lib/crm-quote');let providerBody,providerCalls=0;
   const fakeFetch=async(url,init)=>{
     if(url==='https://jvmvzfshgcekwocffdtv.supabase.co/auth/v1/user')return {ok:true,status:200,json:async()=>({id:'fictional-user',role:'authenticated',aud:'authenticated',is_anonymous:false})};
-    assert.equal(url,`https://api.cloudflare.com/client/v4/accounts/${'a1'.repeat(16)}/ai/run/@cf/google/gemma-4-26b-a4b-it`);providerCalls++;providerBody=JSON.parse(init.body);
-    const request=JSON.parse(providerBody.messages[1].content[0].text);
+    assert.equal(url,'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent');providerCalls++;providerBody=JSON.parse(init.body);
+    assert.equal(init.headers['x-goog-api-key'],'fictional-secret');
+    const request=JSON.parse(providerBody.contents[0].parts[0].text);
     const response=request.answers.length?{...defaultDraft(),summary:'Revised from supplied answers.',lines:[{description:'Measure bed',quantity:'3',rate_id:null,basis:'The answer says 3 inches.'}]}:defaultDraft();
-    return {ok:true,status:200,json:async()=>({success:true,result:{choices:[{finish_reason:'stop',message:{role:'assistant',content:JSON.stringify(response),refusal:null}}]}})};
+    return {ok:true,status:200,json:async()=>({candidates:[{finishReason:'STOP',content:{role:'model',parts:[{text:JSON.stringify(response)}]}}]})};
   };
-  const server=createHandler({env:{AI_QUOTES_ENABLED:'true',CRM_AI_FREE_PLAN_CONFIRMED:'true',CRM_CLOUDFLARE_ACCOUNT_ID:'a1'.repeat(16),CRM_CLOUDFLARE_AI_TOKEN:'fictional-secret'},fetch:fakeFetch});
+  const server=createHandler({env:{AI_QUOTES_ENABLED:'true',CRM_GEMINI_FREE_TIER_CONFIRMED:'true',CRM_GEMINI_API_KEY:'fictional-secret'},fetch:fakeFetch});
   const routeHandler=async(route,call)=>{
     const res={headers:{},setHeader(k,v){this.headers[k]=v;},status(code){this.code=code;return this;},json(data){this.data=data;return this;}};
     await server({method:'POST',headers:call.headers,body:call.body},res);
@@ -305,14 +310,14 @@ test('browser and server contracts work together with only fictional JPEGs and m
   const browser=await makeBrowser();try{const {context,page,errors,calls}=await setup(browser,390,routeHandler);
     try{
       await begin(page);await photo(page,3);await page.locator('#ai_use_rates').check();await page.locator('#ai_consent').check();await page.getByRole('button',{name:'Generate draft'}).click();await page.waitForSelector('#ai_result h3');
-      assert.equal(calls.length,1);assert.equal(providerCalls,1);assert.equal(providerBody.messages[1].content.length,4);
-      for(const image of providerBody.messages[1].content.slice(1)){assert.equal(image.type,'image_url');assert.match(image.image_url.url,/^data:image\/jpeg;base64,/);}
-      assert.equal(providerBody.store,false);
+      assert.equal(calls.length,1);assert.equal(providerCalls,1);assert.equal(providerBody.contents[0].parts.length,4);
+      for(const image of providerBody.contents[0].parts.slice(1)){assert.equal(image.inlineData.mimeType,'image/jpeg');assert.match(image.inlineData.data,/^[A-Za-z0-9+/]+=*$/);}
+      assert.equal(providerBody.tools,undefined);assert.equal(providerBody.cachedContent,undefined);
       assert.doesNotMatch(JSON.stringify(providerBody),/Fictional Road|Fictional Customer|PRIVATE CLIENT NOTE|19\.99|sample1\.png/);
       await page.locator('#ai_answer_0').fill('3 inches');await page.locator('#ai_followup_consent').check();await page.locator('#ai_update').click();
       await page.waitForFunction(()=>document.querySelector('#ai_result').textContent.includes('Revised from supplied answers.'));
       assert.equal(calls.length,2);assert.equal(providerCalls,2);assert.deepEqual(calls[1].body.photos,calls[0].body.photos);
-      assert.deepEqual(JSON.parse(providerBody.messages[1].content[0].text).answers,[{question:'Confirm the bed depth.',answer:'3 inches'}]);
+      assert.deepEqual(JSON.parse(providerBody.contents[0].parts[0].text).answers,[{question:'Confirm the bed depth.',answer:'3 inches'}]);
       assert.match(await page.locator('#ai_result').innerText(),/Quantity: 3/);
       assert.equal(await page.locator('#ai_result img').count(),0);assert.equal(await writes(page),0);assert.deepEqual(errors,[]);
     }finally{await context.close();}

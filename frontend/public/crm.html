@@ -880,8 +880,9 @@ function openAIQuote(){
  const card=aiRateCard();
  dlg(`<h2>Photo estimate with AI</h2>
  <p class="m">Choose up to 3 photos and describe the work. The AI may suggest a total ballpark, not a final quote or verified local price. Check measurements, access, hidden conditions and all pricing before using it.</p>
- <p class="m"><b>Before you generate:</b> the selected photos (including anything visible in them), work description, service and optional rate names will be sent to Cloudflare Workers AI. Client and property fields stay in the CRM unless you include them in the photos or description. Photos are resized and re-encoded on your device to remove metadata, but visible details remain. See <a href="https://developers.cloudflare.com/workers-ai/platform/data-usage/" target="_blank" rel="noopener noreferrer">Cloudflare's data policy</a>.</p>
- <p class="m">An administrator must set up and maintain a Cloudflare Workers Free account. That plan stops requests at its daily allowance; a paid account may incur charges. This app cannot verify the plan. Nothing is saved or sent to a customer automatically.</p>
+ <p class="m"><b>Before you generate:</b> your photos, work description, service and optional rate names are sent through Vercel to Google Gemini. Client and property fields stay in the CRM, but anything visible in photos or typed in text is sent. Photos are resized and re-encoded to remove metadata; visible details remain.</p>
+ <p class="m"><b>Gemini Free privacy:</b> Google may use submitted photos, text and responses to improve its products, and people may review them. Google says not to send sensitive, confidential or personal information to its free service. Use only appropriate, non-sensitive material. See <a href="https://ai.google.dev/gemini-api/terms#unpaid-services" target="_blank" rel="noopener noreferrer">Google's terms</a>.</p>
+ <p class="m">An administrator must set up and maintain a Gemini API Free-tier project. This app cannot verify its tier or prevent charges if billing is enabled. Nothing is saved or sent to a customer automatically.</p>
  <fieldset id="ai_form" style="border:0;padding:0;margin:0;min-width:0">
  <label for="ai_client">Client (kept in the CRM)</label><select id="ai_client" onchange="aiClientChanged()"><option value="">Choose a client…</option>${clients.map(c=>`<option value="${E(c.id)}">${E(c.name||"(unnamed)")}</option>`).join("")}</select>
  <label for="ai_property">Property / unit (optional; kept in the CRM)</label><input id="ai_property" list="ai_properties" maxlength="500" placeholder="Street address or GPS coordinates"><datalist id="ai_properties"></datalist>
@@ -890,7 +891,7 @@ function openAIQuote(){
  <p class="m">Use digits for known quantities. Numbers not found in your description or answers are left blank; even a matching number may be wrong, so verify it.</p>
  <label for="ai_photos">Photos (1 to 3, up to 20 MB each)</label><input id="ai_photos" type="file" accept="image/*" multiple onchange="aiPhotosChanged(this)"><div id="ai_photo_list" class="m"></div>
  <p class="m">${E(card.message)}</p><label class="pick-stop"><input id="ai_use_rates" type="checkbox"${card.rates.length?"":" disabled"}><span>I verified that my saved rate card contains current, real prices. Send the rate names and use matching prices in this draft.</span></label>
- <label class="pick-stop"><input id="ai_consent" type="checkbox"><span>I agree to send the selected photos and description to Cloudflare and understand the account's plan and allowance apply.</span></label>
+ <label class="pick-stop"><input id="ai_consent" type="checkbox"><span>I confirm the photos, text and selected rate names contain no personal, sensitive or confidential information, and I agree to send them to Google Gemini as described above.</span></label>
  </fieldset><p id="ai_status" class="m" role="status" aria-live="polite"></p><div id="ai_result"></div>
  <div class="bt"><button id="ai_generate" class="pri" type="button" onclick="generateAIQuote()">Generate draft</button><button type="button" onclick="closeD()">Cancel / close</button></div>
  <p class="m">Closing after a request starts may not stop processing or allowance use (or charges on a paid account). Requests are never automatically retried.</p>`);
@@ -953,7 +954,7 @@ function aiCleanResult(value,rates){
 }
 function aiError(p,e,consent){
  if(!aiCurrent(p))return;
- const message=(e&&e.message||"Could not prepare the photo estimate.")+(p.providerAttempted?" No estimate was saved. This attempt may have used allowance or incurred charges on a paid account; check usage before retrying.":p.requestSent?" No Cloudflare request was made.":" No request was sent.");
+ const message=(e&&e.message||"Could not prepare the photo estimate.")+(p.providerAttempted?" No estimate was saved. This attempt may have used allowance or incurred charges on a paid account; check usage before retrying.":p.requestSent?" No Gemini request was made.":" No request was sent.");
  $("#ai_status").textContent=message;const local=consent==="#ai_followup_consent"?$("#ai_followup_status"):null;if(local)local.textContent=message;
  const check=$(consent);if(p.requestSent&&check)check.checked=false
 }
@@ -963,12 +964,12 @@ async function aiSend(p,answers,extra){
  if(!/^[A-Za-z0-9._~-]{1,8192}$/.test(String(token||"")))throw new Error("Your CRM session expired. Sign in again.");
  if(!db||!hasSnapshot||!synced||!S.clients[p.client]||JSON.stringify(S.clients[p.client])!==p.clientSignature)throw new Error("The client or sync state changed. No request was sent; review it before generating.");
  if(p.useRates&&(!S.meta||S.meta.rates!==p.rateRaw))throw new Error("The rate card changed. No request was sent; review Rates before generating.");
- const body={consent:true,service:p.service,description:p.description,photos:p.photos,rates:p.rates.map(r=>({id:r.id,name:r.name})),answers,extra};
- p.controller=new AbortController();const sending="Sending to Cloudflare and preparing a draft… Keep this window open.";$("#ai_status").textContent=sending;if($("#ai_followup_status"))$("#ai_followup_status").textContent=sending;p.requestSent=true;p.providerAttempted=true;
+ const body={consent:true,provider:"gemini",disclosure:"gemini-free-v1",service:p.service,description:p.description,photos:p.photos,rates:p.rates.map(r=>({id:r.id,name:r.name})),answers,extra};
+ p.controller=new AbortController();const sending="Sending to Google Gemini and preparing a draft… Keep this window open.";$("#ai_status").textContent=sending;if($("#ai_followup_status"))$("#ai_followup_status").textContent=sending;p.requestSent=true;p.providerAttempted=true;
  let response;try{response=await fetch("/api/crm-quote",{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+token},body:JSON.stringify(body),cache:"no-store",signal:p.controller.signal})}
- catch(e){throw new Error("Could not confirm the Cloudflare request. It may have used allowance; check usage before trying again.")}
- if(!aiCurrent(p))return null;let data;try{data=await response.json()}catch(e){throw new Error("The response could not be read. Check Workers AI usage before trying again.")}
- if(!response.ok){p.providerAttempted=!data||data.providerAttempted!==false;throw new Error(String(data&&data.error||"Could not prepare the draft. Check Workers AI usage before trying again.").slice(0,300))}
+ catch(e){throw new Error("Could not confirm the Gemini request. It may have used allowance; check usage before trying again.")}
+ if(!aiCurrent(p))return null;let data;try{data=await response.json()}catch(e){throw new Error("The response could not be read. Check Gemini usage before trying again.")}
+ if(!response.ok){p.providerAttempted=!data||data.providerAttempted!==false;throw new Error(String(data&&data.error||"Could not prepare the draft. Check Gemini usage before trying again.").slice(0,300))}
  return aiCleanResult(data&&data.draft,p.rates)
 }
 async function generateAIQuote(){
@@ -980,7 +981,7 @@ async function generateAIQuote(){
   if(property.length>500||/[\x00-\x1f\x7f]/.test(property))throw new Error("Use a property up to 500 characters without control characters.");
   if(description.length<5||description.length>2000||/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/.test(description))throw new Error("Describe the work in 5 to 2,000 characters.");
   if(!p.files.length||p.files.length>AI_PHOTO_LIMIT)throw new Error("Choose 1 to 3 photos.");
-  if(!$("#ai_consent").checked)throw new Error("Agree to the Cloudflare photo disclosure before generating.");
+  if(!$("#ai_consent").checked)throw new Error("Agree to the Gemini photo disclosure before generating.");
   const useRates=$("#ai_use_rates").checked,card=aiRateCard();
   if(useRates&&(card.raw!==p.rateRaw||!card.rates.length))throw new Error("The rate card changed or needs review. Close this window and check Rates before using it.");
   p.client=client;p.clientSignature=JSON.stringify(clientRecord);p.service=service;p.property=property;p.description=description;p.rateRaw=card.raw;p.rates=useRates?card.rates:[];p.useRates=useRates;
@@ -1007,7 +1008,7 @@ async function updateAIQuote(){
  const p=aiQuote;if(!p||p.busy||!p.result)return;p.requestSent=false;p.providerAttempted=false;
  try{
   const values=aiCollectAnswers(p);if(!aiAnswersChanged(p,values))throw new Error("Enter or change an answer or additional detail first.");
-  if(!$("#ai_followup_consent").checked)throw new Error("Agree to send the photos and answers to Cloudflare again before updating.");
+  if(!$("#ai_followup_consent").checked)throw new Error("Agree to send the photos and answers to Gemini again before updating.");
   aiBusy(p,true);const result=await aiSend(p,values.answers,values.extra);if(!aiCurrent(p)||!result)return;
   p.answers=values.answers;p.extra=values.extra;p.result=result;p.controller=null;showAIResult(p)
  }catch(e){aiError(p,e,"#ai_followup_consent")}
@@ -1025,10 +1026,10 @@ function showAIResult(p){
  ${d.lines.map((line,i)=>{const rate=stable?p.rates.find(r=>r.id===line.rate_id):null;return `<div class="card"><b>${i+1}. ${E(line.description)}</b><div class="m">Quantity: ${line.quantity===null?"Needs review / measurement":E(line.quantity)} · Rate: ${rate?E(rate.name)+" — "+estimateMoney(rate.cents):"Enter manually"}</div><div class="m">${E(line.basis)}</div></div>`}).join("")}
  ${list("Cautions",d.cautions)}
  <fieldset id="ai_followup_form" style="border:0;padding:0;margin:0;min-width:0"><h3>Answer questions or add details</h3>
- <p class="m">Answer any questions you can; leave unknowns blank. You can change earlier answers. Updating sends your answers, photos, description, service and any selected rate names to Cloudflare again and uses allowance.</p>
+ <p class="m">Answer any questions you can; leave unknowns blank. You can change earlier answers. Updating sends your answers, extra details, photos, description, service and selected rate names to Google Gemini again and uses allowance. Google may use them to improve its products and people may review them; do not include personal, sensitive or confidential information.</p>
  ${fields.map((item,i)=>`<label for="ai_answer_${i}">${E(item.question)}</label><textarea id="ai_answer_${i}" rows="2" maxlength="500">${E(item.answer)}</textarea>`).join("")}
  <label for="ai_extra">Additional details (optional)</label><textarea id="ai_extra" rows="2" maxlength="1000">${E(p.extra)}</textarea>
- <label class="pick-stop"><input id="ai_followup_consent" type="checkbox"><span>I agree to send the photos, description and answers to Cloudflare again; the account's plan and allowance apply.</span></label>
+ <label class="pick-stop"><input id="ai_followup_consent" type="checkbox"><span>I confirm this material contains no personal, sensitive or confidential information, and I agree to send it to Google Gemini again as described above.</span></label>
  <p id="ai_followup_status" class="m" role="status" aria-live="polite"></p><div class="bt"><button id="ai_update" type="button" onclick="updateAIQuote()">Update draft with answers</button></div></fieldset>
  <p class="m">${midpoint===null?"When a ballpark is available, you can use its midpoint as an editable flat draft.":"Use "+estimateMoney(midpoint)+" (the midpoint) as one flat line, or review itemized lines and enter their prices yourself."} Neither option saves or sends anything.</p>
  <p id="ai_review_status" class="m" role="status" aria-live="polite"></p><div class="bt">${midpoint===null?"":`<button id="ai_flat" class="pri" type="button" onclick="aiToEstimate('flat')">Use midpoint as flat draft</button>`}<button id="ai_items" type="button" onclick="aiToEstimate('items')">Review in estimate editor</button></div>`;

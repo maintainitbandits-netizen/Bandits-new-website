@@ -4,7 +4,7 @@
 // secrets from the browser, and never logs or persists descriptions or photos.
 const SB_URL = 'https://jvmvzfshgcekwocffdtv.supabase.co';
 const SB_KEY = 'sb_publishable_vhNt3ZJkdWyyITrVwx3x4Q_leYix_Gq';
-const cloudflare = require('./crm-quote-cloudflare');
+const gemini = require('./crm-quote-gemini');
 const MAX_BODY_BYTES = 3_200_000;
 const MAX_PHOTO_BYTES = 750_000;
 const MAX_PHOTOS = 3;
@@ -63,8 +63,12 @@ function readBody(req) {
     if (e instanceof QuoteError) throw e;
     reject(400, 'Invalid JSON request.');
   }
-  if (!keysAre(body, ['consent', 'service', 'description', 'photos', 'rates', 'answers', 'extra'])) reject(400, 'Invalid photo estimate request.');
-  if (body.consent !== true) reject(400, 'Agree to the Cloudflare photo disclosure before generating.');
+  if (!keysAre(body, ['consent', 'provider', 'disclosure', 'service', 'description', 'photos', 'rates', 'answers', 'extra']))
+    reject(400, 'Invalid or out-of-date photo estimate form. Close and reopen it before generating.');
+  // Bind consent to the current provider and disclosure. A stale Cloudflare
+  // tab must not accidentally send photos to Gemini after a deployment changes.
+  if (body.consent !== true || body.provider !== 'gemini' || body.disclosure !== 'gemini-free-v1')
+    reject(400, 'Agree to the current Gemini photo disclosure before generating.');
   if (!singleLine(body.service, 100)) reject(400, 'Choose a service.');
   if (typeof body.description !== 'string' || body.description.trim().length < 5 || body.description.length > 2000 ||
       /[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/.test(body.description)) reject(400, 'Enter a work description of 5 to 2,000 characters.');
@@ -109,9 +113,9 @@ const RESPONSE_SCHEMA = {
   properties: {
     summary: { type: 'string' },
     ballpark: { type: 'object', additionalProperties: false, properties: {
-      low: { type: ['string', 'number', 'null'] }, high: { type: ['string', 'number', 'null'] }, basis: { type: 'string' },
+      low: { type: ['string', 'null'] }, high: { type: ['string', 'null'] }, basis: { type: 'string' },
     }, required: ['low', 'high', 'basis'] },
-    lines: { type: 'array', items: {
+    lines: { type: 'array', minItems: 1, maxItems: 8, items: {
       type: 'object', additionalProperties: false,
       properties: {
         description: { type: 'string' }, quantity: { type: ['string', 'null'] },
@@ -119,8 +123,8 @@ const RESPONSE_SCHEMA = {
       },
       required: ['description', 'quantity', 'rate_id', 'basis'],
     } },
-    questions: { type: 'array', items: { type: 'string' } },
-    cautions: { type: 'array', items: { type: 'string' } },
+    questions: { type: 'array', maxItems: 6, items: { type: 'string' } },
+    cautions: { type: 'array', maxItems: 6, items: { type: 'string' } },
   },
   required: ['summary', 'ballpark', 'lines', 'questions', 'cautions'],
 };
@@ -139,7 +143,7 @@ function priceCents(value, fail) {
 const centsText = cents => String(Math.floor(cents / 100)) + '.' + String(cents % 100).padStart(2, '0');
 
 function cleanResult(draft, rates, suppliedDetails) {
-  const fail = () => reject(502, 'Cloudflare returned an incomplete draft. No estimate was saved.');
+  const fail = () => reject(502, 'Gemini returned an incomplete draft. No estimate was saved.');
   const hasBallpark = draft && Object.prototype.hasOwnProperty.call(draft, 'ballpark');
   if (!(keysAre(draft, ['summary', 'ballpark', 'lines', 'questions', 'cautions']) ||
         keysAre(draft, ['summary', 'lines', 'questions', 'cautions'])) || !singleLine(draft.summary, 800) ||
@@ -198,28 +202,28 @@ function createHandler(options = {}) {
       if (!/^application\/json(?:\s*;|\s*$)/i.test(String(req.headers['content-type'] || ''))) reject(415, 'Use a JSON request.');
       await authenticate(req, fetchFn);
       const input = readBody(req);
-      const account = cloudflare.configuredAccount(env);
-      if (!account) reject(503, 'Photo estimates are not enabled yet. Ask the administrator to finish Cloudflare Free setup.');
+      const project = gemini.configuredProject(env);
+      if (!project) reject(503, 'Photo estimates are not enabled yet. Ask the administrator to finish Gemini Free setup.');
       let response;
       try {
         providerAttempted = true;
-        response = await fetchFn(cloudflare.endpoint(account.accountId), {
-          method: 'POST', headers: { Authorization: 'Bearer ' + account.token, 'Content-Type': 'application/json', Accept: 'application/json' },
-          body: JSON.stringify(cloudflare.buildRequest(input, RESPONSE_SCHEMA)), cache: 'no-store', redirect: 'error', signal: AbortSignal.timeout(40000),
+        response = await fetchFn(gemini.ENDPOINT, {
+          method: 'POST', headers: { 'x-goog-api-key': project.key, 'Content-Type': 'application/json', Accept: 'application/json' },
+          body: JSON.stringify(gemini.buildRequest(input, RESPONSE_SCHEMA)), cache: 'no-store', redirect: 'error', signal: AbortSignal.timeout(40000),
         });
-      } catch (_) { reject(503, 'Could not confirm the Cloudflare request. It may have used some daily allowance; check usage before trying again.'); }
+      } catch (_) { reject(503, 'Could not confirm the Gemini request. It may have used some allowance; check usage before trying again.'); }
       if (!response || !response.ok) {
-        if (response && response.status === 429) reject(429, 'Cloudflare is busy or its daily allowance or rate limit was reached. Check Workers AI usage and try later.');
-        if (response && [401, 403].includes(response.status)) reject(503, 'Photo estimates are not configured correctly. Check the Cloudflare Free setup.');
-        if (response && [400, 422].includes(response.status)) reject(422, 'Cloudflare could not process this request. No estimate was saved.');
-        reject(503, 'Cloudflare is temporarily unavailable. Check Workers AI usage before trying again.');
+        if (response && response.status === 429) reject(429, 'Gemini is busy or an allowance or rate limit was reached. Check Gemini usage and try later.');
+        if (response && [401, 403].includes(response.status)) reject(503, 'Photo estimates are not configured correctly. Check the Gemini Free setup.');
+        if (response && [400, 422].includes(response.status)) reject(422, 'Gemini could not process this request. No estimate was saved.');
+        reject(503, 'Gemini is temporarily unavailable. Check Gemini usage before trying again.');
       }
       let data, draft;
-      try { data = await response.json(); } catch (_) { reject(502, 'Cloudflare returned an unreadable draft. No estimate was saved.'); }
-      try { draft = cloudflare.extractDraft(data); }
+      try { data = await response.json(); } catch (_) { reject(502, 'Gemini returned an unreadable draft. No estimate was saved.'); }
+      try { draft = gemini.extractDraft(data); }
       catch (e) {
-        if (e && e.code === 'refused') reject(422, 'Cloudflare could not prepare a draft for these photos. No estimate was saved.');
-        reject(502, 'Cloudflare did not return a complete draft. No estimate was saved.');
+        if (e && e.code === 'refused') reject(422, 'Gemini could not prepare a draft for these photos. No estimate was saved.');
+        reject(502, 'Gemini did not return a complete draft. No estimate was saved.');
       }
       const suppliedDetails = [input.description, ...input.answers.map(item => item.answer), input.extra].join('\n');
       return jsonResponse(res, 200, { draft: cleanResult(draft, input.rates, suppliedDetails) });

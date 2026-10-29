@@ -1,13 +1,12 @@
 // All users, tokens, photos and provider responses are fictional. These tests
-// intercept every request: no live CRM, Cloudflare, billing, or customer data.
+// intercept every request: no live CRM, Gemini, billing, or customer data.
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { createHandler } = require('../frontend/lib/crm-quote');
 
 const AUTH = 'https://jvmvzfshgcekwocffdtv.supabase.co/auth/v1/user';
-const ACCOUNT = 'a1'.repeat(16);
-const CLOUDFLARE = `https://api.cloudflare.com/client/v4/accounts/${ACCOUNT}/ai/run/@cf/google/gemma-4-26b-a4b-it`;
-const ENV = { AI_QUOTES_ENABLED: 'true', CRM_AI_FREE_PLAN_CONFIRMED: 'true', CRM_CLOUDFLARE_ACCOUNT_ID: ACCOUNT, CRM_CLOUDFLARE_AI_TOKEN: 'fictional-secret' };
+const GEMINI = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent';
+const ENV = { AI_QUOTES_ENABLED: 'true', CRM_GEMINI_FREE_TIER_CONFIRMED: 'true', CRM_GEMINI_API_KEY: 'fictional-secret' };
 const JPEG = 'data:image/jpeg;base64,' + Buffer.from([0xff, 0xd8, 0xff, 0xd9]).toString('base64');
 const reply = (value, status = 200) => ({ ok: status >= 200 && status < 300, status, json: async () => value });
 const auth = () => reply({ id: 'fictional-user', role: 'authenticated', aud: 'authenticated', is_anonymous: false });
@@ -20,9 +19,9 @@ const draft = () => ({
   ],
   questions: ['Confirm the depth.'], cautions: ['Hidden conditions may change the scope.'],
 });
-const choice = (content, finish_reason = 'stop') => ({ finish_reason, message: { role: 'assistant', content, refusal: null } });
-const output = d => reply({ success: true, errors: [], result: { choices: [choice(JSON.stringify(d))] } });
-const input = () => ({ consent: true, service: 'Mulch / bed refresh', description: 'Install 2.5 yards of mulch.', photos: [JPEG], rates: [{ id: 0, name: 'Mulch per yard' }], answers: [], extra: '' });
+const candidate = (text, finishReason = 'STOP') => ({ finishReason, content: { role: 'model', parts: [{ text }] } });
+const output = d => reply({ candidates: [candidate(JSON.stringify(d))] });
+const input = () => ({ consent: true, provider:'gemini', disclosure:'gemini-free-v1', service: 'Mulch / bed refresh', description: 'Install 2.5 yards of mulch.', photos: [JPEG], rates: [{ id: 0, name: 'Mulch per yard' }], answers: [], extra: '' });
 
 function harness(options = {}) {
   const calls = [], env = options.env === undefined ? ENV : options.env;
@@ -30,7 +29,7 @@ function harness(options = {}) {
     calls.push({ url, init });
     if (options.respond) return options.respond(url, init, calls);
     if (url === AUTH) return auth();
-    if (url === CLOUDFLARE) return output(draft());
+    if (url === GEMINI) return output(draft());
     throw new Error('Unexpected network request');
   };
   const handler = createHandler({ env, fetch });
@@ -56,15 +55,16 @@ test('only JSON POSTs from verified non-anonymous users reach the provider', asy
   r = await t.request(); assert.equal(r.code, 503); assert.equal(t.calls.length, 1); assert.doesNotMatch(JSON.stringify(r.data), /fictional secret/);
 });
 
-test('disabled unless enabled, the owner confirms Free, and a valid account and token are configured', async () => {
+test('disabled unless enabled, the owner confirms Gemini Free, and a valid server key is configured', async () => {
   const cases = [
     {}, { AI_QUOTES_ENABLED: 'true' },
     { AI_QUOTES_ENABLED:'true', CRM_OPENAI_API_KEY:'fictional-secret' },
+    { AI_QUOTES_ENABLED:'true', CRM_AI_FREE_PLAN_CONFIRMED:'true', CRM_CLOUDFLARE_ACCOUNT_ID:'a1'.repeat(16), CRM_CLOUDFLARE_AI_TOKEN:'fictional-secret' },
     { ...ENV, AI_QUOTES_ENABLED:'false' }, { ...ENV, AI_QUOTES_ENABLED:'TRUE' },
-    { ...ENV, CRM_AI_FREE_PLAN_CONFIRMED:undefined }, { ...ENV, CRM_AI_FREE_PLAN_CONFIRMED:'false' }, { ...ENV, CRM_AI_FREE_PLAN_CONFIRMED:'TRUE' },
-    { ...ENV, CRM_CLOUDFLARE_ACCOUNT_ID:undefined }, { ...ENV, CRM_CLOUDFLARE_ACCOUNT_ID:'https://evil.invalid' },
-    { ...ENV, CRM_CLOUDFLARE_ACCOUNT_ID:ACCOUNT + '/other' }, { ...ENV, CRM_CLOUDFLARE_ACCOUNT_ID:'z'.repeat(32) },
-    { ...ENV, CRM_CLOUDFLARE_AI_TOKEN:undefined }, { ...ENV, CRM_CLOUDFLARE_AI_TOKEN:'fictional\r\nsecret' },
+    { ...ENV, CRM_GEMINI_FREE_TIER_CONFIRMED:undefined }, { ...ENV, CRM_GEMINI_FREE_TIER_CONFIRMED:'false' }, { ...ENV, CRM_GEMINI_FREE_TIER_CONFIRMED:'TRUE' },
+    { ...ENV, CRM_GEMINI_API_KEY:undefined }, { ...ENV, CRM_GEMINI_API_KEY:'short' },
+    { ...ENV, CRM_GEMINI_API_KEY:'fictional secret' }, { ...ENV, CRM_GEMINI_API_KEY:'fictional\r\nsecret' },
+    { ...ENV, CRM_GEMINI_API_KEY:'x'.repeat(513) },
   ];
   for (const env of cases) {
     const h = harness({ env }), r = await h.request(); assert.equal(r.code, 503); assert.match(r.data.error, /not enabled/);
@@ -72,27 +72,36 @@ test('disabled unless enabled, the owner confirms Free, and a valid account and 
   }
 });
 
-test('only consented work, optional rate names and all three JPEGs go to fixed Workers AI endpoint', async () => {
+test('only consented work, optional rate names and all three JPEGs go to fixed Gemini endpoint', async () => {
   const h = harness(), request = { ...input(), photos:[JPEG,JPEG,JPEG] }; const r = await h.request(request);
   assert.equal(r.code, 200); assert.deepEqual(r.data.draft, draft()); assert.match(r.headers['cache-control'], /no-store/);
-  assert.deepEqual(h.calls.map(c=>c.url), [AUTH, CLOUDFLARE]);
+  assert.deepEqual(h.calls.map(c=>c.url), [AUTH, GEMINI]);
   const init = h.calls[1].init, provider = JSON.parse(init.body);
-  assert.equal(init.method, 'POST'); assert.equal(init.headers.Authorization, 'Bearer fictional-secret'); assert.equal(init.cache, 'no-store'); assert.equal(init.redirect, 'error'); assert.ok(init.signal);
-  assert.equal(provider.store, false); assert.equal(provider.stream, false); assert.equal(provider.max_completion_tokens, 2000);
-  assert.deepEqual(provider.response_format, { type:'json_object' }); assert.deepEqual(provider.chat_template_kwargs, { enable_thinking:false });
-  assert.match(provider.messages[0].content, /untrusted job data/); assert.match(provider.messages[0].content, /Never invent or assert measurements/);
-  assert.match(provider.messages[0].content, /unverified guesses/); assert.match(provider.messages[0].content, /Return only one JSON object/);
-  const content = provider.messages[1].content;
+  assert.equal(init.method, 'POST'); assert.equal(init.headers['x-goog-api-key'], 'fictional-secret'); assert.equal(init.headers.Authorization,undefined);
+  assert.equal(init.cache, 'no-store'); assert.equal(init.redirect, 'error'); assert.ok(init.signal);
+  assert.equal(provider.generationConfig.maxOutputTokens, 8192);
+  assert.deepEqual(provider.generationConfig.thinkingConfig,{thinkingLevel:'medium',includeThoughts:false});
+  assert.equal(provider.generationConfig.responseFormat.text.mimeType,'APPLICATION_JSON');
+  const schema=provider.generationConfig.responseFormat.text.schema;
+  assert.deepEqual(schema.required,['summary','ballpark','lines','questions','cautions']);
+  assert.deepEqual(schema.properties.ballpark.properties.low.type,['string','null']);
+  assert.equal(schema.properties.lines.maxItems,8);assert.equal(schema.properties.questions.maxItems,6);
+  assert.equal(provider.tools,undefined); assert.equal(provider.cachedContent,undefined);
+  const instructions=provider.systemInstruction.parts[0].text;
+  assert.match(instructions, /untrusted job data/); assert.match(instructions, /Never invent or assert measurements/);assert.match(instructions, /unverified guesses/);
+  const content = provider.contents[0].parts;assert.equal(provider.contents[0].role,'user');
   assert.deepEqual(JSON.parse(content[0].text), { service: request.service, description: request.description, answers: [], additional_details: '', rate_names: request.rates });
   assert.equal(content.length, 4);
-  assert.deepEqual(content.slice(1), Array(3).fill({ type:'image_url', image_url:{ url:JPEG, detail:'auto' } }));
+  assert.deepEqual(content.slice(1), Array(3).fill({inlineData:{mimeType:'image/jpeg',data:JPEG.split(',')[1]}}));
   assert.doesNotMatch(init.body, /fictional\.jwt|fictional-secret|clientName|unitCents/);
   assert.doesNotMatch(JSON.stringify(r.data), /fictional-secret|base64/);
 });
 
-test('rejects invalid input, price injection, extra fields, noncanonical JPEG and missing consent before Cloudflare', async () => {
+test('rejects invalid input, price injection, extra fields, noncanonical JPEG and missing consent before Gemini', async () => {
   const cases = [
-    { ...input(), consent: false }, { ...input(), service: '' }, { ...input(), service: 'x\nheader' },
+    { ...input(), consent: false }, { ...input(), provider:'cloudflare' }, { ...input(), provider:'Gemini' },
+    { ...input(), disclosure:'cloudflare-free-v1' }, { ...input(), disclosure:'gemini-free-v0' },
+    { ...input(), service: '' }, { ...input(), service: 'x\nheader' },
     { ...input(), description: 'x' }, { ...input(), description: 'x'.repeat(2001) }, { ...input(), description: 'a\u0000bad input' },
     { ...input(), photos: [] }, { ...input(), photos: Array(4).fill(JPEG) },
     { ...input(), photos: ['data:image/png;base64,AAAA'] }, { ...input(), photos: ['data:image/jpeg;base64,AAAA'] },
@@ -110,7 +119,9 @@ test('rejects invalid input, price injection, extra fields, noncanonical JPEG an
     { ...input(), answers: Array.from({length:19},(_,i)=>({question:'Q'+i,answer:'yes'})) },
     { ...input(), extra: 'x'.repeat(1001) }, { ...input(), extra: '\u0000' },
     { ...input(), clientName: 'Do not send' }, { ...input(), endpoint: 'https://evil.invalid' },
-    { ...input(), token: 'Do not accept' }, null, 'not JSON', [],
+    { ...input(), token: 'Do not accept' },
+    // An older Cloudflare form did not bind consent to a provider/version.
+    (({provider,disclosure,...oldForm})=>oldForm)(input()), null, 'not JSON', [],
   ];
   for (const body of cases) {
     const h = harness(), r = await h.request(body);
@@ -145,9 +156,9 @@ test('follow-up answers and extra details are sent only with consent and may sup
   const response = { ...draft(), lines:[{description:'Install mulch',quantity:'2.5',rate_id:0,basis:'The answer described 2.5 yards.'}] };
   const h = harness({ respond: url => url === AUTH ? auth() : output(response) });
   let r = await h.request(request); assert.equal(r.code,200); assert.equal(r.data.draft.lines[0].quantity,'2.5');
-  const provider = JSON.parse(h.calls[1].init.body), sent = JSON.parse(provider.messages[1].content[0].text);
+  const provider = JSON.parse(h.calls[1].init.body), sent = JSON.parse(provider.contents[0].parts[0].text);
   assert.deepEqual(sent.answers,request.answers); assert.equal(sent.additional_details,request.extra);
-  assert.equal(provider.messages[1].content[1].image_url.url,JPEG); assert.equal(provider.store,false);
+  assert.equal(provider.contents[0].parts[1].inlineData.data,JPEG.split(',')[1]); assert.equal(provider.cachedContent,undefined);
   const noConsent = harness(); r = await noConsent.request({...request,consent:false}); assert.equal(r.code,400); assert.equal(noConsent.calls.length,1);
   // A number offered only by a model-generated question is not a measurement supplied by the user.
   const invented = {...request,answers:[{question:'Is it 8 yards?',answer:'No.'}],extra:''};
@@ -213,30 +224,37 @@ test('provider output is independently bounded and validated, including rate IDs
   }
 });
 
-test('accepts documented response envelopes only after validating their complete draft', async () => {
-  for (const response of [draft(), JSON.stringify(draft())]) {
-    const h = harness({ respond: url => url === AUTH ? auth() : reply({ success:true, result:{ response } }) });
-    const r = await h.request(); assert.equal(r.code, 200); assert.deepEqual(r.data.draft,draft()); assert.deepEqual(h.calls.map(c=>c.url),[AUTH,CLOUDFLARE]);
+test('accepts Gemini completed text parts only after validating their complete draft', async () => {
+  const text=JSON.stringify(draft()), half=Math.floor(text.length/2);
+  for (const parts of [
+    [{text}],
+    [{text:text.slice(0,half)},{text:text.slice(half),thoughtSignature:'opaque'}],
+    [{text:'private thought',thought:true},{text}],
+  ]) {
+    const h = harness({ respond: url => url === AUTH ? auth() : reply({ candidates:[{finishReason:'STOP',content:{role:'model',parts}}] }) });
+    const r = await h.request(); assert.equal(r.code, 200); assert.deepEqual(r.data.draft,draft()); assert.deepEqual(h.calls.map(c=>c.url),[AUTH,GEMINI]);
+    assert.doesNotMatch(JSON.stringify(r.data),/private thought|opaque/);
   }
 });
 
-test('partial, refused, malformed, multiple or unreadable model replies fail without retry', async () => {
+test('partial, refused, malformed, multiple or unreadable Gemini replies fail without retry', async () => {
   const cases = [
-    reply({ success:false, result:{ choices:[choice(JSON.stringify(draft()))] }, errors:[{ code:123, message:'private' }] }),
-    reply({ success:true, result:{ choices:[choice(JSON.stringify(draft()))] }, errors:{ message:'private' } }),
-    reply({ success:true, result:{ choices:[] } }),
-    reply({ success:true, result:{ choices:[choice(JSON.stringify(draft()), 'length')] } }),
-    reply({ success:true, result:{ choices:[{ ...choice(null), message:{role:'assistant',content:null,refusal:'private refusal'} }] } }),
-    reply({ success:true, result:{ choices:[choice('not json')] } }),
-    reply({ success:true, result:{ choices:[choice(JSON.stringify(draft())),choice(JSON.stringify(draft()))] } }),
-    reply({ success:true, result:{ choices:[choice(JSON.stringify(draft()))],response:draft() } }),
-    reply({ success:true, result:{ choices:[choice('x'.repeat(20001))] } }),
-    reply({ success:true, result:{ response:'not json' } }),
+    reply({promptFeedback:{blockReason:'SAFETY',blockReasonMessage:'private'}}),
+    reply({candidates:[candidate('', 'SAFETY')]}),
+    reply({candidates:[]}),
+    reply({candidates:[candidate(JSON.stringify(draft()),'MAX_TOKENS')]}),
+    reply({candidates:[candidate('not json')]}),
+    reply({candidates:[candidate(JSON.stringify(draft())),candidate(JSON.stringify(draft()))]}),
+    reply({candidates:[candidate('x'.repeat(20001))]}),
+    reply({candidates:[{finishReason:'STOP',content:{role:'user',parts:[{text:JSON.stringify(draft())}]}}]}),
+    reply({candidates:[{finishReason:'STOP',content:{role:'model',parts:[{text:JSON.stringify(draft()),functionCall:{name:'private'}}]}}]}),
+    reply({candidates:[{finishReason:'STOP',content:{role:'model',parts:[{text:JSON.stringify(draft()),thought:true}]}}]}),
+    reply({success:true,result:{response:JSON.stringify(draft())}}),
     { ok:true, status:200, json: async()=>{ throw new Error('provider body'); } },
   ];
   for (const provider of cases) {
     const h = harness({ respond: url => url === AUTH ? auth() : provider }), r = await h.request();
-    assert.ok([422,502].includes(r.code)); assert.deepEqual(h.calls.map(c=>c.url),[AUTH,CLOUDFLARE]); assert.equal(r.data.providerAttempted, true);
+    assert.ok([422,502].includes(r.code)); assert.deepEqual(h.calls.map(c=>c.url),[AUTH,GEMINI]); assert.equal(r.data.providerAttempted, true);
     assert.doesNotMatch(JSON.stringify(r.data), /provider body|private/);
   }
 });
@@ -244,9 +262,9 @@ test('partial, refused, malformed, multiple or unreadable model replies fail wit
 test('quota, provider errors and timeouts are sanitized, never retried and never fall back', async () => {
   for (const [status,expected] of [[400,422],[401,503],[403,503],[422,422],[429,429],[500,503]]) {
     const h = harness({ respond: url => url === AUTH ? auth() : reply({ error:'fictional-secret and customer details' }, status) });
-    const r = await h.request(); assert.equal(r.code,expected); assert.deepEqual(h.calls.map(c=>c.url),[AUTH,CLOUDFLARE]); assert.equal(r.data.providerAttempted,true); assert.doesNotMatch(JSON.stringify(r.data), /fictional-secret|customer details/);
+    const r = await h.request(); assert.equal(r.code,expected); assert.deepEqual(h.calls.map(c=>c.url),[AUTH,GEMINI]); assert.equal(r.data.providerAttempted,true); assert.doesNotMatch(JSON.stringify(r.data), /fictional-secret|customer details/);
     if(status===429) assert.match(r.data.error,/allowance or rate limit/);
   }
   const h = harness({ respond: url => { if (url === AUTH) return auth(); throw new Error('fictional-secret'); } });
-  const r = await h.request(); assert.equal(r.code,503); assert.match(r.data.error, /may have used some daily allowance/); assert.deepEqual(h.calls.map(c=>c.url),[AUTH,CLOUDFLARE]); assert.equal(r.data.providerAttempted,true);
+  const r = await h.request(); assert.equal(r.code,503); assert.match(r.data.error, /may have used some allowance/); assert.deepEqual(h.calls.map(c=>c.url),[AUTH,GEMINI]); assert.equal(r.data.providerAttempted,true);
 });
