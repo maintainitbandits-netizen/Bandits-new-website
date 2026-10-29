@@ -24,6 +24,8 @@ function fakeCRM() {
     job('clean-paid','555 Paid Clean Example','Cleaning','Paid','Cleaning'),
     job('maintenance-paid','666 Paid Maintenance Example','Maintenance','Paid','Maintenance'),
   ];
+  jobs[1].sourceAppfolio = { manager:'Fictional Manager', number:'250-1' };
+  jobs[1].workDescription = 'Fictional private work description';
   const rows = new Map([[`clients/${client.id}`, { coll:'clients', id:client.id, data:client }]]);
   jobs.forEach(data => rows.set(`jobs/${data.id}`, { coll:'jobs', id:data.id, data }));
   let signedIn = false;
@@ -200,4 +202,110 @@ test('job category editing safely handles unusual IDs and unrecognized category 
       assert.equal(await page.evaluate(()=>window.__bad),undefined);assert.deepEqual(errors,[]);
     } finally {await context.close()}
   } finally {await browser.close()}
+});
+
+test('phone bulk category assignment searches, reviews hidden jobs, confirms, moves and clears without changing other fields', {skip:!canRun&&'Install browser dependencies externally'},async()=>{
+  const browser=await makeBrowser();
+  try{
+    for(const width of [320,390]){
+      const {context,page,errors,dialogs}=await setup(browser,width);
+      let accept=false;
+      page.removeAllListeners('dialog');page.on('dialog',dialog=>{dialogs.push(dialog.message());return accept?dialog.accept():dialog.dismiss()});
+      try{
+        const before=await page.evaluate(()=>Object.fromEntries([...__mock.rows.entries()].filter(([key])=>key.startsWith('jobs/')).map(([key,row])=>[key,JSON.parse(JSON.stringify(row.data))])));
+        await page.getByRole('button',{name:'Jobs',exact:true}).click();
+        await page.getByRole('button',{name:'Assign categories to jobs',exact:true}).click();await noOverflow(page,`${width} category assignment`);
+        assert.equal(await page.locator('#bca_status_filter').inputValue(),'Open');
+        assert.equal(await page.locator('#bca_category_filter').inputValue(),'__uncategorized__');
+        assert.equal(await page.locator('#bca_target').inputValue(),'');
+        assert.equal(await page.locator('#bca_apply').isEnabled(),false);
+        assert.match(await page.locator('#bca_list').innerText(),/111 Legacy Trim Example/);
+        assert.match(await page.locator('#bca_list').innerText(),/222 Legacy Cleanup Example/);
+        assert.doesNotMatch(await page.locator('#bca_list').innerText(),/333 Tree Example|444 Clean Example|555 Paid/);
+
+        await page.locator('#bca_search').fill('Legacy Trim');
+        await page.getByRole('button',{name:'Select shown',exact:true}).click();
+        await page.locator('#bca_search').fill('private work description');
+        assert.match(await page.locator('#bca_list').innerText(),/Team-only work description: Fictional private work description/);
+        assert.match(await page.locator('#bca_list').innerText(),/222 Legacy Cleanup Example/);
+        await page.locator('#bca_search').fill('250-1');
+        assert.match(await page.locator('#bca_list').innerText(),/222 Legacy Cleanup Example/);
+        await page.locator('#bca_list label').getByRole('checkbox').check();
+        assert.match(await page.locator('#bca_count').innerText(),/2 selected.*1 hidden by filters/);
+        await page.locator('#bca_review_title').click();await noOverflow(page,`${width} hidden selections`);
+        assert.match(await page.locator('#bca_review_list').innerText(),/111 Legacy Trim Example/);
+        assert.match(await page.locator('#bca_review_list').innerText(),/222 Legacy Cleanup Example/);
+        await page.locator('#bca_review_list li',{hasText:'111 Legacy Trim Example'}).getByRole('button',{name:/Remove/}).click();
+        assert.match(await page.locator('#bca_count').innerText(),/1 selected/);
+        await page.locator('#bca_search').fill('Legacy Trim');await page.getByRole('button',{name:'Select shown',exact:true}).click();
+        assert.match(await page.locator('#bca_count').innerText(),/2 selected.*1 hidden/);
+        await page.locator('#bca_target').selectOption('Cleaning');assert.equal(await page.locator('#bca_apply').isEnabled(),true);
+        await page.locator('#bca_apply').click();
+        assert.match(dialogs.at(-1),/Change the work category for 2 jobs to Cleaning/);
+        assert.match(dialogs.at(-1),/1 selected job hidden/);
+        assert.equal(await page.evaluate(()=>__mock.writes.length),0,'canceling confirmation must not write');
+        accept=true;await page.locator('#bca_apply').click();
+        await saved(page,'old-trim','Cleaning');await saved(page,'old-clean','Cleaning');
+        assert.match(await page.locator('#bca_result').innerText(),/Updated 2 jobs/);
+        assert.equal(await page.locator('#bca_apply').isEnabled(),false);
+        for(const id of ['old-trim','old-clean']){
+          const after=await page.evaluate(id=>__mock.rows.get(`jobs/${id}`).data,id);
+          assert.deepEqual(after,{...before[`jobs/${id}`],workCategory:'Cleaning'});
+        }
+        assert.equal(await page.evaluate(()=>__mock.rows.get('jobs/tree').data.workCategory),'Tree Trimming');
+        await page.locator('#dlg').getByRole('button',{name:'Close',exact:true}).click();
+
+        await page.getByRole('button',{name:'Tree Trimming',exact:true}).click();
+        await page.getByRole('button',{name:'Assign jobs to Tree Trimming',exact:true}).click();await noOverflow(page,`${width} category shortcut`);
+        assert.equal(await page.locator('#bca_target').inputValue(),'Tree Trimming');
+        await page.locator('#bca_category_filter').selectOption('Cleaning');
+        await page.locator('#bca_search').fill('Legacy Trim');
+        await page.getByRole('button',{name:'Select shown',exact:true}).click();
+        await page.locator('#bca_apply').click();await saved(page,'old-trim','Tree Trimming');
+        assert.equal(await page.evaluate(()=>__mock.rows.get('jobs/old-trim').data.service),'Trim / prune');
+        await page.locator('#dlg').getByRole('button',{name:'Close',exact:true}).click();
+        assert.match(await page.locator('#main').innerText(),/111 Legacy Trim Example/);
+
+        await page.getByRole('button',{name:'Assign jobs to Tree Trimming',exact:true}).click();
+        await page.locator('#bca_category_filter').selectOption('Tree Trimming');
+        await page.locator('#bca_search').fill('Legacy Trim');
+        await page.getByRole('button',{name:'Select shown',exact:true}).click();
+        await page.locator('#bca_target').selectOption('__uncategorized__');
+        await page.locator('#bca_apply').click();await saved(page,'old-trim','');
+        assert.equal(await page.evaluate(()=>Object.hasOwn(__mock.rows.get('jobs/old-trim').data,'workCategory')),false);
+        await page.locator('#dlg').getByRole('button',{name:'Close',exact:true}).click();
+        assert.doesNotMatch(await page.locator('#main').innerText(),/111 Legacy Trim Example/);
+        assert.deepEqual(errors,[]);
+      }finally{await context.close()}
+    }
+  }finally{await browser.close()}
+});
+
+test('phone category picker includes paid jobs only with All or Paid and skips already-assigned selections', {skip:!canRun&&'Install browser dependencies externally'},async()=>{
+  const browser=await makeBrowser();
+  try{
+    const {context,page,errors,dialogs}=await setup(browser,320);
+    try{
+      await page.getByRole('button',{name:'Cleaning',exact:true}).click();
+      await page.getByRole('button',{name:'Assign jobs to Cleaning',exact:true}).click();
+      await page.locator('#bca_category_filter').selectOption('Cleaning');
+      assert.match(await page.locator('#bca_list').innerText(),/444 Clean Example/);
+      assert.doesNotMatch(await page.locator('#bca_list').innerText(),/555 Paid Clean/);
+      await page.locator('#bca_status_filter').selectOption('All');
+      assert.match(await page.locator('#bca_list').innerText(),/555 Paid Clean/);
+      await page.getByRole('button',{name:'Select shown',exact:true}).click();
+      assert.match(await page.locator('#bca_count').innerText(),/2 selected.*0 will change.*2 already/);
+      await page.locator('#bca_apply').click();
+      assert.match(await page.locator('#bca_result').innerText(),/already in that category.*No changes/i);
+      assert.equal(dialogs.length,0);assert.equal(await page.evaluate(()=>__mock.writes.length),0);
+      await page.locator('#bca_status_filter').selectOption('Paid');
+      await page.locator('#bca_target').selectOption('Maintenance');
+      assert.match(await page.locator('#bca_count').innerText(),/2 selected.*1 hidden/);
+      await page.getByRole('button',{name:'Clear selection',exact:true}).click();
+      await page.getByRole('button',{name:'Select shown',exact:true}).click();
+      await page.locator('#bca_apply').click();await saved(page,'clean-paid','Maintenance');
+      assert.equal(await page.evaluate(()=>__mock.rows.get('jobs/clean').data.workCategory),'Cleaning');
+      assert.deepEqual(errors,[]);
+    }finally{await context.close()}
+  }finally{await browser.close()}
 });

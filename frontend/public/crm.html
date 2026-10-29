@@ -55,7 +55,7 @@ dialog::backdrop{background:#0008}.bt{display:flex;gap:6px;flex-wrap:wrap}
 const $=s=>document.querySelector(s),E=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const ST=["Lead","Quoted","Won","Recurring","Lost"],JS=["Scheduled","Done","Invoiced","Paid"],JOB_STATUSES=["Unscheduled",...JS],RP=["One-time","Weekly","Every 2 weeks","Monthly"],
 TY=["Property manager","Homeowner","Realtor / investor","STR host","Commercial","Other / unknown"],JOB_CATEGORIES=["Tree Trimming","Cleaning","Maintenance"],
-SV=["Make-ready cleanup","Mow / edge / blow","Mulch / bed refresh","Trim / prune","Haul-off","Sod / seed","Pressure wash","Tree Trimming","Cleaning","Maintenance","Other"],TABS=["Pipeline","Clients","Properties","Estimates","Route","Jobs",...JOB_CATEGORIES,"Completed","Due & overdue"],
+SV=["Make-ready cleanup","Mow / edge / blow","Mulch / bed refresh","Trim / prune","Haul-off","Sod / seed","Pressure wash","Tree Trimming","Cleaning","Maintenance","Landscaping / design","Fertilization / weed control","Make-ready / tenant turnover","Move-in / move-out cleaning","Flower bed planting","Seasonal yard cleanup","Mulch / rock installation","Other"],TABS=["Pipeline","Clients","Properties","Estimates","Route","Jobs",...JOB_CATEGORIES,"Completed","Due & overdue"],
 DEF="Mow | 55\nMulch per yard | 85\nBed cleanup | 60\nTrim | 75\nHaul-off | 120\nPressure wash | 150\nMake-ready flat | 250";
 let S={clients:{},jobs:{},estimates:{},meta:{}},db=null,synced=false,tab="Pipeline",jf="Open",q="",pend=false,known={};
 const categoryFilters=Object.fromEntries(JOB_CATEGORIES.map(name=>[name,"Open"]));
@@ -421,8 +421,8 @@ function categoryFilterChanged(input){const category=input.dataset.category,valu
 function vJobs(category=""){
  const scoped=JOB_CATEGORIES.includes(category),filter=scoped?categoryFilters[category]:jf,od=today();
  const L=arr(S.jobs).filter(j=>j&&(!scoped||j.workCategory===category)&&(filter==="All"||(filter==="Open"?j.status!=="Paid":j.status===filter))).sort((a,b)=>String(a.date||"").localeCompare(String(b.date||"")));
- const heading=scoped?`<div class="card"><h2>${E(category)} jobs</h2><p class="m">Only jobs assigned to this category appear here. Existing uncategorized jobs remain in Jobs; open a job there to assign it. Change the status filter to see paid jobs.</p><button class="pri" data-category="${E(category)}" onclick="openJob(null,{workCategory:this.dataset.category})">+ ${E(category)} job</button></div>`:"";
- const actions=scoped?`<button class="dg" data-category="${E(category)}" onclick="openBulkDeletion('jobs',this.dataset.category)">Select ${E(category)} jobs to delete</button>`:`<button class="dg" onclick="openBulkDeletion('jobs')">Select jobs to delete</button>`;
+ const heading=scoped?`<div class="card"><h2>${E(category)} jobs</h2><p class="m">Only jobs assigned to this category appear here. Existing uncategorized jobs remain in Jobs; use Assign jobs below or edit one job at a time. Change the status filter to see paid jobs.</p><button class="pri" data-category="${E(category)}" onclick="openJob(null,{workCategory:this.dataset.category})">+ ${E(category)} job</button></div>`:"";
+ const actions=scoped?`<button data-category="${E(category)}" onclick="openBulkCategory(this.dataset.category)">Assign jobs to ${E(category)}</button><button class="dg" data-category="${E(category)}" onclick="openBulkDeletion('jobs',this.dataset.category)">Select ${E(category)} jobs to delete</button>`:`<button onclick="openBulkCategory()">Assign categories to jobs</button><button class="dg" onclick="openBulkDeletion('jobs')">Select jobs to delete</button>`;
  const selector=scoped?`<select id="category_job_filter" data-category="${E(category)}" onchange="categoryFilterChanged(this)">`:`<select id="job_filter" onchange="jf=this.value;render()">`;
  return heading+`<div class="row">${actions}</div><label for="${scoped?"category_job_filter":"job_filter"}">Job status</label>${selector}${["Open",...JOB_STATUSES,"All"].map(o=>`<option${o===filter?" selected":""}>${E(o)}</option>`).join("")}</select>`+(L.map(j=>{
   const late=j.status==="Scheduled"&&validDate(j.date)&&j.date<od,index=JS.indexOf(j.status),nx=index<0?null:JS[index+1],quote=j.status==="Scheduled"||j.status==="Unscheduled",price=j.price==null||j.price===""?"Price not set":money(j.price),validId=typeof j.id==="string"&&!!j.id&&S.jobs[j.id]===j;
@@ -518,11 +518,11 @@ function spawn(j){if(j.repeat&&j.repeat!="One-time"&&!j.spawned&&COMPLETED_STATE
 function setStatus(id,s){const j=S.jobs[id];j.status=s;w("jobs",j);spawn(j);render()}
 /* dialogs */
 const dlg=h=>{clearPhotoView();$("#dlg").innerHTML=h;if(!$("#dlg").open)$("#dlg").showModal()},closeD=()=>{$("#dlg").close();later()};
-$("#dlg").addEventListener("close",()=>{roadSeq++;roadPlan=null;roadBusy=false;pickedRoute=null;weekSeq++;weekPlan=null;weekBusy=false;appfolioReadSeq++;appfolioImport=null;leadDeletion=null;clientDeletion=null;bulkDeletion=null;estimateDraft=null;estimateSchedule=null;clearPhotoView();if(pend)setTimeout(later,0)});
+$("#dlg").addEventListener("close",()=>{roadSeq++;roadPlan=null;roadBusy=false;pickedRoute=null;weekSeq++;weekPlan=null;weekBusy=false;appfolioReadSeq++;appfolioImport=null;leadDeletion=null;clientDeletion=null;bulkDeletion=null;bulkCategoryAssignment=null;estimateDraft=null;estimateSchedule=null;clearPhotoView();if(pend)setTimeout(later,0)});
 document.addEventListener("focusout",()=>setTimeout(()=>{if(pend&&!busy())render()},80));
 const bt=(id,key,del)=>`<div class="bt"><button class="pri" data-id="${E(id||"")}" onclick="${key}(this.dataset.id)">Save</button>${id&&del?`<button class="dg" data-id="${E(id)}" onclick="${del}(this.dataset.id)">Delete</button>`:""}<button onclick="closeD()">Cancel</button></div>`;
 /* Destructive changes require a current shared snapshot and an explicit count. */
-let leadDeletion=null,clientDeletion=null,bulkDeletion=null;
+let leadDeletion=null,clientDeletion=null,bulkDeletion=null,bulkCategoryAssignment=null;
 function deleteReady(){if(!db||!hasSnapshot||!synced)throw new Error("Wait until the CRM says Synced across devices before deleting. Use one device at a time.")}
 function clientDeleteSnapshot(ids,leadsOnly=false){
  deleteReady();if(!ids.length||new Set(ids).size!==ids.length)throw new Error("Select at least one record.");
@@ -677,6 +677,86 @@ function deleteBulkSelected(){
   deleteBatch(entries);bulkDeletion=null;if(!storageOK)alert("The deletion is in memory but could not be saved on this device. Use Backup and keep this page open until synced.");closeD();render()
  }catch(e){const status=$("#bulk_status");if(status)status.textContent=e.message||"Could not delete the selected records."}
 }
+/* Explicit bulk category changes keep the original job and its other fields. */
+const BCA_UNCATEGORIZED="__uncategorized__",BCA_ALL="__all__",BCA_UNKNOWN="__unrecognized__";
+function categoryAssignmentReady(){if(!db||!hasSnapshot||!synced)throw new Error("Wait until the CRM says Synced across devices before assigning categories. Use one device at a time.")}
+function categoryAssignmentBucket(job){const value=job&&job.workCategory;return value==null||value===""?BCA_UNCATEGORIZED:JOB_CATEGORIES.includes(value)?value:BCA_UNKNOWN}
+function categoryAssignmentSignature(id){
+ categoryAssignmentReady();const job=bulkOwn(S.jobs,id)?S.jobs[id]:null;
+ if(typeof id!=="string"||!id||!job||typeof job!=="object"||Array.isArray(job)||job.id!==id)throw new Error("This job has an invalid ID. Review it before changing its category.");
+ const client=bulkOwn(S.clients,job.client)?S.clients[job.client]:null;return JSON.stringify({job,client:client||null})
+}
+function categoryAssignmentCandidate(id,job){
+ const name=String(job&&cname(job.client)||"(deleted client)"),bucket=categoryAssignmentBucket(job),category=bucket===BCA_UNCATEGORIZED?"Uncategorized":bucket===BCA_UNKNOWN?"Unrecognized category":bucket;
+ const result={id,name,status:String(job&&job.status||""),bucket,detail:"",search:"",valid:false,signature:""};
+ try{
+  result.signature=categoryAssignmentSignature(id);const address=String(jaddr(job)||"No property"),number=job.sourceAppfolio&&job.sourceAppfolio.number?String(job.sourceAppfolio.number):"",description=String(job.workDescription||"").replace(/\s+/g," ").trim(),summary=description?"Team-only work description: "+description.slice(0,140)+(description.length>140?"…":""):"";
+  result.detail=[job.service||"Service not set",address,job.status==="Unscheduled"?"Not scheduled":"Scheduled: "+(job.date||"not set"),job.status||"Unknown status","Current category: "+category,number?"AppFolio #"+number:"",summary].filter(Boolean).join(" · ");
+  result.search=[name,address,job.service,job.date,job.status,category,job.workCategory,number,job.workDescription,job.workOrderDetails,job.notes,job.items].map(x=>String(x==null?"":x)).join(" ").toLowerCase();result.valid=true
+ }catch(e){result.detail=e.message||"This job needs review before changing its category.";result.search=name.toLowerCase()}
+ return result
+}
+function openBulkCategory(preselect=""){
+ try{
+  categoryAssignmentReady();if(preselect!==""&&!JOB_CATEGORIES.includes(preselect))throw new Error("Choose a valid work category.");
+  const statusOptions=["Open",...JOB_STATUSES,"All"],current=JOB_CATEGORIES.includes(tab)?categoryFilters[tab]:jf,initialStatus=statusOptions.includes(current)?current:"Open";
+  const candidates=Object.entries(S.jobs).map(([id,job])=>categoryAssignmentCandidate(id,job)).sort((a,b)=>a.name.localeCompare(b.name)||a.detail.localeCompare(b.detail)||a.id.localeCompare(b.id));
+  bulkCategoryAssignment={candidates,selected:new Set(),shown:[],initialStatus,saved:false};
+  const filters=[[BCA_UNCATEGORIZED,"Uncategorized"],[BCA_ALL,"All categories"],...JOB_CATEGORIES.map(x=>[x,x]),[BCA_UNKNOWN,"Unrecognized category"]];
+  dlg(`<h2>Assign job categories</h2><p class="m">Choose the jobs and a destination below. This starts with uncategorized jobs; change the current-category filter to move or uncategorize other jobs. A category is never guessed from the service or description.</p>
+  <p class="m">Search by client, property, service, work description, notes or AppFolio order number. Search stays on this device and includes team-only work-order text. Open excludes Paid jobs; choose All to include them. Select shown affects only matching jobs; selections hidden by filters stay selected. Review the complete selection and confirm before applying.</p>
+  <label for="bca_search">Search jobs</label><input id="bca_search" data-bca-control type="search" placeholder="Client, property, service or work description" oninput="bulkCategoryFilter()">
+  <label for="bca_status_filter">Job status</label><select id="bca_status_filter" data-bca-control onchange="bulkCategoryFilter()">${statusOptions.map(s=>`<option value="${E(s)}"${s===initialStatus?" selected":""}>${E(s)}</option>`).join("")}</select>
+  <label for="bca_category_filter">Current work category</label><select id="bca_category_filter" data-bca-control onchange="bulkCategoryFilter()">${filters.map(([value,label])=>`<option value="${E(value)}"${value===BCA_UNCATEGORIZED?" selected":""}>${E(label)}</option>`).join("")}</select>
+  <div class="bt"><button data-bca-control onclick="bulkCategorySelectShown()">Select shown</button><button data-bca-control onclick="bulkCategoryClear()">Clear selection</button></div>
+  <p id="bca_count" role="status" aria-live="polite"></p><div id="bca_list"></div>
+  <details id="bca_review" hidden><summary id="bca_review_title"></summary><ul id="bca_review_list"></ul></details>
+  <label for="bca_target">Assign selected jobs to</label><select id="bca_target" data-bca-control onchange="bulkCategoryTargetChanged()"><option value=""${preselect?"":" selected"}>Choose a category…</option>${JOB_CATEGORIES.map(name=>`<option value="${E(name)}"${name===preselect?" selected":""}>${E(name)}</option>`).join("")}<option value="${BCA_UNCATEGORIZED}">Uncategorized (remove category)</option></select>
+  <p class="m">Only the work category changes. Jobs remain in Jobs; services, dates, prices, work-order details and photos are not changed. Use one device at a time.</p>
+  <p id="bca_result" class="m" role="status" aria-live="polite"></p><div class="bt"><button class="pri" id="bca_apply" data-bca-control onclick="applyBulkCategory()">Review and assign</button><button onclick="closeD()">Close</button></div>`);
+  $("#dlg").scrollTop=0;bulkCategoryFilter()
+ }catch(e){bulkCategoryAssignment=null;alert(e.message||"Could not open category assignment.")}
+}
+function bulkCategoryFilter(){
+ const p=bulkCategoryAssignment;if(!p||p.saved)return;
+ const query=String($("#bca_search").value||"").trim().toLowerCase(),status=$("#bca_status_filter").value||p.initialStatus,category=$("#bca_category_filter").value||BCA_UNCATEGORIZED;
+ p.shown=[];p.candidates.forEach((c,i)=>{const statusMatch=status==="All"||(status==="Open"?c.status!=="Paid":c.status===status),categoryMatch=category===BCA_ALL||c.bucket===category;if(statusMatch&&categoryMatch&&(!query||c.search.includes(query)))p.shown.push(i)});
+ $("#bca_list").innerHTML=p.shown.map(i=>{const c=p.candidates[i];return `<label class="pick-stop"><input type="checkbox" data-bca-control data-index="${i}" onchange="bulkCategoryToggle(this)"${p.selected.has(c.id)?" checked":""}${c.valid?"":" disabled"}><span><b>${E(c.name)}</b><span class="m">${E(c.detail)}</span>${c.valid?"":'<span class="m">Cannot select until this job is reviewed.</span>'}</span></label>`}).join("")||'<p class="m">No jobs match these filters.</p>';
+ $("#bca_result").textContent="";bulkCategoryCount()
+}
+function bulkCategoryCount(){
+ const p=bulkCategoryAssignment;if(!p||p.saved)return;const selected=p.candidates.map((c,i)=>({c,i})).filter(x=>p.selected.has(x.c.id)),shown=new Set(p.shown),hidden=selected.filter(x=>!shown.has(x.i)).length,target=$("#bca_target").value,validTarget=target===BCA_UNCATEGORIZED||JOB_CATEGORIES.includes(target),unchanged=validTarget?selected.filter(x=>x.c.bucket===target).length:0;
+ $("#bca_count").textContent=selected.length+" selected"+(hidden?" · "+hidden+" hidden by filters":"")+(validTarget&&selected.length?" · "+(selected.length-unchanged)+" will change"+(unchanged?" · "+unchanged+" already in destination":""):"");
+ $("#bca_apply").disabled=!selected.length||!validTarget;$("#bca_review").hidden=!selected.length;$("#bca_review_title").textContent="Review all "+selected.length+" selected (including hidden)";
+ $("#bca_review_list").innerHTML=selected.map(({c,i})=>`<li><b>${E(c.name)}</b> — ${E(c.detail)} <button type="button" data-bca-control data-index="${i}" onclick="bulkCategoryRemove(this)" aria-label="Remove ${E(c.name)} — ${E(c.detail)} from selection">Remove</button></li>`).join("")
+}
+function bulkCategoryTargetChanged(){const result=$("#bca_result");if(result)result.textContent="";bulkCategoryCount()}
+function bulkCategoryToggle(input){const p=bulkCategoryAssignment,c=p&&p.candidates[+input.dataset.index];if(!p||p.saved||!c||!c.valid){input.checked=false;return}input.checked?p.selected.add(c.id):p.selected.delete(c.id);$("#bca_result").textContent="";bulkCategoryCount()}
+function bulkCategorySelectShown(){const p=bulkCategoryAssignment;if(!p||p.saved)return;p.shown.forEach(i=>{const c=p.candidates[i];if(c.valid)p.selected.add(c.id)});bulkCategoryFilter()}
+function bulkCategoryClear(){const p=bulkCategoryAssignment;if(p&&!p.saved){p.selected.clear();bulkCategoryFilter()}}
+function bulkCategoryRemove(button){const p=bulkCategoryAssignment,c=p&&p.candidates[+button.dataset.index];if(p&&!p.saved&&c){p.selected.delete(c.id);bulkCategoryFilter()}}
+function bulkCategorySelected(p){
+ categoryAssignmentReady();if(!p||p!==bulkCategoryAssignment||p.saved)throw new Error("The selection changed. Close and review it again.");
+ const chosen=p.candidates.filter(c=>p.selected.has(c.id));if(!chosen.length||chosen.length!==p.selected.size||chosen.some(c=>!c.valid))throw new Error("Select at least one valid job.");
+ chosen.forEach(c=>{if(categoryAssignmentSignature(c.id)!==c.signature)throw new Error("A selected job or its client changed. Close and select again.")});return chosen
+}
+function bulkCategoryUpdates(chosen,target){return chosen.filter(c=>c.bucket!==target).map(c=>{const job=Object.assign({},S.jobs[c.id]);if(target===BCA_UNCATEGORIZED)delete job.workCategory;else job.workCategory=target;return job})}
+function applyBulkCategory(){
+ const p=bulkCategoryAssignment,status=$("#bca_result");if(!p||!status)return;let queued=false;
+ try{
+  const chosen=bulkCategorySelected(p),target=$("#bca_target").value;if(target!==BCA_UNCATEGORIZED&&!JOB_CATEGORIES.includes(target))throw new Error("Choose a valid destination category.");
+  const updates=bulkCategoryUpdates(chosen,target);if(!updates.length)throw new Error("All selected jobs are already in that category. No changes were made.");
+  if(!importStorageAvailable("jobs",updates))throw new Error("Not enough device storage to safely queue these changes. Free space or select fewer jobs.");
+  const shown=new Set(p.shown.map(i=>p.candidates[i].id)),hidden=chosen.filter(c=>!shown.has(c.id)).length,unchanged=chosen.length-updates.length,label=target===BCA_UNCATEGORIZED?"Uncategorized":target;
+  const examples=chosen.slice(0,5).map(c=>bulkPlain(c.name)+" — "+bulkPlain(c.detail)).join("\n"),more=chosen.length>5?"\n...and "+(chosen.length-5)+" more; review the full selection in the dialog.":"";
+  const warning="Change the work category for "+updates.length+" job"+(updates.length===1?"":"s")+" to "+label+"?"+(unchanged?" "+unchanged+" selected job"+(unchanged===1?" is":"s are")+" already in that category and will not be changed.":"")+(hidden?"\n\nIncludes "+hidden+" selected job"+(hidden===1?"":"s")+" hidden by the current filters.":"")+"\n\nSelected jobs:\n"+examples+more+"\n\nOnly the category changes; services, dates, prices, work-order details and photos stay the same. Use one device at a time.";
+  const ids=JSON.stringify(chosen.map(c=>c.id));if(!confirm(warning))return;
+  const latest=bulkCategorySelected(p);if(JSON.stringify(latest.map(c=>c.id))!==ids||$("#bca_target").value!==target)throw new Error("The selection or destination changed. Close and review it again.");
+  const records=bulkCategoryUpdates(latest,target);if(!importStorageAvailable("jobs",records))throw new Error("Not enough device storage to safely queue these changes. Free space or select fewer jobs.");
+  p.saved=true;queued=true;wBatch("jobs",records);render();const dialog=$("#dlg");if(dialog&&typeof dialog.querySelectorAll==="function")dialog.querySelectorAll("[data-bca-control]").forEach(el=>{el.disabled=true});
+  status.textContent=storageOK?"Updated "+records.length+" job"+(records.length===1?"":"s")+". Keep this page open until it says Synced across devices.":"The changes are in memory but could not be saved on this device. Use Backup now and keep this page open until synced."
+ }catch(e){status.textContent=queued?"Some changes may have been queued. Keep this page open, use Backup if needed, and check Jobs before retrying.":e.message||"Could not assign categories. No jobs were changed."}
+}
 function openClient(id){const c=id?S.clients[id]:{type:TY[0],stage:"Lead"},v=k=>E(c[k]);
  dlg(`<h2>${id?"Edit":"New"} client</h2>`+F("Name",`<input id="c_name" value="${v("name")}">`)+F("Contact",`<input id="c_contact" value="${v("contact")}">`)+F("Phone",`<input id="c_phone" type="tel" value="${v("phone")}">`)+F("Email",`<input id="c_email" type="email" value="${v("email")}">`)+F("Type",sel(TY,c.type,"c_type"))+F("Stage",sel(ST,c.stage,"c_stage"))+F("Properties (one address, unit or GPS coordinate per line)",`<textarea id="c_props" rows="3">${v("props")}</textarea>`)+F("Notes (gate codes, mower access, pets)",`<textarea id="c_notes" rows="3">${v("notes")}</textarea>`)+bt(id,"saveClient","delClient"))}
 function saveClient(id){const n=$("#c_name").value.trim();if(!n){$("#c_name").focus();return}
@@ -813,7 +893,7 @@ function openJob(id,pre){if(id&&(!S.jobs[id]||!S.clients[S.jobs[id].client])){al
  F("Property / unit (address or GPS coordinates)",`<input id="j_prop" list="pl" value="${E(j.prop)}" placeholder="Street address or latitude, longitude"><datalist id="pl">${pl(j.client)}</datalist>`)+F("Date",`<input id="j_date" type="date" value="${E(j.date)}">`)+
  F("Date requirement",`<select id="j_rule" onchange="jobRuleChanged()"><option value="any"${!j.dateRequirement||j.dateRequirement==="any"?" selected":""}>No special date</option><option value="deadline"${j.dateRequirement==="deadline"?" selected":""}>Due by a date</option><option value="exact"${j.dateRequirement==="exact"?" selected":""}>Must be on a date</option></select>`)+
  `<div id="j_required_wrap"${!j.dateRequirement||j.dateRequirement==="any"?" hidden":""}>`+F("Required date",`<input id="j_required" type="date" value="${E(j.requiredDate||"")}">`)+`</div><p class="m">Date requirements apply to this job only; a repeating job's next occurrence has no requirement until you add one.</p>`+F("Estimated work time in minutes (optional)",`<input id="j_minutes" type="number" min="1" max="10080" step="1" inputmode="numeric" value="${E(storedEstimate(j.estimatedMinutes)||"")}" placeholder="For example, 45">`)+`<p class="m">Work time only; travel and breaks are not included. Leave blank if unknown.</p>`+F("Status",sel(JOB_STATUSES,j.status,"j_status"))+`<p class="m">An Unscheduled job has no planned date and stays off routes. To schedule it, choose Scheduled and enter a date.</p>`+F("Repeat",sel(RP,j.repeat,"j_rep"))+
- F("Line items (description | qty | rate)",`<textarea id="j_items" rows="4" data-estimate-cents="${j.sourceEstimateId?"1":""}" oninput="calc()">${E(j.items)}</textarea>`)+(j.sourceEstimateId?'<p class="m">For this estimate-linked job, each valid line is rounded to cents. Review the price after editing.</p><p class="m" id="j_calc_error" role="status"></p>':"")+`<select id="j_rate" onchange="addRate(this)"><option value="">Add from rate card…</option>${rates().map((r,i)=>`<option value="${i}">${E(r[0])} — ${money(r[1])}</option>`).join("")}</select>`+
+ F("Line items (description | qty | rate)",`<textarea id="j_items" rows="4" data-estimate-cents="${j.sourceEstimateId?"1":""}" oninput="calc()">${E(j.items)}</textarea>`)+(j.sourceEstimateId?'<p class="m">For this estimate-linked job, each valid line is rounded to cents. Review the price after editing.</p><p class="m" id="j_calc_error" role="status"></p>':"")+`<select id="j_rate" onchange="addRate(this)"><option value="">Add from rate card…</option>${rates().map((r,i)=>`<option value="${i}">${E(r[0])} — ${money(r[1])}</option>`).join("")}</select>`+(S.meta.rates==null?'<p class="m">These are placeholder starter rates. Update Rates and verify pricing before using them in a quote.</p>':"")+
  F("Price ($)",`<input id="j_price" type="number" step="0.01" value="${E(j.price)}">`)+F("Notes",`<textarea id="j_notes" rows="2">${E(j.notes)}</textarea>`)+
  (j.sourceAppfolio?F("AppFolio work order number",`<input id="j_af_number" value="${E(j.sourceAppfolio.number||"")}" maxlength="100">`)+`<p class="m">Duplicate checking uses this number and the original import client: ${E(cname(j.sourceAppfolio.managerId))}.</p>`:"")+
  (j.sourceAppfolio||typeof j.workDescription==="string"||typeof j.workOrderDetails==="string"?F("Work description (team only)",`<textarea id="j_work_description" rows="3" maxlength="10000">${E(j.workDescription||"")}</textarea>`)+F("Extracted work order text (team only)",`<textarea id="j_work_details" rows="8" maxlength="50000">${E(j.workOrderDetails||"")}</textarea>`)+`<p class="m">Both fields are shared with CRM team accounts and included in backups. They are not added to quotes or invoices.</p>`:"")+bt(id,"saveJob","delJob"))}
