@@ -809,7 +809,7 @@ function openEstimate(id,prefill=null){
  const rows=prefill?prefill.rows:e&&Array.isArray(e.lines)&&e.lines.length?e.lines.map(x=>({description:String(x&&x.description||""),quantity:x&&Number.isSafeInteger(x.quantityMilli)?estimateQuantity(x.quantityMilli):"",rate:x&&Number.isSafeInteger(x.unitCents)?(x.unitCents/100).toFixed(2):""})):[{description:"",quantity:"1",rate:""}];
  estimateDraft={id:id||"",signature:e?JSON.stringify(e):"",clientId,clientSignature:S.clients[clientId]?JSON.stringify(S.clients[clientId]):null,rows,saved:false,aiGenerated:!!prefill,aiRatesUsed:!!(prefill&&prefill.aiRatesUsed),aiRateSnapshot:prefill?prefill.rateRaw:null,aiReviewSignature:""};
  const options=(orphan?`<option value="${E(clientId)}" selected>Deleted client — ${E(estimateName(e))} (kept estimate)</option>`:"")+clients.map(c=>`<option value="${E(c.id)}"${String(c.id)===clientId?" selected":""}>${E(c.name||"(unnamed)")}</option>`).join("");
- dlg(`<h2>${e?"Edit":"New"} customer estimate</h2><p class="m">Enter your own prices. Status is for tracking only; saving does not send anything or create a job. Check the property if you change clients.</p>
+ dlg(`<h2>${e?"Edit":"New"} customer estimate</h2><p class="m">${prefill?"Review and correct all suggested prices.":"Enter your own prices."} Status is for tracking only; saving does not send anything or create a job. Check the property if you change clients.</p>
  <label for="es_client">Client</label><select id="es_client" onchange="estimateClientChanged()">${options}</select>
  <label for="es_service">Service</label><select id="es_service"><option value="">Choose a service…</option>${SV.map(s=>`<option value="${E(s)}"${s===service?" selected":""}>${E(s)}</option>`).join("")}</select>
  <label for="es_property">Property / unit (optional until scheduling)</label><input id="es_property" list="es_properties" maxlength="500" value="${E(e&&e.property||prefill&&prefill.property||"")}" placeholder="Street address or GPS coordinates"><datalist id="es_properties">${pl(clientId)}</datalist>
@@ -856,10 +856,10 @@ function saveEstimate(){
  }catch(e){const error=$("#es_error");if(error)error.textContent=e.message||"Could not save this estimate."}
 }
 /* AI photo estimates are ephemeral until the normal estimate editor saves them. */
-const AI_PHOTO_LIMIT=3,AI_PHOTO_INPUT_LIMIT=20*1024*1024,AI_PHOTO_OUTPUT_LIMIT=750000,AI_RATE_LIMIT=50;
+const AI_PHOTO_LIMIT=3,AI_PHOTO_INPUT_LIMIT=20*1024*1024,AI_PHOTO_OUTPUT_LIMIT=750000,AI_RATE_LIMIT=50,AI_ANSWER_LIMIT=18;
 function clearAIQuote(){
  const p=aiQuote;aiQuote=null;if(!p)return;if(p.controller)try{p.controller.abort()}catch(e){}
- (p.urls||[]).forEach(url=>{try{URL.revokeObjectURL(url)}catch(e){}});p.urls=[];p.files=[]
+ (p.urls||[]).forEach(url=>{try{URL.revokeObjectURL(url)}catch(e){}});p.urls=[];p.files=[];p.photos=[];p.answers=[];p.extra=""
 }
 function aiCurrent(p){return aiQuote===p&&$("#dlg").open&&!!$("#ai_status")}
 function aiRateCard(){
@@ -879,7 +879,7 @@ function openAIQuote(){
  const clients=sorted(S.clients);if(!clients.length){alert("Add a client first, then create a photo estimate.");return}
  const card=aiRateCard();
  dlg(`<h2>Photo estimate with AI</h2>
- <p class="m">Choose up to 3 photos and describe the work. The result is a suggestion, not a final quote. Check measurements, access and hidden conditions before using any price.</p>
+ <p class="m">Choose up to 3 photos and describe the work. The AI may suggest a total ballpark, not a final quote or verified local price. Check measurements, access, hidden conditions and all pricing before using it.</p>
  <p class="m"><b>Before you generate:</b> the selected photos (including anything visible in them), work description, service and optional rate names will be sent to Cloudflare Workers AI. Client and property fields stay in the CRM unless you include them in the photos or description. Photos are resized and re-encoded on your device to remove metadata, but visible details remain. See <a href="https://developers.cloudflare.com/workers-ai/platform/data-usage/" target="_blank" rel="noopener noreferrer">Cloudflare's data policy</a>.</p>
  <p class="m">An administrator must set up and maintain a Cloudflare Workers Free account. That plan stops requests at its daily allowance; a paid account may incur charges. This app cannot verify the plan. Nothing is saved or sent to a customer automatically.</p>
  <fieldset id="ai_form" style="border:0;padding:0;margin:0;min-width:0">
@@ -887,14 +887,14 @@ function openAIQuote(){
  <label for="ai_property">Property / unit (optional; kept in the CRM)</label><input id="ai_property" list="ai_properties" maxlength="500" placeholder="Street address or GPS coordinates"><datalist id="ai_properties"></datalist>
  <label for="ai_service">Service</label><select id="ai_service"><option value="">Choose a service…</option>${SV.map(s=>`<option value="${E(s)}">${E(s)}</option>`).join("")}</select>
  <label for="ai_description">Describe the work, measurements and known conditions</label><textarea id="ai_description" rows="5" maxlength="2000" placeholder="For example: clean 2 rooms, approximately 12 by 14 feet each. Access is through the front door."></textarea>
- <p class="m">Use digits for known quantities. Numbers not found in your description are left blank; even a matching number may be wrong, so verify it.</p>
+ <p class="m">Use digits for known quantities. Numbers not found in your description or answers are left blank; even a matching number may be wrong, so verify it.</p>
  <label for="ai_photos">Photos (1 to 3, up to 20 MB each)</label><input id="ai_photos" type="file" accept="image/*" multiple onchange="aiPhotosChanged(this)"><div id="ai_photo_list" class="m"></div>
  <p class="m">${E(card.message)}</p><label class="pick-stop"><input id="ai_use_rates" type="checkbox"${card.rates.length?"":" disabled"}><span>I verified that my saved rate card contains current, real prices. Send the rate names and use matching prices in this draft.</span></label>
  <label class="pick-stop"><input id="ai_consent" type="checkbox"><span>I agree to send the selected photos and description to Cloudflare and understand the account's plan and allowance apply.</span></label>
  </fieldset><p id="ai_status" class="m" role="status" aria-live="polite"></p><div id="ai_result"></div>
  <div class="bt"><button id="ai_generate" class="pri" type="button" onclick="generateAIQuote()">Generate draft</button><button type="button" onclick="closeD()">Cancel / close</button></div>
  <p class="m">Closing after a request starts may not stop processing or allowance use (or charges on a paid account). Requests are never automatically retried.</p>`);
- aiQuote={files:[],urls:[],busy:false,controller:null,rateRaw:card.raw,result:null}
+ aiQuote={files:[],urls:[],photos:[],answers:[],extra:"",questionFields:[],busy:false,controller:null,rateRaw:card.raw,result:null}
 }
 function aiClientChanged(){const client=String($("#ai_client").value||"");$("#ai_properties").innerHTML=pl(client);$("#ai_property").value=""}
 function aiPhotosChanged(input){
@@ -923,21 +923,56 @@ async function prepareAIPhoto(file){
  for(const quality of [0.78,0.62,0.46]){const blob=await aiCanvasBlob(canvas,quality);if(blob.type==="image/jpeg"&&blob.size>0&&blob.size<=AI_PHOTO_OUTPUT_LIMIT)return aiReadData(blob)}
  throw new Error("A prepared photo is still too large. Try a smaller image.")
 }
-function aiBusy(p,busy){p.busy=busy;const form=$("#ai_form"),button=$("#ai_generate");if(form)form.disabled=busy;if(button)button.disabled=busy}
+function aiBusy(p,busy){
+ p.busy=busy;
+ ["#ai_form","#ai_followup_form","#ai_generate","#ai_update","#ai_flat","#ai_items"].forEach(id=>{const el=$(id);if(el)el.disabled=busy})
+}
 function aiCleanResult(value,rates){
  const keys=(o,k)=>o&&typeof o==="object"&&!Array.isArray(o)&&Object.keys(o).length===k.length&&k.every(x=>Object.prototype.hasOwnProperty.call(o,x));
  const text=(s,max)=>typeof s==="string"&&!!s.trim()&&s.length<=max&&!/[\x00-\x1f\x7f]/.test(s);
  const fail=()=>{throw new Error("The AI draft was incomplete or invalid. No estimate was saved.")};
- if(!keys(value,["summary","lines","questions","cautions"])||!text(value.summary,800)||!Array.isArray(value.lines)||value.lines.length<1||value.lines.length>8||
+ if(!keys(value,["summary","ballpark","lines","questions","cautions"])||!text(value.summary,800)||!Array.isArray(value.lines)||value.lines.length<1||value.lines.length>8||
   !Array.isArray(value.questions)||value.questions.length>6||!Array.isArray(value.cautions)||value.cautions.length>6||!value.questions.every(s=>text(s,250))||!value.cautions.every(s=>text(s,250)))fail();
+ const b=value.ballpark;
+ if(!keys(b,["low","high","basis"])||!text(b.basis,250)||((b.low===null)!==(b.high===null)))fail();
+ let ballpark;
+ if(b.low===null)ballpark={low:null,high:null,basis:b.basis.trim()};
+ else{
+  let low,high;try{
+   if(typeof b.low!=="string"||typeof b.high!=="string")fail();
+   low=estimateScaled(b.low,2,"Ballpark");high=estimateScaled(b.high,2,"Ballpark");
+   if(low>99999999999||high>99999999999||low>high||high===0)fail()
+  }catch(e){fail()}
+  ballpark={low,high,basis:b.basis.trim()}
+ }
  const ids=new Set(rates.map(r=>r.id)),lines=value.lines.map((line,i)=>{
   if(!keys(line,["description","quantity","rate_id","basis"])||!text(line.description,200)||/[|$€£]/.test(line.description)||/\bUSD\b/i.test(line.description)||!text(line.basis,250)||!(line.rate_id===null||(Number.isInteger(line.rate_id)&&ids.has(line.rate_id))))fail();
   let description;try{description=estimateDescription(line.description,i+1);if(line.quantity!==null&&(typeof line.quantity!=="string"||estimateScaled(line.quantity,3,"Quantity")<1))fail()}catch(e){fail()}
   return {description,quantity:line.quantity,rate_id:line.rate_id,basis:line.basis.trim()}
- });return {summary:value.summary.trim(),lines,questions:value.questions.map(s=>s.trim()),cautions:value.cautions.map(s=>s.trim())}
+ });return {summary:value.summary.trim(),ballpark,lines,questions:value.questions.map(s=>s.trim()),cautions:value.cautions.map(s=>s.trim())}
+}
+function aiError(p,e,consent){
+ if(!aiCurrent(p))return;
+ const message=(e&&e.message||"Could not prepare the photo estimate.")+(p.providerAttempted?" No estimate was saved. This attempt may have used allowance or incurred charges on a paid account; check usage before retrying.":p.requestSent?" No Cloudflare request was made.":" No request was sent.");
+ $("#ai_status").textContent=message;const local=consent==="#ai_followup_consent"?$("#ai_followup_status"):null;if(local)local.textContent=message;
+ const check=$(consent);if(p.requestSent&&check)check.checked=false
+}
+async function aiSend(p,answers,extra){
+ let session;try{session=await sb.auth.getSession()}catch(e){throw new Error("Could not check your CRM session. Sign in and try again.")}
+ if(!aiCurrent(p))return null;const token=session&&session.data&&session.data.session&&session.data.session.access_token;
+ if(!/^[A-Za-z0-9._~-]{1,8192}$/.test(String(token||"")))throw new Error("Your CRM session expired. Sign in again.");
+ if(!db||!hasSnapshot||!synced||!S.clients[p.client]||JSON.stringify(S.clients[p.client])!==p.clientSignature)throw new Error("The client or sync state changed. No request was sent; review it before generating.");
+ if(p.useRates&&(!S.meta||S.meta.rates!==p.rateRaw))throw new Error("The rate card changed. No request was sent; review Rates before generating.");
+ const body={consent:true,service:p.service,description:p.description,photos:p.photos,rates:p.rates.map(r=>({id:r.id,name:r.name})),answers,extra};
+ p.controller=new AbortController();const sending="Sending to Cloudflare and preparing a draft… Keep this window open.";$("#ai_status").textContent=sending;if($("#ai_followup_status"))$("#ai_followup_status").textContent=sending;p.requestSent=true;p.providerAttempted=true;
+ let response;try{response=await fetch("/api/crm-quote",{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+token},body:JSON.stringify(body),cache:"no-store",signal:p.controller.signal})}
+ catch(e){throw new Error("Could not confirm the Cloudflare request. It may have used allowance; check usage before trying again.")}
+ if(!aiCurrent(p))return null;let data;try{data=await response.json()}catch(e){throw new Error("The response could not be read. Check Workers AI usage before trying again.")}
+ if(!response.ok){p.providerAttempted=!data||data.providerAttempted!==false;throw new Error(String(data&&data.error||"Could not prepare the draft. Check Workers AI usage before trying again.").slice(0,300))}
+ return aiCleanResult(data&&data.draft,p.rates)
 }
 async function generateAIQuote(){
- const p=aiQuote;if(!p||p.busy||p.result)return;let sent=false,providerAttempted=false;
+ const p=aiQuote;if(!p||p.busy||p.result)return;p.requestSent=false;p.providerAttempted=false;
  try{
   if(!db||!hasSnapshot||!synced)throw new Error("Wait until the CRM says Synced across devices before generating.");
   const client=String($("#ai_client").value||""),clientRecord=S.clients[client],service=$("#ai_service").value,property=$("#ai_property").value.trim(),description=$("#ai_description").value.trim();
@@ -951,42 +986,75 @@ async function generateAIQuote(){
   p.client=client;p.clientSignature=JSON.stringify(clientRecord);p.service=service;p.property=property;p.description=description;p.rateRaw=card.raw;p.rates=useRates?card.rates:[];p.useRates=useRates;
   aiBusy(p,true);const photos=[];
   for(let i=0;i<p.files.length;i++){$("#ai_status").textContent="Preparing photo "+(i+1)+" of "+p.files.length+" on this device…";photos.push(await prepareAIPhoto(p.files[i]));if(!aiCurrent(p))return}
-  let session;try{session=await sb.auth.getSession()}catch(e){throw new Error("Could not check your CRM session. Sign in and try again.")}
-  if(!aiCurrent(p))return;const token=session&&session.data&&session.data.session&&session.data.session.access_token;
-  if(!/^[A-Za-z0-9._~-]{1,8192}$/.test(String(token||"")))throw new Error("Your CRM session expired. Sign in again.");
-  if(!synced||!S.clients[client]||JSON.stringify(S.clients[client])!==p.clientSignature)throw new Error("The client or sync state changed. No request was sent; review it before generating.");
-  if(useRates&&(!S.meta||S.meta.rates!==p.rateRaw))throw new Error("The rate card changed. No request was sent; review Rates before generating.");
-  const body={consent:true,service,description,photos,rates:p.rates.map(r=>({id:r.id,name:r.name}))};p.controller=new AbortController();
-  $("#ai_status").textContent="Sending to Cloudflare and preparing a draft… Keep this window open.";sent=true;providerAttempted=true;
-  let response;try{response=await fetch("/api/crm-quote",{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+token},body:JSON.stringify(body),cache:"no-store",signal:p.controller.signal})}
-  catch(e){throw new Error("Could not confirm the Cloudflare request. It may have used allowance; check usage before trying again.")}
-  if(!aiCurrent(p))return;let data;try{data=await response.json()}catch(e){throw new Error("The response could not be read. Check Workers AI usage before trying again.")}
-  if(!response.ok){providerAttempted=!data||data.providerAttempted!==false;throw new Error(String(data&&data.error||"Could not prepare the draft. Check Workers AI usage before trying again.").slice(0,300))}
-  p.result=aiCleanResult(data&&data.draft,p.rates);p.controller=null;$("#ai_form").hidden=true;$("#ai_generate").hidden=true;showAIResult(p)
- }catch(e){if(aiCurrent(p)){$("#ai_status").textContent=(e&&e.message||"Could not prepare the photo estimate.")+(providerAttempted?" No estimate was saved. This attempt may have used allowance or incurred charges on a paid account; check usage before retrying.":sent?" No Cloudflare request was made.":" No request was sent.");if(sent&&$("#ai_consent"))$("#ai_consent").checked=false}}
+  p.photos=photos;const result=await aiSend(p,[],"");if(!aiCurrent(p)||!result)return;
+  p.result=result;p.answers=[];p.extra="";p.controller=null;$("#ai_form").hidden=true;$("#ai_generate").hidden=true;showAIResult(p)
+ }catch(e){aiError(p,e,"#ai_consent")}
+ finally{if(aiCurrent(p)){p.controller=null;aiBusy(p,false)}}
+}
+function aiCollectAnswers(p){
+ const answers=[];
+ (p.questionFields||[]).forEach((item,i)=>{
+  const field=$("#ai_answer_"+i),answer=field?field.value.trim():"";
+  if(answer){if(answer.length>500||/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/.test(answer))throw new Error("An answer is invalid or too long.");answers.push({question:item.question,answer})}
+ });
+ if(answers.length>AI_ANSWER_LIMIT)throw new Error("Use no more than 18 answers; clear an earlier answer to add another.");
+ const extra=$("#ai_extra")?$("#ai_extra").value.trim():"";
+ if(extra.length>1000||/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/.test(extra))throw new Error("Additional details are invalid or too long.");
+ return {answers,extra}
+}
+function aiAnswersChanged(p,values){return JSON.stringify(values)!==JSON.stringify({answers:p.answers,extra:p.extra})}
+async function updateAIQuote(){
+ const p=aiQuote;if(!p||p.busy||!p.result)return;p.requestSent=false;p.providerAttempted=false;
+ try{
+  const values=aiCollectAnswers(p);if(!aiAnswersChanged(p,values))throw new Error("Enter or change an answer or additional detail first.");
+  if(!$("#ai_followup_consent").checked)throw new Error("Agree to send the photos and answers to Cloudflare again before updating.");
+  aiBusy(p,true);const result=await aiSend(p,values.answers,values.extra);if(!aiCurrent(p)||!result)return;
+  p.answers=values.answers;p.extra=values.extra;p.result=result;p.controller=null;showAIResult(p)
+ }catch(e){aiError(p,e,"#ai_followup_consent")}
  finally{if(aiCurrent(p)){p.controller=null;aiBusy(p,false)}}
 }
 function showAIResult(p){
- if(!aiCurrent(p)||!p.result)return;const d=p.result,stable=!p.useRates||(S.meta&&S.meta.rates===p.rateRaw);
+ if(!aiCurrent(p)||!p.result)return;const d=p.result,stable=!p.useRates||(S.meta&&S.meta.rates===p.rateRaw),b=d.ballpark;
  const list=(title,items)=>items.length?`<h3>${E(title)}</h3><ul>${items.map(x=>`<li>${E(x)}</li>`).join("")}</ul>`:"";
- $("#ai_result").innerHTML=`<h3>Suggested draft — not saved</h3><p>${E(d.summary)}</p><p class="m">Review every line. A photo cannot reliably show measurements or hidden conditions. ${stable?"":"Your rate card changed; matching prices will be left blank."}</p>
+ const seen=new Set(),fields=[];[...p.answers,...d.questions.map(question=>({question,answer:""}))].forEach(item=>{const key=item.question.toLowerCase();if(!seen.has(key)){seen.add(key);fields.push(item)}});p.questionFields=fields;
+ const range=b.low===null?"No useful total ballpark yet — answer questions or add details below.":estimateMoney(b.low)+" – "+estimateMoney(b.high);
+ const midpoint=b.low===null?null:Math.floor((b.low+b.high+1)/2);
+ $("#ai_result").innerHTML=`<h3>Suggested draft — not saved</h3><p>${E(d.summary)}</p>
+ <div class="card"><b>Total AI ballpark: ${E(range)}</b><p class="m">${E(b.basis)}</p><p class="m">This is an unverified AI guess, not your actual rates or researched local prices. Check the scope, measurements, access, hidden conditions and price before using it.</p></div>
+ <p class="m">Review every line. A photo cannot reliably show measurements or hidden conditions. ${stable?"":"Your rate card changed; matching prices will be left blank."}</p>
  ${d.lines.map((line,i)=>{const rate=stable?p.rates.find(r=>r.id===line.rate_id):null;return `<div class="card"><b>${i+1}. ${E(line.description)}</b><div class="m">Quantity: ${line.quantity===null?"Needs review / measurement":E(line.quantity)} · Rate: ${rate?E(rate.name)+" — "+estimateMoney(rate.cents):"Enter manually"}</div><div class="m">${E(line.basis)}</div></div>`}).join("")}
- ${list("Questions to check",d.questions)}${list("Cautions",d.cautions)}<div class="bt"><button class="pri" type="button" onclick="aiToEstimate()">Review in estimate editor</button></div>`;
- $("#ai_status").textContent="Draft ready for review. Nothing has been saved or sent to a customer."
+ ${list("Cautions",d.cautions)}
+ <fieldset id="ai_followup_form" style="border:0;padding:0;margin:0;min-width:0"><h3>Answer questions or add details</h3>
+ <p class="m">Answer any questions you can; leave unknowns blank. You can change earlier answers. Updating sends your answers, photos, description, service and any selected rate names to Cloudflare again and uses allowance.</p>
+ ${fields.map((item,i)=>`<label for="ai_answer_${i}">${E(item.question)}</label><textarea id="ai_answer_${i}" rows="2" maxlength="500">${E(item.answer)}</textarea>`).join("")}
+ <label for="ai_extra">Additional details (optional)</label><textarea id="ai_extra" rows="2" maxlength="1000">${E(p.extra)}</textarea>
+ <label class="pick-stop"><input id="ai_followup_consent" type="checkbox"><span>I agree to send the photos, description and answers to Cloudflare again; the account's plan and allowance apply.</span></label>
+ <p id="ai_followup_status" class="m" role="status" aria-live="polite"></p><div class="bt"><button id="ai_update" type="button" onclick="updateAIQuote()">Update draft with answers</button></div></fieldset>
+ <p class="m">${midpoint===null?"When a ballpark is available, you can use its midpoint as an editable flat draft.":"Use "+estimateMoney(midpoint)+" (the midpoint) as one flat line, or review itemized lines and enter their prices yourself."} Neither option saves or sends anything.</p>
+ <p id="ai_review_status" class="m" role="status" aria-live="polite"></p><div class="bt">${midpoint===null?"":`<button id="ai_flat" class="pri" type="button" onclick="aiToEstimate('flat')">Use midpoint as flat draft</button>`}<button id="ai_items" type="button" onclick="aiToEstimate('items')">Review in estimate editor</button></div>`;
+ $("#ai_status").textContent="Draft ready for review. Nothing has been saved or sent to a customer.";
+ const heading=$("#ai_result h3");if(heading&&typeof heading.scrollIntoView==="function")heading.scrollIntoView({block:"start",inline:"nearest"})
 }
-function aiToEstimate(){
- const p=aiQuote;if(!p||!p.result||p.busy)return;const client=S.clients[p.client];
- if(!client){$("#ai_status").textContent="The chosen client was deleted. The draft is not saved; review the suggestions here before closing.";return}
+function aiReviewMessage(message){$("#ai_status").textContent=message;const local=$("#ai_review_status");if(local)local.textContent=message}
+function aiToEstimate(mode){
+ const p=aiQuote;if(!p||!p.result||p.busy)return;
+ try{if(aiAnswersChanged(p,aiCollectAnswers(p)))throw new Error("You have unsent answers. Update the draft with consent, or clear your changes before reviewing.")}catch(e){aiReviewMessage(e.message);return}
+ const client=S.clients[p.client];
+ if(!client){aiReviewMessage("The chosen client was deleted. The draft is not saved; review the suggestions here before closing.");return}
  if(JSON.stringify(client)!==p.clientSignature){
   if(!confirm("The selected client changed while this draft was open. Use the current client details? The property will be cleared for review; nothing has been saved."))return;
   p.clientSignature=JSON.stringify(client);p.property="";p.clientChanged=true
  }
- const changedClient=!!p.clientChanged,stable=!p.useRates||(S.meta&&S.meta.rates===p.rateRaw),d=p.result;
- const rows=d.lines.map(line=>{const rate=stable?p.rates.find(r=>r.id===line.rate_id):null;return {description:line.description,quantity:line.quantity===null?"":line.quantity,rate:rate?String(Math.floor(rate.cents/100))+"."+String(rate.cents%100).padStart(2,"0"):""}});
- let notes=["AI photo draft — verify the scope, measurements and prices.",...d.cautions.map(x=>"Caution: "+x),...d.questions.map(x=>"Question: "+x),"AI scope: "+d.summary,...d.lines.map((line,i)=>"Line "+(i+1)+" basis: "+line.basis),"Work description: "+p.description].join("\n");
+ const changedClient=!!p.clientChanged,stable=!p.useRates||(S.meta&&S.meta.rates===p.rateRaw),d=p.result,b=d.ballpark,flat=mode==="flat";
+ if(flat&&b.low===null){aiReviewMessage("No ballpark is available for a flat draft yet.");return}
+ const moneyText=cents=>String(Math.floor(cents/100))+"."+String(cents%100).padStart(2,"0");
+ const flatSummary=d.summary.replace(/[|$€£]/g," ").replace(/\bUSD\b/gi," ").replace(/\s+/g," ").trim()||p.service;
+ const rows=flat?[{description:("Flat estimate — "+flatSummary).slice(0,200).trim(),quantity:"1",rate:moneyText(Math.floor((b.low+b.high+1)/2))}]:d.lines.map(line=>{const rate=stable?p.rates.find(r=>r.id===line.rate_id):null;return {description:line.description,quantity:line.quantity===null?"":line.quantity,rate:rate?moneyText(rate.cents):""}});
+ const priceNote=b.low===null?"AI ballpark: unavailable — "+b.basis:"AI ballpark (unverified total): "+estimateMoney(b.low)+" – "+estimateMoney(b.high)+". "+b.basis;
+ let notes=["AI photo draft — verify the scope, measurements and prices.",priceNote,...d.cautions.map(x=>"Caution: "+x),...d.questions.map(x=>"Question: "+x),...p.answers.map(x=>"Answer to "+x.question+": "+x.answer),...(p.extra?["Additional details: "+p.extra]:[]),"AI scope: "+d.summary,...d.lines.map((line,i)=>"Line "+(i+1)+": "+line.description+" — "+line.basis),"Work description: "+p.description].join("\n");
  let shortened=false;if(notes.length>5000){if(!confirm("The team notes exceed 5,000 characters and must be shortened. Continue? Cancel to copy any important details from the AI suggestions first."))return;notes=notes.slice(0,4950)+"\n[AI notes shortened; review and complete manually.]";shortened=true}
- const notice=(stable?"Matched rates, if any, came from the saved card and still require review.":"The rate card changed; matching prices were left blank.")+(changedClient?" Client details changed; the property was cleared.":"")+(shortened?" Team notes were shortened; review and complete them.":"");
- openEstimate(null,{client:p.client,clientSignature:p.clientSignature,service:p.service,property:changedClient?"":p.property,rows,teamNotes:notes,notice,aiRatesUsed:!!(p.useRates&&stable&&rows.some(row=>row.rate!=="")),rateRaw:p.rateRaw})
+ const notice=(flat?"This flat amount is the midpoint of an unverified AI guess, not your rates or researched local prices. The individual suggestions are in team notes.":stable?"Matched rates, if any, came from the saved card and still require review.":"The rate card changed; matching prices were left blank.")+(changedClient?" Client details changed; the property was cleared.":"")+(shortened?" Team notes were shortened; review and complete them.":"");
+ openEstimate(null,{client:p.client,clientSignature:p.clientSignature,service:p.service,property:changedClient?"":p.property,rows,teamNotes:notes,notice,aiRatesUsed:!!(!flat&&p.useRates&&stable&&rows.some(row=>row.rate!=="")),rateRaw:p.rateRaw});$("#dlg").scrollTop=0
 }
 
 function estimateShareable(e){

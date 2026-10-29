@@ -42,6 +42,7 @@ async function makeBrowser() {
 }
 const defaultDraft = () => ({
   summary:'Spread mulch and clean up.',
+  ballpark:{low:'100.00',high:'240.00',basis:'Fictional estimate; confirm access and disposal.'},
   lines:[
     {description:'Install mulch <fictional>',quantity:'2.5',rate_id:0,basis:'2.5 yards were described.'},
     {description:'Remove debris',quantity:null,rate_id:null,basis:'Amount is unknown.'},
@@ -98,8 +99,8 @@ test('phone photo estimate sends only consented data; review and complete every 
       await page.locator('#ai_use_rates').check();await page.locator('#ai_consent').check();await page.getByRole('button',{name:'Generate draft'}).click();
       await page.waitForSelector('#ai_result h3');await noOverflow(page,`${width} result`);
       assert.equal(calls.length,1);assert.equal(calls[0].headers.authorization,'Bearer fictional.jwt');
-      const body=calls[0].body;assert.deepEqual(Object.keys(body).sort(),['consent','description','photos','rates','service']);
-      assert.deepEqual(body.rates,[{id:0,name:'Mulch per yard'},{id:1,name:'Cleanup'}]);assert.equal(body.consent,true);
+      const body=calls[0].body;assert.deepEqual(Object.keys(body).sort(),['answers','consent','description','extra','photos','rates','service']);
+      assert.deepEqual(body.rates,[{id:0,name:'Mulch per yard'},{id:1,name:'Cleanup'}]);assert.equal(body.consent,true);assert.deepEqual(body.answers,[]);assert.equal(body.extra,'');
       assert.doesNotMatch(JSON.stringify(body),/Fictional Customer|Fictional Road|PRIVATE CLIENT NOTE|19\.99|10\.00|sample1\.png/);
       assert.match(body.photos[0],/^data:image\/jpeg;base64,/);const jpeg=Buffer.from(body.photos[0].split(',')[1],'base64');
       assert.ok(jpeg.length<=750000);assert.equal(jpeg.includes(Buffer.from('FICTIONAL-METADATA-MARKER')),false);
@@ -127,8 +128,60 @@ test('phone photo estimate sends only consented data; review and complete every 
   }}finally{await browser.close();}
 });
 
+test('follow-up answers are explicitly sent with the same photos, and a ballpark becomes an editable flat draft',skip,async()=>{
+  const browser=await makeBrowser();
+  const initial={...defaultDraft(),lines:defaultDraft().lines.map(line=>({...line,rate_id:null}))};
+  const updated={...initial,summary:'Updated fictional scope.',ballpark:{low:'140.00',high:'220.00',basis:'Access still needs confirmation.'},questions:['Is the path clear?']};
+  const last={...updated,summary:'Revised fictional scope.',ballpark:{low:'160.00',high:'220.01',basis:'Confirm all details.'},questions:[]};
+  const handler=(route,_call,calls)=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({draft:calls.length===1?initial:calls.length===2?updated:last})});
+  try{const {context,page,errors,calls}=await setup(browser,320,handler);
+    try{
+      await begin(page,{rates:false});await photo(page,3);await page.locator('#ai_consent').check();await page.getByRole('button',{name:'Generate draft'}).click();await page.waitForSelector('#ai_result h3');
+      assert.match(await page.locator('#ai_result').innerText(),/Total AI ballpark: \$100\.00 – \$240\.00/);
+      assert.match(await page.locator('#ai_result').innerText(),/unverified AI guess/);assert.equal(calls.length,1);assert.equal(await writes(page),0);await noOverflow(page,'320 initial follow-up');
+      assert.equal(await page.evaluate(()=>{const d=document.querySelector('#dlg').getBoundingClientRect(),h=document.querySelector('#ai_result h3').getBoundingClientRect();return h.top>=d.top&&h.top<d.bottom;}),true);
+      await page.locator('#ai_answer_0').fill('2 inches deep');await page.locator('#ai_extra').fill('The path is clear.');
+      await page.locator('#ai_flat').click();assert.match(await page.locator('#ai_review_status').innerText(),/unsent answers/i);assert.equal(await page.locator('#es_lines').count(),0);
+      await page.locator('#ai_update').click();assert.match(await page.locator('#ai_followup_status').innerText(),/agree to send/i);assert.equal(calls.length,1);
+      await page.locator('#ai_followup_consent').check();await page.locator('#ai_update').click();await page.waitForFunction(()=>document.querySelector('#ai_result').textContent.includes('Updated fictional scope.'));
+      assert.equal(calls.length,2);assert.deepEqual(calls[1].body.photos,calls[0].body.photos);assert.equal(calls[1].body.consent,true);
+      assert.deepEqual(calls[1].body.answers,[{question:'Confirm the bed depth.',answer:'2 inches deep'}]);assert.equal(calls[1].body.extra,'The path is clear.');
+      assert.doesNotMatch(JSON.stringify(calls[1].body),/Fictional Customer|Fictional Road|PRIVATE CLIENT NOTE|sample1\.png/);
+      assert.equal(await page.locator('#ai_answer_0').inputValue(),'2 inches deep');assert.equal(await page.locator('#ai_extra').inputValue(),'The path is clear.');
+      assert.equal(await page.locator('#ai_followup_consent').isChecked(),false);assert.match(await page.locator('#ai_result').innerText(),/\$140\.00 – \$220\.00/);await noOverflow(page,'320 updated follow-up');
+      await page.locator('#ai_update').click();assert.match(await page.locator('#ai_status').innerText(),/enter or change/i);assert.equal(calls.length,2);
+      await page.locator('#ai_answer_0').fill('3 inches deep');await page.locator('#ai_answer_1').fill('Yes');await page.locator('#ai_followup_consent').check();await page.locator('#ai_update').click();
+      await page.waitForFunction(()=>document.querySelector('#ai_result').textContent.includes('Revised fictional scope.'));
+      assert.equal(calls.length,3);assert.deepEqual(calls[2].body.answers,[{question:'Confirm the bed depth.',answer:'3 inches deep'},{question:'Is the path clear?',answer:'Yes'}]);
+      assert.equal(await page.locator('#ai_followup_consent').isChecked(),false);assert.equal(await writes(page),0);
+      await page.locator('#ai_flat').click();await noOverflow(page,'320 flat editor');
+      assert.equal(await page.locator('#es_lines .estimate-line').count(),1);assert.equal(await page.locator('[data-field=quantity]').inputValue(),'1');
+      assert.equal(await page.locator('[data-field=description]').inputValue(),'Flat estimate — Revised fictional scope.');
+      assert.equal(await page.locator('[data-field=rate]').inputValue(),'190.01');assert.match(await page.locator('#dlg').innerText(),/midpoint of an unverified AI guess/i);
+      assert.match(await page.locator('#es_team_notes').inputValue(),/3 inches deep/);assert.match(await page.locator('#es_team_notes').inputValue(),/\$160\.00 – \$220\.01/);
+      await page.getByRole('button',{name:'Save estimate'}).click();assert.match(await page.locator('#es_error').innerText(),/review box/i);assert.equal(await writes(page),0);
+      assert.deepEqual(errors,[]);
+    }finally{await context.close();}
+  }finally{await browser.close();}
+});
+
+test('an unavailable ballpark or failed follow-up never produces a fake price or automatic retry',skip,async()=>{
+  const browser=await makeBrowser(),missing={...defaultDraft(),lines:defaultDraft().lines.map(line=>({...line,rate_id:null})),ballpark:{low:null,high:null,basis:'Need measurements.'}};
+  const handler=(route,_call,calls)=>calls.length===1?route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({draft:missing})}):route.fulfill({status:429,contentType:'application/json',body:JSON.stringify({error:'Cloudflare is busy or its daily allowance was reached.',providerAttempted:true})});
+  try{const {context,page,errors,calls}=await setup(browser,390,handler);
+    try{
+      await begin(page,{rates:false});await page.locator('#ai_consent').check();await page.getByRole('button',{name:'Generate draft'}).click();await page.waitForSelector('#ai_result h3');
+      assert.match(await page.locator('#ai_result').innerText(),/No useful total ballpark yet/);assert.equal(await page.locator('#ai_flat').count(),0);
+      await page.locator('#ai_answer_0').fill('Unknown');await page.locator('#ai_followup_consent').check();await page.locator('#ai_update').click();
+      await page.waitForFunction(()=>document.querySelector('#ai_status').textContent.includes('allowance'));
+      assert.equal(calls.length,2);assert.equal(await page.locator('#ai_followup_consent').isChecked(),false);assert.equal(await page.locator('#ai_answer_0').inputValue(),'Unknown');
+      assert.match(await page.locator('#ai_result').innerText(),/No useful total ballpark yet/);assert.equal(await writes(page),0);assert.deepEqual(errors,[]);
+    }finally{await context.close();}
+  }finally{await browser.close();}
+});
+
 test('starter rates are not used; no data leaves before consent and unmatched prices stay blank',skip,async()=>{
-  const browser=await makeBrowser();const response={summary:'Clean the property.',lines:[{description:'Cleanup',quantity:'1',rate_id:null,basis:'One flat visit described.'}],questions:[],cautions:['Inspect first.']};
+  const browser=await makeBrowser();const response={summary:'Clean the property.',ballpark:{low:'80.00',high:'120.00',basis:'Rough fictional cleanup price.'},lines:[{description:'Cleanup',quantity:'1',rate_id:null,basis:'One flat visit described.'}],questions:[],cautions:['Inspect first.']};
   try{const {context,page,errors,calls}=await setup(browser,320,route=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({draft:response})}));
     try{
       await begin(page,{rates:false});assert.equal(await page.locator('#ai_use_rates').isDisabled(),true);assert.match(await page.locator('#dlg').innerText(),/Starter rates are placeholders/);
@@ -162,6 +215,20 @@ test('closing an in-flight request cannot contaminate a new estimate or start an
       await page.getByRole('button',{name:'+ New estimate'}).click();release();await page.waitForTimeout(100);
       assert.equal(await page.locator('#es_lines .estimate-line').count(),1);assert.equal(await page.locator('[data-field=description]').inputValue(),'');
       assert.equal(calls.length,1);assert.equal(await writes(page),0);assert.deepEqual(errors,[]);
+    }finally{release();await context.close();}
+  }finally{await browser.close();}
+});
+
+test('closing an in-flight follow-up does not overwrite a new editor or retry',skip,async()=>{
+  const browser=await makeBrowser();let start,release;const started=new Promise(r=>start=r),wait=new Promise(r=>release=r);
+  const handler=async(route,_call,calls)=>{if(calls.length===1)return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({draft:defaultDraft()})});start();await wait;try{await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({draft:defaultDraft()})});}catch(_){} };
+  try{const {context,page,errors,calls}=await setup(browser,320,handler);
+    try{
+      await begin(page);await page.locator('#ai_use_rates').check();await page.locator('#ai_consent').check();await page.getByRole('button',{name:'Generate draft'}).click();await page.waitForSelector('#ai_result h3');
+      await page.locator('#ai_answer_0').fill('3 inches');await page.locator('#ai_followup_consent').check();await page.locator('#ai_update').click();await started;
+      assert.equal(await page.locator('#ai_update').isDisabled(),true);await page.getByRole('button',{name:'Cancel / close'}).click();await page.getByRole('button',{name:'+ New estimate'}).click();release();await page.waitForTimeout(100);
+      assert.equal(await page.locator('#es_lines .estimate-line').count(),1);assert.equal(await page.locator('[data-field=description]').inputValue(),'');
+      assert.equal(calls.length,2);assert.equal(await writes(page),0);assert.deepEqual(errors,[]);
     }finally{release();await context.close();}
   }finally{await browser.close();}
 });
@@ -225,7 +292,9 @@ test('browser and server contracts work together with only fictional JPEGs and m
   const fakeFetch=async(url,init)=>{
     if(url==='https://jvmvzfshgcekwocffdtv.supabase.co/auth/v1/user')return {ok:true,status:200,json:async()=>({id:'fictional-user',role:'authenticated',aud:'authenticated',is_anonymous:false})};
     assert.equal(url,`https://api.cloudflare.com/client/v4/accounts/${'a1'.repeat(16)}/ai/run/@cf/google/gemma-4-26b-a4b-it`);providerCalls++;providerBody=JSON.parse(init.body);
-    return {ok:true,status:200,json:async()=>({success:true,result:{choices:[{finish_reason:'stop',message:{role:'assistant',content:JSON.stringify(defaultDraft()),refusal:null}}]}})};
+    const request=JSON.parse(providerBody.messages[1].content[0].text);
+    const response=request.answers.length?{...defaultDraft(),summary:'Revised from supplied answers.',lines:[{description:'Measure bed',quantity:'3',rate_id:null,basis:'The answer says 3 inches.'}]}:defaultDraft();
+    return {ok:true,status:200,json:async()=>({success:true,result:{choices:[{finish_reason:'stop',message:{role:'assistant',content:JSON.stringify(response),refusal:null}}]}})};
   };
   const server=createHandler({env:{AI_QUOTES_ENABLED:'true',CRM_AI_FREE_PLAN_CONFIRMED:'true',CRM_CLOUDFLARE_ACCOUNT_ID:'a1'.repeat(16),CRM_CLOUDFLARE_AI_TOKEN:'fictional-secret'},fetch:fakeFetch});
   const routeHandler=async(route,call)=>{
@@ -240,13 +309,18 @@ test('browser and server contracts work together with only fictional JPEGs and m
       for(const image of providerBody.messages[1].content.slice(1)){assert.equal(image.type,'image_url');assert.match(image.image_url.url,/^data:image\/jpeg;base64,/);}
       assert.equal(providerBody.store,false);
       assert.doesNotMatch(JSON.stringify(providerBody),/Fictional Road|Fictional Customer|PRIVATE CLIENT NOTE|19\.99|sample1\.png/);
+      await page.locator('#ai_answer_0').fill('3 inches');await page.locator('#ai_followup_consent').check();await page.locator('#ai_update').click();
+      await page.waitForFunction(()=>document.querySelector('#ai_result').textContent.includes('Revised from supplied answers.'));
+      assert.equal(calls.length,2);assert.equal(providerCalls,2);assert.deepEqual(calls[1].body.photos,calls[0].body.photos);
+      assert.deepEqual(JSON.parse(providerBody.messages[1].content[0].text).answers,[{question:'Confirm the bed depth.',answer:'3 inches'}]);
+      assert.match(await page.locator('#ai_result').innerText(),/Quantity: 3/);
       assert.equal(await page.locator('#ai_result img').count(),0);assert.equal(await writes(page),0);assert.deepEqual(errors,[]);
     }finally{await context.close();}
   }finally{await browser.close();}
 });
 
 test('a canceled long-notes confirmation cannot restore a stale property after client changes',skip,async()=>{
-  const long={summary:'S'.repeat(800),lines:Array.from({length:8},(_,i)=>({description:`Work ${i+1}`,quantity:'1',rate_id:0,basis:'B'.repeat(250)})),questions:Array(6).fill('Q'.repeat(250)),cautions:Array(6).fill('C'.repeat(250))};
+  const long={summary:'S'.repeat(800),ballpark:{low:'100.00',high:'200.00',basis:'Unknown conditions.'},lines:Array.from({length:8},(_,i)=>({description:`Work ${i+1}`,quantity:'1',rate_id:0,basis:'B'.repeat(250)})),questions:Array(6).fill('Q'.repeat(250)),cautions:Array(6).fill('C'.repeat(250))};
   let shortenChecks=0;const policy=message=>message.includes('5,000 characters')?++shortenChecks>1:true;
   const handler=route=>route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({draft:long})});
   const browser=await makeBrowser();try{const {context,page,errors,dialogs}=await setup(browser,320,handler,policy);

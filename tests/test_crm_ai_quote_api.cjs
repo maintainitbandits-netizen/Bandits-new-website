@@ -13,6 +13,7 @@ const reply = (value, status = 200) => ({ ok: status >= 200 && status < 300, sta
 const auth = () => reply({ id: 'fictional-user', role: 'authenticated', aud: 'authenticated', is_anonymous: false });
 const draft = () => ({
   summary: 'Remove and replace mulch.',
+  ballpark: { low:'100.00', high:'240.00', basis:'Rough total; access and disposal need confirmation.' },
   lines: [
     { description: 'Install mulch', quantity: '2.5', rate_id: 0, basis: 'Two and a half yards described.' },
     { description: 'Remove debris', quantity: null, rate_id: null, basis: 'Confirm the amount of debris.' },
@@ -21,7 +22,7 @@ const draft = () => ({
 });
 const choice = (content, finish_reason = 'stop') => ({ finish_reason, message: { role: 'assistant', content, refusal: null } });
 const output = d => reply({ success: true, errors: [], result: { choices: [choice(JSON.stringify(d))] } });
-const input = () => ({ consent: true, service: 'Mulch / bed refresh', description: 'Install 2.5 yards of mulch.', photos: [JPEG], rates: [{ id: 0, name: 'Mulch per yard' }] });
+const input = () => ({ consent: true, service: 'Mulch / bed refresh', description: 'Install 2.5 yards of mulch.', photos: [JPEG], rates: [{ id: 0, name: 'Mulch per yard' }], answers: [], extra: '' });
 
 function harness(options = {}) {
   const calls = [], env = options.env === undefined ? ENV : options.env;
@@ -79,10 +80,10 @@ test('only consented work, optional rate names and all three JPEGs go to fixed W
   assert.equal(init.method, 'POST'); assert.equal(init.headers.Authorization, 'Bearer fictional-secret'); assert.equal(init.cache, 'no-store'); assert.equal(init.redirect, 'error'); assert.ok(init.signal);
   assert.equal(provider.store, false); assert.equal(provider.stream, false); assert.equal(provider.max_completion_tokens, 2000);
   assert.deepEqual(provider.response_format, { type:'json_object' }); assert.deepEqual(provider.chat_template_kwargs, { enable_thinking:false });
-  assert.match(provider.messages[0].content, /untrusted job data/); assert.match(provider.messages[0].content, /Do not infer measurements/);
-  assert.match(provider.messages[0].content, /Return only one JSON object/);
+  assert.match(provider.messages[0].content, /untrusted job data/); assert.match(provider.messages[0].content, /Never invent or assert measurements/);
+  assert.match(provider.messages[0].content, /unverified guesses/); assert.match(provider.messages[0].content, /Return only one JSON object/);
   const content = provider.messages[1].content;
-  assert.deepEqual(JSON.parse(content[0].text), { service: request.service, description: request.description, rate_names: request.rates });
+  assert.deepEqual(JSON.parse(content[0].text), { service: request.service, description: request.description, answers: [], additional_details: '', rate_names: request.rates });
   assert.equal(content.length, 4);
   assert.deepEqual(content.slice(1), Array(3).fill({ type:'image_url', image_url:{ url:JPEG, detail:'auto' } }));
   assert.doesNotMatch(init.body, /fictional\.jwt|fictional-secret|clientName|unitCents/);
@@ -102,6 +103,12 @@ test('rejects invalid input, price injection, extra fields, noncanonical JPEG an
     { ...input(), rates: [{ id: 0, name:'Mulch' }, { id: 0, name:'Other' }] },
     { ...input(), rates: [{ id: -1, name:'Mulch' }] }, { ...input(), rates: [{ id: 50, name:'Mulch' }] },
     { ...input(), rates: Array.from({length:51}, (_,id)=>({id,name:'Rate'})) },
+    { ...input(), answers: null }, { ...input(), answers: [{question:'Q',answer:''}] },
+    { ...input(), answers: [{question:'Q\nInjected',answer:'yes'}] }, { ...input(), answers: [{question:'Q',answer:'x'.repeat(501)}] },
+    { ...input(), answers: [{question:'Q',answer:'yes',extra:'bad'}] },
+    { ...input(), answers: [{question:'Q',answer:'yes'},{question:'q',answer:'no'}] },
+    { ...input(), answers: Array.from({length:19},(_,i)=>({question:'Q'+i,answer:'yes'})) },
+    { ...input(), extra: 'x'.repeat(1001) }, { ...input(), extra: '\u0000' },
     { ...input(), clientName: 'Do not send' }, { ...input(), endpoint: 'https://evil.invalid' },
     { ...input(), token: 'Do not accept' }, null, 'not JSON', [],
   ];
@@ -113,7 +120,7 @@ test('rejects invalid input, price injection, extra fields, noncanonical JPEG an
   assert.equal(r.code, 413); assert.equal(h.calls.length, 1); assert.equal(r.data.providerAttempted, false);
 });
 
-test('input with no rate card is allowed but a model cannot introduce a rate id or price', async () => {
+test('a ballpark works without a rate card but the model cannot introduce an unknown rate id', async () => {
   const req = { ...input(), rates: [] };
   let h = harness({ respond: url => url === AUTH ? auth() : output({ ...draft(), lines: [{ description:'Cleanup', quantity:null, rate_id:null, basis:'Measure first.' }] }) });
   let r = await h.request(req); assert.equal(r.code, 200); assert.equal(r.data.draft.lines[0].rate_id, null);
@@ -131,6 +138,57 @@ test('a quantity not numerically present in the work description is cleared for 
   r = await t.request(); assert.equal(r.code,200); assert.equal(r.data.draft.lines[0].quantity,'2.500');
   // The matching-number rule is conservative, not proof that a number is the
   // correct unit or scope: every suggested quantity still needs human review.
+});
+
+test('follow-up answers and extra details are sent only with consent and may support quantities', async () => {
+  const request = { ...input(), description:'Install mulch near the garden.', answers:[{question:'How many yards?',answer:'2.5 yards'}], extra:'There are 3 beds.' };
+  const response = { ...draft(), lines:[{description:'Install mulch',quantity:'2.5',rate_id:0,basis:'The answer described 2.5 yards.'}] };
+  const h = harness({ respond: url => url === AUTH ? auth() : output(response) });
+  let r = await h.request(request); assert.equal(r.code,200); assert.equal(r.data.draft.lines[0].quantity,'2.5');
+  const provider = JSON.parse(h.calls[1].init.body), sent = JSON.parse(provider.messages[1].content[0].text);
+  assert.deepEqual(sent.answers,request.answers); assert.equal(sent.additional_details,request.extra);
+  assert.equal(provider.messages[1].content[1].image_url.url,JPEG); assert.equal(provider.store,false);
+  const noConsent = harness(); r = await noConsent.request({...request,consent:false}); assert.equal(r.code,400); assert.equal(noConsent.calls.length,1);
+  // A number offered only by a model-generated question is not a measurement supplied by the user.
+  const invented = {...request,answers:[{question:'Is it 8 yards?',answer:'No.'}],extra:''};
+  const t = harness({respond:url=>url===AUTH?auth():output({...draft(),lines:[{description:'Mulch',quantity:'8',rate_id:null,basis:'Eight yards.'}]})});
+  r = await t.request(invented); assert.equal(r.code,200); assert.equal(r.data.draft.lines[0].quantity,null);
+  assert.match(r.data.draft.lines[0].basis,/description or answers/);
+});
+
+test('unprovided numeric claims in narrative are withheld without treating model questions as facts', async () => {
+  const invented={...draft(),summary:'Trim an 8 foot hedge.',ballpark:{low:'100.00',high:'200.00',basis:'Assumes 8 feet.'},
+    lines:[{description:'Trim 8 foot hedge',quantity:'8',rate_id:0,basis:'Eight feet.'}],questions:['Is it 8 feet?'],cautions:['Watch the 8 foot section.']};
+  const h=harness({respond:url=>url===AUTH?auth():output(invented)}),r=await h.request({...input(),description:'Trim a hedge.'});
+  assert.equal(r.code,200);assert.doesNotMatch(r.data.draft.summary,/8/);assert.doesNotMatch(r.data.draft.ballpark.basis,/8/);
+  assert.equal(r.data.draft.lines[0].quantity,null);assert.equal(r.data.draft.lines[0].rate_id,null);assert.match(r.data.draft.lines[0].description,/verify details/i);
+  assert.match(r.data.draft.lines[0].basis,/unconfirmed/i);assert.doesNotMatch(r.data.draft.cautions[0],/8/);
+  assert.equal(r.data.draft.questions[0],'Is it 8 feet?');
+});
+
+test('model ballparks are bounded, normalized and explicitly allowed to be unavailable', async () => {
+  for(const [ballpark,expected] of [
+    [{low:25,high:125.5,basis:'Uncertain scope.'},{low:'25.00',high:'125.50',basis:'Uncertain scope.'}],
+    [{low:'$1,200.50',high:'1,400.75',basis:'Uncertain scope.'},{low:'1200.50',high:'1400.75',basis:'Uncertain scope.'}],
+    [{low:null,high:null,basis:'Need measurements.'},{low:null,high:null,basis:'Need measurements.'}],
+  ]){
+    const h=harness({respond:url=>url===AUTH?auth():output({...draft(),ballpark})});
+    const r=await h.request();assert.equal(r.code,200);assert.deepEqual(r.data.draft.ballpark,expected);
+  }
+  for(const ballpark of [
+    null, {low:null,high:'50.00',basis:'Unknown'}, {low:'80.00',high:'50.00',basis:'Reversed'},
+    {low:'-1',high:'50',basis:'Negative'}, {low:'1.234',high:'50',basis:'Too many decimals'},
+    {low:'1',high:'1000000000',basis:'Too large'}, {low:0,high:0,basis:'Not a price'},
+    {low:'$1.2.3',high:'50',basis:'Unparseable'}, {low:'1',high:'50',basis:''},
+    {low:'1',high:'50',basis:'Extra',verified:true},
+  ]){
+    const h=harness({respond:url=>url===AUTH?auth():output({...draft(),ballpark})});
+    const r=await h.request();assert.equal(r.code,200,JSON.stringify(ballpark));assert.equal(r.data.draft.ballpark.low,null);assert.equal(r.data.draft.ballpark.high,null);
+    assert.match(r.data.draft.ballpark.basis,/did not provide a valid/);assert.deepEqual(r.data.draft.questions,draft().questions);assert.equal(h.calls.length,2);
+  }
+  const {ballpark:_,...withoutPrice}=draft();
+  const h=harness({respond:url=>url===AUTH?auth():output(withoutPrice)}),r=await h.request();
+  assert.equal(r.code,200);assert.equal(r.data.draft.ballpark.low,null);assert.deepEqual(r.data.draft.questions,withoutPrice.questions);
 });
 
 test('provider output is independently bounded and validated, including rate IDs and quantities', async () => {
