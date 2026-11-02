@@ -84,6 +84,57 @@ async function saved(page,id,category) {
   },[id,category]);
 }
 
+test('phone Jobs defaults to work still to do and keeps finished and unpaid jobs easy to find', {skip:!canRun&&'Install browser dependencies externally'},async()=>{
+  const browser=await makeBrowser();
+  try {
+    for(const width of [320,390]){
+      const {context,page,errors}=await setup(browser,width);
+      try {
+        await page.evaluate(()=>{
+          for(const data of [
+            {id:'unscheduled',client:'c1',service:'Other',prop:'777 Unscheduled Example',date:'',status:'Unscheduled',repeat:'One-time'},
+            {id:'invoice',client:'c1',service:'Other',prop:'888 Invoiced Example',date:'2026-11-04',status:'Invoiced',repeat:'One-time'},
+            {id:'unknown',client:'c1',service:'Other',prop:'999 Unknown Example',date:'2026-11-04',status:'Future status',repeat:'One-time'},
+            {id:'category-done',client:'c1',service:'Cleaning',workCategory:'Cleaning',prop:'1111 Finished Cleaning',date:'2026-11-04',status:'Done',repeat:'One-time'},
+          ]) {S.jobs[data.id]=data;__mock.rows.set(`jobs/${data.id}`,{coll:'jobs',id:data.id,data:JSON.parse(JSON.stringify(data))})}
+        });
+        await page.getByRole('button',{name:'Jobs',exact:true}).click();await noOverflow(page,`${width} to do`);
+        assert.equal(await page.locator('#job_filter').inputValue(),'To do');
+        for(const id of ['old-trim','tree','clean','unscheduled','unknown'])assert.equal(await page.locator(`#main .card[data-job="${id}"]`).count(),1,id);
+        for(const id of ['old-clean','invoice','clean-paid','maintenance-paid','category-done'])assert.equal(await page.locator(`#main .card[data-job="${id}"]`).count(),0,id);
+        assert.match(await page.locator('#main').innerText(),/Choose Open to see unpaid jobs/);assert.equal(await page.evaluate(()=>__mock.writes.length),0);
+
+        await page.getByRole('button',{name:'Select jobs to delete',exact:true}).click();await noOverflow(page,`${width} delete picker`);
+        assert.equal(await page.locator('#bulk_filter').inputValue(),'To do');assert.match(await page.locator('#bulk_list').innerText(),/777 Unscheduled Example/);
+        assert.doesNotMatch(await page.locator('#bulk_list').innerText(),/222 Legacy Cleanup Example|888 Invoiced Example|555 Paid Clean Example/);
+        await page.locator('#dlg').getByRole('button',{name:'Cancel',exact:true}).click();
+        await page.getByRole('button',{name:'Assign categories to jobs',exact:true}).click();await noOverflow(page,`${width} category picker`);
+        assert.equal(await page.locator('#bca_status_filter').inputValue(),'To do');assert.match(await page.locator('#bca_list').innerText(),/777 Unscheduled Example/);
+        assert.doesNotMatch(await page.locator('#bca_list').innerText(),/222 Legacy Cleanup Example|888 Invoiced Example|555 Paid Clean Example/);
+        await page.locator('#dlg').getByRole('button',{name:'Close',exact:true}).click();assert.equal(await page.evaluate(()=>__mock.writes.length),0);
+
+        await page.locator('#main .card[data-job="old-trim"]').getByRole('button',{name:'→ Done',exact:true}).click();
+        await page.waitForFunction(()=>__mock.rows.get('jobs/old-trim').data.status==='Done'&&document.querySelector('#st').textContent==='Synced across devices');
+        assert.equal(await page.locator('#main .card[data-job="old-trim"]').count(),0);assert.equal(await page.evaluate(()=>__mock.rows.has('jobs/old-trim')),true);
+        await page.evaluate(()=>{completedQuery='no previous match';completedFilter='Paid'});
+        await page.getByRole('button',{name:'View all completed jobs',exact:true}).click();await noOverflow(page,`${width} completed`);
+        assert.equal(await page.locator('#completed_search').inputValue(),'');assert.equal(await page.locator('#completed_filter').inputValue(),'All');
+        assert.match(await page.locator('#completed_list').innerText(),/111 Legacy Trim Example/);assert.match(await page.locator('#completed_list').innerText(),/222 Legacy Cleanup Example/);
+        assert.match(await page.locator('#completed_list').innerText(),/888 Invoiced Example/);assert.match(await page.locator('#completed_list').innerText(),/555 Paid Clean Example/);
+        await page.getByRole('button',{name:'Jobs',exact:true}).click();assert.equal(await page.locator('#job_filter').inputValue(),'To do');
+        await page.locator('#job_filter').selectOption('Open');assert.equal(await page.locator('#main .card[data-job="old-trim"]').count(),1);
+        assert.equal(await page.locator('#main .card[data-job="invoice"]').count(),1);assert.equal(await page.locator('#main .card[data-job="clean-paid"]').count(),0);
+        await page.locator('#job_filter').selectOption('All');assert.equal(await page.locator('#main .card[data-job="clean-paid"]').count(),1);
+        await page.getByRole('button',{name:'Cleaning',exact:true}).click();assert.equal(await page.locator('#category_job_filter').inputValue(),'Open');
+        assert.equal(await page.locator('#main .card[data-job="category-done"]').count(),1);
+        await page.locator('#category_job_filter').selectOption('To do');assert.equal(await page.locator('#main .card[data-job="category-done"]').count(),0);
+        assert.equal(await page.locator('#main .card[data-job="clean"]').count(),1);await noOverflow(page,`${width} category to do`);
+        assert.deepEqual(errors,[]);
+      } finally {await context.close()}
+    }
+  } finally {await browser.close()}
+});
+
 test('phones can find category tabs, assign, move and clear existing jobs, and create categorized jobs', {skip:!canRun&&'Install browser dependencies externally'},async()=>{
   const browser=await makeBrowser();
   try {
@@ -213,7 +264,7 @@ test('phone bulk category assignment searches, reviews hidden jobs, confirms, mo
       page.removeAllListeners('dialog');page.on('dialog',dialog=>{dialogs.push(dialog.message());return accept?dialog.accept():dialog.dismiss()});
       try{
         const before=await page.evaluate(()=>Object.fromEntries([...__mock.rows.entries()].filter(([key])=>key.startsWith('jobs/')).map(([key,row])=>[key,JSON.parse(JSON.stringify(row.data))])));
-        await page.getByRole('button',{name:'Jobs',exact:true}).click();
+        await page.getByRole('button',{name:'Jobs',exact:true}).click();await page.locator('#job_filter').selectOption('Open');
         await page.getByRole('button',{name:'Assign categories to jobs',exact:true}).click();await noOverflow(page,`${width} category assignment`);
         assert.equal(await page.locator('#bca_status_filter').inputValue(),'Open');
         assert.equal(await page.locator('#bca_category_filter').inputValue(),'__uncategorized__');

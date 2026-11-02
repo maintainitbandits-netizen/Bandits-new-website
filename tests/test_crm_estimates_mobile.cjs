@@ -122,7 +122,7 @@ test('phone estimates create, quote, schedule and choose retention for client de
         await page.locator('#est_jobs .card', { hasText: '2026-10-20' }).getByRole('button', { name: 'View quote' }).click();
         assert.equal(await page.locator('#doc h2').last().innerText(), 'Quote');
         await page.locator('#doc').getByRole('button', { name: 'Close' }).click();
-        await page.getByRole('button', { name: 'Jobs', exact: true }).click();
+        await page.getByRole('button', { name: 'Jobs', exact: true }).click();await page.locator('#job_filter').selectOption('Open');
         await page.locator('#main .card', { hasText: '2026-10-20' }).getByRole('button', { name: 'Invoice', exact: true }).click();
         assert.equal(await page.locator('#doc h2').last().innerText(), 'Invoice'); await page.locator('#doc').getByRole('button', { name: 'Close' }).click();
         await page.getByRole('button', { name: 'Clients', exact: true }).click();
@@ -196,7 +196,7 @@ test('phone bulk jobs and Completed selection respect filters, cancellation and 
           S.jobs.existing.sourceEstimateId='e1';__mock.rows.get('jobs/existing').data.sourceEstimateId='e1';
           for(const [coll,data] of records){S[coll][data.id]=data;__mock.rows.set(`${coll}/${data.id}`,{coll,id:data.id,data:JSON.parse(JSON.stringify(data))})}
         });
-        await page.getByRole('button',{name:'Jobs',exact:true}).click();
+        await page.getByRole('button',{name:'Jobs',exact:true}).click();await page.locator('#job_filter').selectOption('Open');
         await page.getByRole('button',{name:'Select jobs to delete'}).click();await noOverflow(page,`${width} jobs selection`);
         assert.equal(await page.locator('#bulk_filter').inputValue(),'Open');
         assert.equal(await page.locator('#bulk_list label',{hasText:'Paid fictional service'}).count(),0);

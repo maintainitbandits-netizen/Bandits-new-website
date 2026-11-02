@@ -287,6 +287,8 @@ test('multiple PDFs are read locally, reviewed, imported and scheduled on narrow
         await page.locator('#doc').getByRole('button', { name: 'Close' }).click();
         await page.locator('#main .card', { hasText: 'AppFolio #250-1' }).getByRole('button', { name: '→ Done' }).click();
         await synced(page);
+        assert.equal(await page.locator('#main .card', { hasText: 'AppFolio #250-1' }).count(), 0);
+        await page.locator('#job_filter').selectOption('Open');
         await page.locator('#main .card', { hasText: 'AppFolio #250-1' }).getByRole('button', { name: 'Invoice', exact: true }).click();
         assert.doesNotMatch(await page.locator('#doc').innerText(), /Private Fictional Instructions|Private edited work description/);
         await page.locator('#doc').getByRole('button', { name: 'Copy text' }).click();
