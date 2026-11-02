@@ -495,6 +495,7 @@ test('phone Completed tab tracks finished work across Done, Invoiced and Paid wi
       const { context, page, requests, errors } = await setup(browser, width);
       try {
         await page.getByRole('button', { name: 'Jobs', exact: true }).click();
+        await page.locator('#job_filter').selectOption('Open'); // Preserve and exercise the unpaid-work view.
         const job = () => page.locator('#main .card', { hasText: '100 Example Road' });
         await job().getByRole('button', { name: '→ Done', exact: true }).click();
         await page.waitForFunction(() => S.jobs.j1.status === 'Done' && document.querySelector('#st').textContent === 'Synced across devices');

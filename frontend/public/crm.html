@@ -59,7 +59,8 @@ const ST=["Lead","Quoted","Won","Recurring","Lost"],JS=["Scheduled","Done","Invo
 TY=["Property manager","Homeowner","Realtor / investor","STR host","Commercial","Other / unknown"],JOB_CATEGORIES=["Tree Trimming","Cleaning","Maintenance"],
 SV=["Make-ready cleanup","Mow / edge / blow","Mulch / bed refresh","Trim / prune","Haul-off","Sod / seed","Pressure wash","Tree Trimming","Cleaning","Maintenance","Landscaping / design","Fertilization / weed control","Make-ready / tenant turnover","Move-in / move-out cleaning","Flower bed planting","Seasonal yard cleanup","Mulch / rock installation","Other"],TABS=["Pipeline","Clients","Properties","Estimates","Route","Jobs",...JOB_CATEGORIES,"Completed","Due & overdue"],
 DEF="Mow | 55\nMulch per yard | 85\nBed cleanup | 60\nTrim | 75\nHaul-off | 120\nPressure wash | 150\nMake-ready flat | 250";
-let S={clients:{},jobs:{},estimates:{},meta:{}},db=null,synced=false,tab="Pipeline",jf="Open",q="",pend=false,known={};
+const COMPLETED_STATES=["Done","Invoiced","Paid"],JOB_FILTERS=["To do","Open",...JOB_STATUSES,"All"];
+let S={clients:{},jobs:{},estimates:{},meta:{}},db=null,synced=false,tab="Pipeline",jf="To do",q="",pend=false,known={};
 const categoryFilters=Object.fromEntries(JOB_CATEGORIES.map(name=>[name,"Open"]));
 const validJobCategory=value=>value===""||JOB_CATEGORIES.includes(value);
 function categoryOptions(selected,keepUnknown=false){const value=String(selected==null?"":selected);return `<option value=""${value===""?" selected":""}>Uncategorized</option>`+JOB_CATEGORIES.map(name=>`<option value="${E(name)}"${value===name?" selected":""}>${E(name)}</option>`).join("")+(keepUnknown&&value&&!validJobCategory(value)?`<option value="${E(value)}" selected>Unrecognized category: ${E(value.slice(0,100))}</option>`:"")}
@@ -429,25 +430,28 @@ function roadSave(){
  roadPlan=null;$("#rr_save").hidden=true;if(updates.length)wBatch("jobs",updates);$("#rr_preview").innerHTML="";
  $("#rr_status").textContent=storageOK?"Route order saved. Keep this page open until it says Synced across devices.":"The order is in memory but could not be saved locally. Use Backup and keep this page open until synced.";render()
 }
-function categoryFilterChanged(input){const category=input.dataset.category,value=input.value;if(JOB_CATEGORIES.includes(category)&&["Open",...JOB_STATUSES,"All"].includes(value)){categoryFilters[category]=value;render()}}
+// The default work list hides finished work, not unpaid balances. Keep unknown
+// legacy statuses visible so they can be reviewed instead of silently lost.
+function jobStatusMatches(status,filter){return filter==="All"||(filter==="To do"?!COMPLETED_STATES.includes(status):filter==="Open"?status!=="Paid":status===filter)}
+function categoryFilterChanged(input){const category=input.dataset.category,value=input.value;if(JOB_CATEGORIES.includes(category)&&JOB_FILTERS.includes(value)){categoryFilters[category]=value;render()}}
 function vJobs(category=""){
  const scoped=JOB_CATEGORIES.includes(category),filter=scoped?categoryFilters[category]:jf,od=today();
- const L=arr(S.jobs).filter(j=>j&&(!scoped||j.workCategory===category)&&(filter==="All"||(filter==="Open"?j.status!=="Paid":j.status===filter))).sort((a,b)=>String(a.date||"").localeCompare(String(b.date||"")));
+ const L=arr(S.jobs).filter(j=>j&&(!scoped||j.workCategory===category)&&jobStatusMatches(j.status,filter)).sort((a,b)=>String(a.date||"").localeCompare(String(b.date||"")));
  const heading=scoped?`<div class="card"><h2>${E(category)} jobs</h2><p class="m">Only jobs assigned to this category appear here. Existing uncategorized jobs remain in Jobs; use Assign jobs below or edit one job at a time. Change the status filter to see paid jobs.</p><button class="pri" data-category="${E(category)}" onclick="openJob(null,{workCategory:this.dataset.category})">+ ${E(category)} job</button></div>`:"";
  const actions=scoped?`<button data-category="${E(category)}" onclick="openBulkCategory(this.dataset.category)">Assign jobs to ${E(category)}</button><button class="dg" data-category="${E(category)}" onclick="openBulkDeletion('jobs',this.dataset.category)">Select ${E(category)} jobs to delete</button>`:`<button onclick="openBulkCategory()">Assign categories to jobs</button><button class="dg" onclick="openBulkDeletion('jobs')">Select jobs to delete</button>`;
  const selector=scoped?`<select id="category_job_filter" data-category="${E(category)}" onchange="categoryFilterChanged(this)">`:`<select id="job_filter" onchange="jf=this.value;render()">`;
- return heading+`<div class="row">${actions}</div><label for="${scoped?"category_job_filter":"job_filter"}">Job status</label>${selector}${["Open",...JOB_STATUSES,"All"].map(o=>`<option${o===filter?" selected":""}>${E(o)}</option>`).join("")}</select>`+(L.map(j=>{
+ const hint=scoped?"":`<p class="m">To do hides Done, Invoiced and Paid jobs; they are still in Completed. Choose Open to see unpaid jobs.</p><div class="row"><button type="button" onclick="completedQuery='';completedFilter='All';tab='Completed';render();revealActiveTab()">View all completed jobs</button></div>`;
+ return heading+`<div class="row">${actions}</div><label for="${scoped?"category_job_filter":"job_filter"}">Job status</label>${selector}${JOB_FILTERS.map(o=>`<option${o===filter?" selected":""}>${E(o)}</option>`).join("")}</select>`+hint+(L.map(j=>{
   const late=j.status==="Scheduled"&&validDate(j.date)&&j.date<od,index=JS.indexOf(j.status),nx=index<0?null:JS[index+1],quote=j.status==="Scheduled"||j.status==="Unscheduled",price=j.price==null||j.price===""?"Price not set":money(j.price),validId=typeof j.id==="string"&&!!j.id&&S.jobs[j.id]===j;
   const categoryLabel=j.workCategory?(validJobCategory(j.workCategory)?j.workCategory:"Unrecognized category") : "";
   return`<div class="card"${validId?` data-job="${E(j.id)}" onclick="openJob(this.dataset.job)"`:""}><div class="sp"><b>${E(cname(j.client))}</b><b>${E(price)}</b></div><div class="m">${E(j.service)}${j.prop?" · "+E(j.prop):""}${j.sourceAppfolio&&j.sourceAppfolio.number?" · AppFolio #"+E(j.sourceAppfolio.number):""}</div>
   <div class="m">${E(j.date||"Not scheduled")} <span class="chip">${E(j.status)}</span>${categoryLabel?`<span class="chip">${E(categoryLabel)}</span>`:""}${jobDateLabel(j)?`<span class="chip">${E(jobDateLabel(j))}</span>`:""}${storedEstimate(j.estimatedMinutes)?`<span class="chip">${E(estimateText(j.estimatedMinutes))} work</span>`:""}${late?'<span class="chip bad">Overdue</span>':""}${j.repeat&&j.repeat!="One-time"?`<span class="chip">${E(j.repeat)}</span>`:""}</div>
   ${validId?`<div class="row"><button data-job="${E(j.id)}" onclick="event.stopPropagation();openJob(this.dataset.job)">Edit job</button>${j.status==="Unscheduled"?`<button data-job="${E(j.id)}" onclick="event.stopPropagation();scheduleUnscheduledJob(this.dataset.job)">Schedule</button>`:nx?`<button data-job="${E(j.id)}" data-next="${E(nx)}" onclick="event.stopPropagation();setStatus(this.dataset.job,this.dataset.next)">→ ${E(nx)}</button>`:""}<button data-job="${E(j.id)}" onclick="event.stopPropagation();openDoc(this.dataset.job)">${quote?"Quote":"Invoice"}</button><button data-job="${E(j.id)}" onclick="event.stopPropagation();openJobPhotos(this.dataset.job)">Before / after photos</button><button class="dg" data-job="${E(j.id)}" onclick="event.stopPropagation();delJob(this.dataset.job)">Delete job</button></div>`:'<p class="m">This job has an invalid ID; review your backup before changing it.</p>'}</div>`
- }).join("")||`<p class="m">${scoped?"No jobs match this category and status.":"No jobs here."}</p>`)
+ }).join("")||`<p class="m">${scoped?"No jobs match this category and status.":filter==="To do"?"No jobs to do. Finished jobs are in Completed.":"No jobs here."}</p>`)
 }
 /* Completed work is a view of existing job statuses, not a separate copy. */
-const COMPLETED_STATES=["Done","Invoiced","Paid"];
 let completedQuery="",completedFilter="All";
-function vCompleted(){return `<div class="card"><h2>Completed work</h2><p class="m">Jobs marked Done, Invoiced or Paid appear here. To finish a job, tap → Done in Jobs or Mark Done on Route. Done and Invoiced jobs also remain in Jobs → Open until marked Paid.</p><p class="m">Dates below are scheduled job dates, not completion dates.</p><div class="bt"><button class="dg" onclick="openBulkDeletion('completed')">Select completed jobs to delete</button></div></div>
+function vCompleted(){return `<div class="card"><h2>Completed work</h2><p class="m">Jobs marked Done, Invoiced or Paid appear here. To finish a job, tap → Done in Jobs or Mark Done on Route. The default Jobs → To do view hides completed jobs; Done and Invoiced jobs remain in Jobs → Open until marked Paid.</p><p class="m">Dates below are scheduled job dates, not completion dates.</p><div class="bt"><button class="dg" onclick="openBulkDeletion('completed')">Select completed jobs to delete</button></div></div>
  <label for="completed_search">Search completed jobs</label><input id="completed_search" type="search" placeholder="Client, property, service or date" value="${E(completedQuery)}" oninput="completedQuery=this.value;completedList()">
  <label for="completed_filter">Status</label><select id="completed_filter" onchange="completedFilter=this.value;completedList()">${["All",...COMPLETED_STATES].map(s=>`<option${s===completedFilter?" selected":""}>${E(s)}</option>`).join("")}</select>
  <p id="completed_count" class="m" role="status" aria-live="polite"></p><div id="completed_list"></div>`}
@@ -642,7 +646,7 @@ function bulkCandidate(kind,id,item){
 function openBulkDeletion(kind,category=""){
  try{
   if(!["clients","jobs","completed","estimates"].includes(kind)||category!==""&&(kind!=="jobs"||!JOB_CATEGORIES.includes(category)))throw new Error("Choose a valid record type.");deleteReady();
-  const coll=kind==="completed"?"jobs":kind,options=kind==="clients"?["All",...ST]:kind==="estimates"?["All",...ESTIMATE_STATES]:kind==="completed"?["All",...COMPLETED_STATES]:["All","Open",...JOB_STATUSES];
+  const coll=kind==="completed"?"jobs":kind,options=kind==="clients"?["All",...ST]:kind==="estimates"?["All",...ESTIMATE_STATES]:kind==="completed"?["All",...COMPLETED_STATES]:JOB_FILTERS;
   let filter=kind==="jobs"?(category?categoryFilters[category]:jf):kind==="completed"?completedFilter:kind==="estimates"?estimateFilter:"All";if(!options.includes(filter))filter="All";
   const search=kind==="clients"?q:kind==="completed"?completedQuery:kind==="estimates"?estimateQuery:"";
   const candidates=Object.entries(S[coll]).filter(([,item])=>(kind!=="completed"||(item&&COMPLETED_STATES.includes(item.status)))&&(!category||(item&&item.workCategory===category))).map(([id,item])=>bulkCandidate(kind,id,item)).sort((a,b)=>a.name.localeCompare(b.name)||a.detail.localeCompare(b.detail)||a.id.localeCompare(b.id));
@@ -654,7 +658,7 @@ function openBulkDeletion(kind,category=""){
 }
 function bulkFilter(){
  const p=bulkDeletion;if(!p)return;const query=String($("#bulk_search").value||"").trim().toLowerCase(),filter=$("#bulk_filter").value||p.initialFilter;
- p.shown=[];p.candidates.forEach((c,i)=>{const statusMatch=filter==="All"||(p.kind==="jobs"&&filter==="Open"?c.status!=="Paid":c.status===filter);if(statusMatch&&(!query||c.search.includes(query)))p.shown.push(i)});
+ p.shown=[];p.candidates.forEach((c,i)=>{const statusMatch=p.kind==="jobs"?jobStatusMatches(c.status,filter):filter==="All"||c.status===filter;if(statusMatch&&(!query||c.search.includes(query)))p.shown.push(i)});
  $("#bulk_list").innerHTML=p.shown.map(i=>{const c=p.candidates[i];return `<label class="pick-stop"><input type="checkbox" data-index="${i}" onchange="bulkToggle(this)"${p.selected.has(c.id)?" checked":""}${c.valid?"":" disabled"}><span><b>${E(c.name)}</b><span class="m">${E(c.detail)}</span>${c.valid?"":'<span class="m">Cannot select until this record is reviewed.</span>'}</span></label>`}).join("")||'<p class="m">No records match.</p>';
  $("#bulk_status").textContent="";bulkCount()
 }
@@ -717,12 +721,12 @@ function categoryAssignmentCandidate(id,job){
 function openBulkCategory(preselect=""){
  try{
   categoryAssignmentReady();if(preselect!==""&&!JOB_CATEGORIES.includes(preselect))throw new Error("Choose a valid work category.");
-  const statusOptions=["Open",...JOB_STATUSES,"All"],current=JOB_CATEGORIES.includes(tab)?categoryFilters[tab]:jf,initialStatus=statusOptions.includes(current)?current:"Open";
+  const statusOptions=JOB_FILTERS,current=JOB_CATEGORIES.includes(tab)?categoryFilters[tab]:jf,initialStatus=statusOptions.includes(current)?current:"To do";
   const candidates=Object.entries(S.jobs).map(([id,job])=>categoryAssignmentCandidate(id,job)).sort((a,b)=>a.name.localeCompare(b.name)||a.detail.localeCompare(b.detail)||a.id.localeCompare(b.id));
   bulkCategoryAssignment={candidates,selected:new Set(),shown:[],initialStatus,saved:false};
   const filters=[[BCA_UNCATEGORIZED,"Uncategorized"],[BCA_ALL,"All categories"],...JOB_CATEGORIES.map(x=>[x,x]),[BCA_UNKNOWN,"Unrecognized category"]];
   dlg(`<h2>Assign job categories</h2><p class="m">Choose the jobs and a destination below. This starts with uncategorized jobs; change the current-category filter to move or uncategorize other jobs. A category is never guessed from the service or description.</p>
-  <p class="m">Search by client, property, service, work description, notes or AppFolio order number. Search stays on this device and includes team-only work-order text. Open excludes Paid jobs; choose All to include them. Select shown affects only matching jobs; selections hidden by filters stay selected. Review the complete selection and confirm before applying.</p>
+  <p class="m">Search by client, property, service, work description, notes or AppFolio order number. Search stays on this device and includes team-only work-order text. To do hides Done, Invoiced and Paid; Open excludes Paid; choose All to include every status. Select shown affects only matching jobs; selections hidden by filters stay selected. Review the complete selection and confirm before applying.</p>
   <label for="bca_search">Search jobs</label><input id="bca_search" data-bca-control type="search" placeholder="Client, property, service or work description" oninput="bulkCategoryFilter()">
   <label for="bca_status_filter">Job status</label><select id="bca_status_filter" data-bca-control onchange="bulkCategoryFilter()">${statusOptions.map(s=>`<option value="${E(s)}"${s===initialStatus?" selected":""}>${E(s)}</option>`).join("")}</select>
   <label for="bca_category_filter">Current work category</label><select id="bca_category_filter" data-bca-control onchange="bulkCategoryFilter()">${filters.map(([value,label])=>`<option value="${E(value)}"${value===BCA_UNCATEGORIZED?" selected":""}>${E(label)}</option>`).join("")}</select>
@@ -738,7 +742,7 @@ function openBulkCategory(preselect=""){
 function bulkCategoryFilter(){
  const p=bulkCategoryAssignment;if(!p||p.saved)return;
  const query=String($("#bca_search").value||"").trim().toLowerCase(),status=$("#bca_status_filter").value||p.initialStatus,category=$("#bca_category_filter").value||BCA_UNCATEGORIZED;
- p.shown=[];p.candidates.forEach((c,i)=>{const statusMatch=status==="All"||(status==="Open"?c.status!=="Paid":c.status===status),categoryMatch=category===BCA_ALL||c.bucket===category;if(statusMatch&&categoryMatch&&(!query||c.search.includes(query)))p.shown.push(i)});
+ p.shown=[];p.candidates.forEach((c,i)=>{const statusMatch=jobStatusMatches(c.status,status),categoryMatch=category===BCA_ALL||c.bucket===category;if(statusMatch&&categoryMatch&&(!query||c.search.includes(query)))p.shown.push(i)});
  $("#bca_list").innerHTML=p.shown.map(i=>{const c=p.candidates[i];return `<label class="pick-stop"><input type="checkbox" data-bca-control data-index="${i}" onchange="bulkCategoryToggle(this)"${p.selected.has(c.id)?" checked":""}${c.valid?"":" disabled"}><span><b>${E(c.name)}</b><span class="m">${E(c.detail)}</span>${c.valid?"":'<span class="m">Cannot select until this job is reviewed.</span>'}</span></label>`}).join("")||'<p class="m">No jobs match these filters.</p>';
  $("#bca_result").textContent="";bulkCategoryCount()
 }

@@ -2232,6 +2232,75 @@ test('local-only estimates seed an empty cloud and stale fetches do not erase la
   } finally { first.dispose(); second.dispose(); }
 });
 
+// Jobs defaults to work still to do; completed and unpaid views remain available.
+test('the default Jobs view hides finished statuses without changing records or the Open filter', async () => {
+  const server = new FakeServer(); seedPrice(server,'clients',record('Fictional Client','c1'));
+  for (const job of [
+    {id:'scheduled',status:'Scheduled',service:'Scheduled work'},
+    {id:'unscheduled',status:'Unscheduled',service:'Unscheduled work'},
+    {id:'done',status:'Done',service:'Done work'},
+    {id:'invoiced',status:'Invoiced',service:'Invoiced work'},
+    {id:'paid',status:'Paid',service:'Paid work'},
+    {id:'unknown',status:'Future status',service:'Review unknown status'},
+  ]) seedPrice(server,'jobs',{client:'c1',date:'2026-11-03',prop:'Fictional Road',...job});
+  const device=makeDevice(server);
+  try {
+    await device.login(); const before=JSON.stringify(clone(device.exec('S.jobs'))),rows=JSON.stringify([...server.rows]);
+    assert.equal(device.exec('jf'),'To do'); device.exec("tab='Jobs';render()");
+    let html=device.element('#main').innerHTML;assert.match(html,/<option selected>To do<\/option>/);
+    for(const id of ['scheduled','unscheduled','unknown'])assert.match(html,new RegExp(`data-job="${id}"`));
+    for(const id of ['done','invoiced','paid'])assert.doesNotMatch(html,new RegExp(`data-job="${id}"`));
+    assert.match(html,/View all completed jobs/);assert.match(html,/Choose Open to see unpaid jobs/);
+    device.exec("jf='Open';render()");html=device.element('#main').innerHTML;
+    for(const id of ['scheduled','unscheduled','done','invoiced','unknown'])assert.match(html,new RegExp(`data-job="${id}"`));
+    assert.doesNotMatch(html,/data-job="paid"/);
+    device.exec("jf='All';render()");assert.match(device.element('#main').innerHTML,/data-job="paid"/);
+    device.exec("tab='Completed';render()");html=device.element('#completed_list').innerHTML;
+    assert.match(html,/Done work/);assert.match(html,/Invoiced work/);assert.match(html,/Paid work/);assert.doesNotMatch(html,/Scheduled work|Unscheduled work|Review unknown/);
+    assert.equal(JSON.stringify(clone(device.exec('S.jobs'))),before);assert.equal(JSON.stringify([...server.rows]),rows);assert.equal(device.exec('Object.keys(pending).length'),0);
+  } finally {device.dispose()}
+});
+
+test('marking work Done removes it from To do immediately and after sync, without deleting it', async () => {
+  const server=new FakeServer();seedPrice(server,'clients',record('Fictional Client','c1'));
+  seedPrice(server,'jobs',{id:'work',client:'c1',service:'Fictional work',prop:'Fictional Road',date:'2026-11-03',status:'Scheduled',repeat:'One-time'});
+  const [first,second]=await devices(server);
+  try {
+    first.exec("tab='Jobs';render()");second.exec("tab='Jobs';render()");assert.match(first.element('#main').innerHTML,/data-job="work"/);
+    server.failWrites=true;first.exec("setStatus('work','Done')");await wait(35);
+    assert.doesNotMatch(first.element('#main').innerHTML,/data-job="work"/);assert.match(first.element('#main').innerHTML,/No jobs to do/);
+    assert.equal(first.exec('S.jobs.work.status'),'Done');assert.notEqual(first.element('#st').textContent,'Synced across devices');
+    assert.equal(server.rows.get('jobs/work').data.status,'Scheduled');assert.match(second.element('#main').innerHTML,/data-job="work"/);
+    first.exec("tab='Completed';render()");assert.match(first.element('#completed_list').innerHTML,/Fictional work/);
+    server.failWrites=false;first.client.reconnect();await wait(150);
+    assert.equal(server.rows.get('jobs/work').data.status,'Done');assert.equal(second.exec('S.jobs.work.status'),'Done');assert.doesNotMatch(second.element('#main').innerHTML,/data-job="work"/);
+    second.exec("tab='Completed';render()");assert.match(second.element('#completed_list').innerHTML,/Fictional work/);
+    second.exec("setStatus('work','Scheduled');tab='Jobs';render()");assert.match(second.element('#main').innerHTML,/data-job="work"/);
+    await wait(150);assert.equal(first.exec('S.jobs.work.status'),'Scheduled');assert.equal(server.rows.size,2);
+  } finally {first.dispose();second.dispose()}
+});
+
+test('bulk job deletion and category pickers inherit To do without silently including finished jobs', async () => {
+  const server=new FakeServer();seedPrice(server,'clients',record('Fictional Client','c1'));
+  for(const [id,status] of [['scheduled','Scheduled'],['unscheduled','Unscheduled'],['unknown','Future status'],['done','Done'],['invoiced','Invoiced'],['paid','Paid']])
+    seedPrice(server,'jobs',{id,client:'c1',status,service:id+' fictional work',prop:id+' Fictional Road',date:'2026-11-03'});
+  const device=makeDevice(server);
+  try {
+    await device.login();device.exec("tab='Jobs';render();openBulkDeletion('jobs')");
+    assert.equal(device.exec('bulkDeletion.initialFilter'),'To do');assert.match(device.element('#dlg').innerHTML,/value="To do" selected/);
+    let html=device.element('#bulk_list').innerHTML;for(const id of ['scheduled','unscheduled','unknown'])assert.match(html,new RegExp(id+' Fictional Road'));
+    for(const id of ['done','invoiced','paid'])assert.doesNotMatch(html,new RegExp(id+' Fictional Road'));
+    device.exec('bulkSelectShown()');assert.equal(device.exec('bulkDeletion.selected.size'),3);
+    device.element('#bulk_filter').value='Open';device.exec('bulkFilter()');html=device.element('#bulk_list').innerHTML;
+    assert.match(html,/done Fictional Road/);assert.match(html,/invoiced Fictional Road/);assert.doesNotMatch(html,/paid Fictional Road/);
+    device.exec("closeD();openBulkCategory()");assert.equal(device.exec('bulkCategoryAssignment.initialStatus'),'To do');
+    html=device.element('#bca_list').innerHTML;for(const id of ['scheduled','unscheduled','unknown'])assert.match(html,new RegExp(id+' Fictional Road'));
+    for(const id of ['done','invoiced','paid'])assert.doesNotMatch(html,new RegExp(id+' Fictional Road'));
+    device.exec('bulkCategorySelectShown()');assert.equal(device.exec('bulkCategoryAssignment.selected.size'),3);
+    assert.equal(device.exec('Object.keys(pending).length'),0);assert.equal(server.rows.size,7);
+  } finally {device.dispose()}
+});
+
 // Completed work is a view of fictional existing jobs, not a new collection.
 test('Completed includes existing Done, Invoiced and Paid jobs without changing Open or records', async () => {
   const server = new FakeServer(); seedPrice(server, 'clients', record('Fictional Client', 'c1'));
@@ -2557,7 +2626,7 @@ test('bulk pickers show identifying details so similarly named records can be re
     assert.match(device.element('#bulk_list').innerHTML,/111 Fictional Road/);assert.match(device.element('#bulk_list').innerHTML,/222 Fictional Road/);
     assert.match(device.element('#bulk_list').innerHTML,/555-0101/);selectBulk(device,'c1');device.element('#bulk_estimate_choice').value='keep';device.exec('deleteBulkSelected()');
     assert.match(warnings.at(-1),/Selected details:[\s\S]*111 Fictional Road/);
-    device.exec("openBulkDeletion('jobs')");assert.match(device.element('#bulk_list').innerHTML,/\$11/);assert.match(device.element('#bulk_list').innerHTML,/\$22/);
+    device.exec("jf='Open';openBulkDeletion('jobs')");assert.match(device.element('#bulk_list').innerHTML,/\$11/);assert.match(device.element('#bulk_list').innerHTML,/\$22/);
     device.exec("openBulkDeletion('estimates')");assert.match(device.element('#bulk_list').innerHTML,/\$125\.00/);assert.match(device.element('#bulk_list').innerHTML,/\$99\.00/);
     assert.equal(device.exec('Object.keys(pending).length'),0);
   }finally{device.dispose()}
