@@ -33,7 +33,7 @@ const StickyCallButton = () => {
         <a href={`tel:${COMPANY.phoneRaw}`} className="btn-green inline-flex items-center gap-3 px-5 py-4 rounded-full font-semibold shadow-2xl shadow-green-500/30">
           <span className="h-10 w-10 rounded-full bg-[#0a0a0a]/20 grid place-items-center"><Phone size={18}/></span>
           <span className="flex flex-col items-start leading-tight">
-            <span className="text-[10px] uppercase tracking-widest opacity-80">Call for Free Estimate</span>
+            <span className="text-[10px] uppercase tracking-widest opacity-80">Call for an Estimate</span>
             <span className="text-base">{COMPANY.phone}</span>
           </span>
         </a>

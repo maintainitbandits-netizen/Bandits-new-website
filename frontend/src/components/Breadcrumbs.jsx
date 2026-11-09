@@ -13,7 +13,7 @@ const Breadcrumbs = ({ items = [] }) => {
       '@type': 'ListItem',
       position: i + 1,
       name: it.name,
-      item: `https://maintainitbandits.com${it.path}`,
+      item: `https://www.maintainitbandits.com${it.path}`,
     })),
   };
   return (

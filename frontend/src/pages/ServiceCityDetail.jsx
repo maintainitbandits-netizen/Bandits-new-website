@@ -5,6 +5,7 @@ import { SERVICES, SERVICE_AREAS, COMPANY } from '../mock';
 import { SERVICE_AREAS_DETAIL, SERVICE_SEO } from '../seo';
 import SEO from '../components/SEO';
 import Breadcrumbs from '../components/Breadcrumbs';
+import RentalCityDetail from './RentalCityDetail';
 import CTASection from '../components/CTASection';
 
 // Combined Service x City page — e.g. /services/lawn-mowing/round-rock
@@ -13,6 +14,9 @@ const ServiceCityDetail = () => {
   const svc = SERVICES.find(s => s.slug === slug);
   const cityMeta = SERVICE_AREAS_DETAIL[city];
   if (!svc || !cityMeta) return <Navigate to="/services" replace />;
+  if (svc.slug === 'make-ready-services' || svc.slug === 'tenant-turnover-services') {
+    return <RentalCityDetail service={svc} cityMeta={cityMeta} citySlug={city} />;
+  }
 
   const seo = SERVICE_SEO[slug] || {};
   const title = `${svc.title} in ${cityMeta.fullName} | ${COMPANY.name}`;

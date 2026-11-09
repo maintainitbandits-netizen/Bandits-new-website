@@ -8,7 +8,6 @@ const SERVICE_RATES = {
   'Mulch Refresh': { base: 0.35, min: 150, label: 'all beds installed' },
   'Landscape Design': { base: 0.85, min: 1500, label: 'project starting at' },
   'Property Maintenance': { base: 0.018, min: 95, label: 'per visit' },
-  'Make Ready / Turnover': { base: 0.55, min: 395, label: 'per unit (typical range)' },
 };
 
 const QuoteCalculator = () => {
@@ -18,6 +17,7 @@ const QuoteCalculator = () => {
 
   const estimate = useMemo(() => {
     const rate = SERVICE_RATES[service];
+    if (!rate) return null; // Rental make-readys require a scope-based quote.
     const base = Math.max(rate.min, sqft * rate.base);
     let low = base * 0.9;
     let high = base * 1.25;
@@ -37,7 +37,7 @@ const QuoteCalculator = () => {
         <div className="h-12 w-12 rounded-full bg-green-500/15 border border-green-500/40 grid place-items-center"><Calculator className="text-green-400" size={22}/></div>
         <div>
           <h3 className="font-serif text-2xl md:text-3xl text-white">Instant Quote Calculator</h3>
-          <p className="text-neutral-400 text-sm mt-1">Get a ballpark price in 10 seconds. No email required.</p>
+          <p className="text-neutral-400 text-sm mt-1">Explore estimates for select services. Make-readys are quoted for your project.</p>
         </div>
       </div>
 
@@ -46,13 +46,14 @@ const QuoteCalculator = () => {
           <label className="block text-xs text-neutral-400 uppercase tracking-widest mb-2">Service</label>
           <select value={service} onChange={e => setService(e.target.value)} className="w-full bg-[#0a0a0a] border border-[#222] rounded-lg px-4 py-3 text-white focus:outline-none focus:border-green-500/60">
             {Object.keys(SERVICE_RATES).map(s => <option key={s} value={s}>{s}</option>)}
+            <option value="Make Ready / Turnover">Make Ready / Turnover</option>
           </select>
         </div>
-        <div>
-          <label className="block text-xs text-neutral-400 uppercase tracking-widest mb-2">{service === 'Make Ready / Turnover' ? 'Unit' : 'Lot'} Size: <span className="text-white">{sqft.toLocaleString()} sq ft</span></label>
+        {estimate && <div>
+          <label className="block text-xs text-neutral-400 uppercase tracking-widest mb-2">Lot Size: <span className="text-white">{sqft.toLocaleString()} sq ft</span></label>
           <input type="range" min="1000" max="30000" step="500" value={sqft} onChange={e => setSqft(Number(e.target.value))} className="w-full accent-green-500"/>
           <div className="flex justify-between text-[10px] text-neutral-500 mt-1"><span>1,000</span><span>30,000+</span></div>
-        </div>
+        </div>}
       </div>
 
       {service === 'Lawn Mowing' && (
@@ -69,15 +70,16 @@ const QuoteCalculator = () => {
       )}
 
       <div className="mt-8 p-6 rounded-2xl bg-gradient-to-br from-[#0f1d12] to-[#0a0a0a] border border-green-500/30">
-        <div className="flex items-center justify-between gap-4 flex-wrap">
-          <div>
-            <div className="text-neutral-400 text-xs uppercase tracking-widest">Estimated Range</div>
-            <div className="text-green-400 text-3xl md:text-4xl font-bold mt-1">${estimate.low}–${estimate.high}</div>
-            <div className="text-neutral-500 text-sm mt-1">{estimate.label}</div>
+        {estimate ? <>
+          <div className="flex items-center justify-between gap-4 flex-wrap">
+            <div><div className="text-neutral-400 text-xs uppercase tracking-widest">Estimated Range</div><div className="text-green-400 text-3xl md:text-4xl font-bold mt-1">${estimate.low}–${estimate.high}</div><div className="text-neutral-500 text-sm mt-1">{estimate.label}</div></div>
+            <Link to="/contact" className="btn-green inline-flex items-center gap-2 px-6 py-3 rounded-full font-semibold">Get Exact Quote <ArrowRight size={16}/></Link>
           </div>
-          <Link to="/contact" className="btn-green inline-flex items-center gap-2 px-6 py-3 rounded-full font-semibold">Get Exact Quote <ArrowRight size={16}/></Link>
-        </div>
-        <p className="text-neutral-500 text-xs mt-4 flex items-start gap-2"><Sparkles size={12} className="text-green-400 mt-0.5 flex-shrink-0"/> Estimate based on typical Austin TX pricing. Final quote may vary based on property condition, accessibility, and specific requirements.</p>
+          <p className="text-neutral-500 text-xs mt-4 flex items-start gap-2"><Sparkles size={12} className="text-green-400 mt-0.5 flex-shrink-0"/> Final quote may vary based on property condition, accessibility, and specific requirements.</p>
+        </> : <div className="flex items-center justify-between gap-4 flex-wrap">
+          <div><div className="text-green-400 text-2xl font-bold">Custom Make-Ready Quote</div><p className="text-neutral-400 text-sm mt-2 max-w-lg">Each rental has a different scope. Share the location, work needed, units and desired date.</p></div>
+          <Link to="/contact?service=make-ready-services" className="btn-green inline-flex items-center gap-2 px-6 py-3 rounded-full font-semibold">Request a Quote <ArrowRight size={16}/></Link>
+        </div>}
       </div>
     </div>
   );

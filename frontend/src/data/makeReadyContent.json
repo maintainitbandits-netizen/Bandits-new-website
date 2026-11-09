@@ -1,0 +1,71 @@
+{
+  "meta": {
+    "title": "Austin Make Ready & Turnover Services | Maintain It Bandits",
+    "description": "Rental make-ready and tenant turnover services for Austin-area landlords and property managers. Tell us about your property and request a quote.",
+    "keywords": "make ready services Austin TX, rental turnover Austin, make ready cleaning Round Rock, property management make ready, landlord turnover services",
+    "image": "/gallery/service-make-ready.jpg",
+    "imageAlt": "Bright, empty rental home interior"
+  },
+  "headline": "Make Ready & Tenant Turnover Services in Austin, TX",
+  "intro": "Getting a rental ready for its next tenant? Tell us what the property needs. We work with landlords and property managers on make-ready projects across Austin and nearby communities.",
+  "areas": [
+    { "slug": "austin", "name": "Austin", "hasPage": true },
+    { "slug": "hutto", "name": "Hutto", "hasPage": true },
+    { "slug": "taylor", "name": "Taylor", "hasPage": true },
+    { "slug": "round-rock", "name": "Round Rock", "hasPage": true },
+    { "slug": "pflugerville", "name": "Pflugerville", "hasPage": true },
+    { "slug": "manor", "name": "Manor", "hasPage": false },
+    { "slug": "jarrell", "name": "Jarrell", "hasPage": false },
+    { "slug": "cedar-park", "name": "Cedar Park", "hasPage": true },
+    { "slug": "georgetown", "name": "Georgetown", "hasPage": true },
+    { "slug": "leander", "name": "Leander", "hasPage": true },
+    { "slug": "bee-cave", "name": "Bee Cave", "hasPage": true },
+    { "slug": "west-lake-hills", "name": "West Lake Hills", "hasPage": true },
+    { "slug": "lakeway", "name": "Lakeway", "hasPage": true },
+    { "slug": "dripping-springs", "name": "Dripping Springs", "hasPage": true }
+  ],
+  "areaIntro": "We consider make-ready projects in Austin and surrounding communities, generally within about 50 miles. Tell us your property's location so we can confirm service and availability.",
+  "audiences": [
+    { "title": "Property Managers", "text": "Have a checklist, multiple units, or a move-in deadline? Share the details so we can discuss the scope and scheduling for your properties." },
+    { "title": "Landlords & Rental Owners", "text": "Whether you are preparing one rental or several, tell us what needs attention and we will discuss a quote for your property." }
+  ],
+  "packages": [
+    {
+      "slug": "interior-refresh",
+      "name": "Interior Refresh",
+      "tagline": "For a rental that needs a fresh start",
+      "features": ["Move-out cleaning", "Kitchen, bathroom and appliance cleaning", "Paint touch-ups to discuss"]
+    },
+    {
+      "slug": "inside-and-out",
+      "name": "Inside & Out",
+      "tagline": "When the property needs more than a clean",
+      "features": ["Interior cleaning and touch-ups", "Junk and debris haul-off", "Lawn and exterior cleanup"]
+    },
+    {
+      "slug": "multiple-units",
+      "name": "Multiple Units",
+      "tagline": "For managers and owners planning several turns",
+      "features": ["Share your property list and checklist", "Discuss each unit's scope", "Plan around your requested dates"]
+    }
+  ],
+  "checklist": [
+    { "title": "Interior Cleaning", "items": ["Kitchens and bathrooms", "Floors, surfaces and baseboards", "Appliance cleaning"] },
+    { "title": "Touch-Ups & Punch Lists", "items": ["Paint and wall touch-ups", "Minor repairs to discuss", "Items from your own checklist"] },
+    { "title": "Haul-Off & Exterior", "items": ["Junk and debris removal", "Lawn care and yard cleanup", "Pressure washing where needed"] },
+    { "title": "Your Requirements", "items": ["Property type and number of units", "Desired completion date and access", "Photo or reporting requests"] }
+  ],
+  "timeline": [
+    { "step": "01", "title": "Tell us about the property", "text": "Share the city, property type, scope, number of units and desired date. A checklist is welcome." },
+    { "step": "02", "title": "Discuss the quote", "text": "We respond within 24 hours. Pricing, the work included and scheduling depend on the property's needs and availability." },
+    { "step": "03", "title": "Plan the work", "text": "Once the scope and schedule are agreed, we can plan the make-ready around your property." }
+  ],
+  "faqs": [
+    { "q": "What is a rental make-ready?", "a": "A make-ready is work to prepare a rental property for its next tenant. Depending on the property, that can include cleaning, touch-ups, debris removal and exterior work. The scope is discussed for each project." },
+    { "q": "How much does a make-ready cost?", "a": "Pricing depends on the property's size and condition, the requested work, location and timing. Tell us about the project and request a custom quote." },
+    { "q": "How soon can the work be done?", "a": "Tell us your desired completion date when you contact us. We respond within 24 hours; the work schedule depends on the scope and availability." },
+    { "q": "Can property managers send a checklist or request work on multiple units?", "a": "Yes. Share your checklist, the number of units, locations and requested dates so we can discuss the project and availability." },
+    { "q": "What cities do you cover?", "a": "We consider projects in Austin, Hutto, Taylor, Round Rock, Pflugerville, Manor, Jarrell and other nearby communities, generally within about 50 miles of Austin. Contact us to confirm your location." },
+    { "q": "Are you licensed and insured?", "a": "Yes. Maintain It Bandits LLC is fully licensed and insured." }
+  ]
+}

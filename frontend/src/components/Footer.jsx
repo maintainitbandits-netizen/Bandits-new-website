@@ -57,7 +57,7 @@ const Footer = () => {
             <li><Link to="/blog" className="text-neutral-400 hover:text-green-400">Blog</Link></li>
             <li><Link to="/pricing" className="text-neutral-400 hover:text-green-400">Pricing</Link></li>
             <li><Link to="/faq" className="text-neutral-400 hover:text-green-400">FAQ</Link></li>
-            <li><Link to="/contact" className="text-neutral-400 hover:text-green-400">Free Estimate</Link></li>
+            <li><Link to="/contact" className="text-neutral-400 hover:text-green-400">Request a Quote</Link></li>
           </ul>
         </div>
       </div>
@@ -65,11 +65,9 @@ const Footer = () => {
         <div className="max-w-7xl mx-auto px-5 lg:px-8 flex flex-col md:flex-row justify-between items-center gap-3 text-xs text-neutral-500">
           <div>© {new Date().getFullYear()} {COMPANY.name}. All rights reserved.</div>
           <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
-            <span>License: {COMPANY.licenseNumber}</span>
+            <span>Fully licensed &amp; insured</span>
             <span className="hidden md:inline">•</span>
-            <span>{COMPANY.insurance}</span>
-            <span className="hidden md:inline">•</span>
-            <span className="text-green-400/80">{COMPANY.guarantee}</span>
+            <span className="text-green-400/80">Response within 24 hours</span>
           </div>
         </div>
       </div>

@@ -5,18 +5,18 @@ import { Link } from 'react-router-dom';
 const STEPS = [
   {
     icon: Phone,
-    title: 'Request a Free Quote',
-    text: 'Tell us what you need in 60 seconds online or call us. We respond within 24 hours — usually much sooner.',
+    title: 'Request a Quote',
+    text: 'Tell us what you need online or call us. We respond within 24 hours.',
   },
   {
     icon: ClipboardCheck,
     title: 'Schedule Your Service',
-    text: 'Approve the quote and pick a date. Most jobs can start the same week. No deposits required.',
+    text: 'Discuss the quote, scope and timing. Scheduling depends on your project and availability.',
   },
   {
     icon: Sparkles,
     title: 'Enjoy the Results',
-    text: 'Our team handles everything start to finish. Sit back, relax, and watch your property transform.',
+    text: 'Once the scope and schedule are agreed, we can plan the work for your property.',
   },
 ];
 
@@ -26,7 +26,7 @@ const HowItWorks = () => (
       <div className="text-center mb-14">
         <span className="chip inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs tracking-widest font-medium uppercase">How It Works</span>
         <h2 className="font-serif text-4xl md:text-5xl text-white mt-5">Easy as 1 – 2 – 3</h2>
-        <p className="text-neutral-400 mt-4 max-w-2xl mx-auto">No pressure. No surprises. No long-term contracts. Just professional home services done right.</p>
+        <p className="text-neutral-400 mt-4 max-w-2xl mx-auto">Share your project details, discuss a quote and plan the work.</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 relative">
@@ -43,7 +43,7 @@ const HowItWorks = () => (
       </div>
 
       <div className="text-center mt-10">
-        <Link to="/contact" className="btn-green inline-flex items-center gap-2 px-7 py-3.5 rounded-full font-semibold">Start Step 1 – Get Free Quote <ArrowRight size={16}/></Link>
+        <Link to="/contact" className="btn-green inline-flex items-center gap-2 px-7 py-3.5 rounded-full font-semibold">Start Step 1 – Request a Quote <ArrowRight size={16}/></Link>
       </div>
     </div>
   </section>

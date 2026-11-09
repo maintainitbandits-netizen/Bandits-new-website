@@ -17,23 +17,20 @@ const BundleDetail = () => {
 
   const schema = {
     '@context': 'https://schema.org',
-    '@type': 'Product',
+    '@type': bundle.customQuote ? 'Service' : 'Product',
     name: bundle.name,
     description: bundle.description,
     image: bundle.image,
-    brand: { '@type': 'Brand', name: COMPANY.name },
-    offers: {
-      '@type': 'Offer',
-      price: bundle.bundlePrice,
-      priceCurrency: 'USD',
-      availability: 'https://schema.org/InStock',
-    },
+    ...(bundle.customQuote ? { provider: { '@type': 'LocalBusiness', name: COMPANY.name } } : {
+      brand: { '@type': 'Brand', name: COMPANY.name },
+      offers: { '@type': 'Offer', price: bundle.bundlePrice, priceCurrency: 'USD', availability: 'https://schema.org/InStock' },
+    }),
   };
 
   return (
     <div>
       <SEO
-        title={`${bundle.name} | Save $${bundle.savings} | Maintain It Bandits LLC Austin TX`}
+        title={bundle.customQuote ? `${bundle.name} | Custom Quote | Maintain It Bandits` : `${bundle.name} | Save $${bundle.savings} | Maintain It Bandits LLC Austin TX`}
         description={`${bundle.description.slice(0, 155)}...`}
         keywords={`${bundle.name.toLowerCase()} Austin TX, lawn care bundle, save on lawn service`}
         path={`/bundles/${slug}`}
@@ -59,18 +56,17 @@ const BundleDetail = () => {
             <p className="text-neutral-300 mt-5 leading-relaxed">{bundle.description}</p>
 
             <div className="mt-7 p-6 bg-[#0f0f0f] border border-green-500/30 rounded-2xl">
-              <div className="flex items-baseline gap-3 flex-wrap">
-                <span className="text-green-400 font-bold text-4xl md:text-5xl">${bundle.bundlePrice.toLocaleString()}</span>
-                <span className="text-neutral-500 line-through text-lg">${bundle.regularPrice.toLocaleString()}</span>
-              </div>
-              <div className="mt-2 flex items-center gap-3 text-sm">
-                <span className="chip px-3 py-1 rounded-full text-green-400 font-semibold">Save ${bundle.savings}</span>
-                <span className="text-neutral-500">{bundle.duration}</span>
-              </div>
+              {bundle.customQuote ? <>
+                <div className="text-green-400 font-bold text-3xl">Custom quote</div>
+                <p className="text-neutral-400 text-sm mt-2">The work and schedule are confirmed for your property.</p>
+              </> : <>
+                <div className="flex items-baseline gap-3 flex-wrap"><span className="text-green-400 font-bold text-4xl md:text-5xl">${bundle.bundlePrice.toLocaleString()}</span><span className="text-neutral-500 line-through text-lg">${bundle.regularPrice.toLocaleString()}</span></div>
+                <div className="mt-2 flex items-center gap-3 text-sm"><span className="chip px-3 py-1 rounded-full text-green-400 font-semibold">Save ${bundle.savings}</span><span className="text-neutral-500">{bundle.duration}</span></div>
+              </>}
             </div>
 
             <div className="flex flex-col sm:flex-row gap-3 mt-6">
-              <Link to="/contact" className="btn-green inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-full font-semibold">Get This Bundle <ArrowRight size={18}/></Link>
+              <Link to={bundle.quoteService ? `/contact?service=${bundle.quoteService}` : '/contact'} className="btn-green inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-full font-semibold">{bundle.customQuote ? 'Request a Quote' : 'Get This Bundle'} <ArrowRight size={18}/></Link>
               <a href={`tel:${COMPANY.phoneRaw}`} className="btn-dark inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-full font-semibold"><Phone size={18} className="text-green-400"/> {COMPANY.phone}</a>
             </div>
           </div>
@@ -87,7 +83,8 @@ const BundleDetail = () => {
         <div className="max-w-5xl mx-auto px-5 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
             <div className="bg-[#0f0f0f] border border-[#1c1c1c] rounded-2xl p-7">
-              <h2 className="font-serif text-2xl md:text-3xl text-white">Everything Included</h2>
+              <h2 className="font-serif text-2xl md:text-3xl text-white">{bundle.customQuote ? 'Work to Discuss' : 'Everything Included'}</h2>
+              {bundle.customQuote && <p className="text-neutral-400 text-sm mt-3">Examples only; the work is confirmed for your property.</p>}
               <ul className="mt-5 space-y-3">
                 {bundle.includes.map((it, i) => (
                   <li key={i} className="flex items-start gap-3 text-neutral-200"><Check size={18} className="text-green-400 mt-1 flex-shrink-0"/> {it}</li>
@@ -98,13 +95,13 @@ const BundleDetail = () => {
               <h2 className="font-serif text-2xl md:text-3xl text-white">Ideal For</h2>
               <p className="text-neutral-300 mt-4 leading-relaxed">{bundle.idealFor}</p>
 
-              <h3 className="text-white font-semibold mt-7">Why Bundle?</h3>
-              <ul className="mt-3 space-y-2 text-sm">
+              <h3 className="text-white font-semibold mt-7">{bundle.customQuote ? 'Plan Your Project' : 'Why Bundle?'}</h3>
+              {bundle.customQuote ? <p className="text-neutral-400 text-sm mt-3 leading-relaxed">Tell us the location, property type, work needed and desired date. We&apos;ll discuss the scope and availability.</p> : <ul className="mt-3 space-y-2 text-sm">
                 <li className="flex items-start gap-2 text-neutral-300"><Check size={14} className="text-green-400 mt-1 flex-shrink-0"/> Save ${bundle.savings} vs booking services separately</li>
                 <li className="flex items-start gap-2 text-neutral-300"><Check size={14} className="text-green-400 mt-1 flex-shrink-0"/> One coordinated schedule, one invoice</li>
                 <li className="flex items-start gap-2 text-neutral-300"><Check size={14} className="text-green-400 mt-1 flex-shrink-0"/> Priority booking & dedicated crew</li>
                 <li className="flex items-start gap-2 text-neutral-300"><Check size={14} className="text-green-400 mt-1 flex-shrink-0"/> Cancel or pause anytime — no long contracts</li>
-              </ul>
+              </ul>}
             </div>
           </div>
         </div>
@@ -133,11 +130,15 @@ const BundleDetail = () => {
       {/* TRUST */}
       <section className="py-16">
         <div className="max-w-5xl mx-auto px-5 lg:px-8 grid grid-cols-1 md:grid-cols-3 gap-5">
-          {[
+          {(bundle.customQuote ? [
+            { icon: ShieldCheck, title: 'Licensed & Insured', text: 'Fully licensed and insured' },
+            { icon: Clock, title: '24-Hour Response', text: 'Work timing depends on availability' },
+            { icon: Package, title: 'Custom Quote', text: 'Based on your property and scope' },
+          ] : [
             { icon: ShieldCheck, title: 'Licensed & Insured', text: 'Full coverage for every job' },
             { icon: Clock, title: 'Flexible Scheduling', text: 'Pause, cancel, or adjust anytime' },
             { icon: Star, title: '5-Star Rated', text: 'Trusted by 500+ Austin homeowners' },
-          ].map((t, i) => (
+          ]).map((t, i) => (
             <div key={i} className="bg-[#0f0f0f] border border-[#1c1c1c] rounded-2xl p-6 text-center">
               <div className="mx-auto h-12 w-12 rounded-full bg-green-500/10 border border-green-500/30 grid place-items-center"><t.icon className="text-green-400" size={20}/></div>
               <div className="text-white font-semibold mt-4">{t.title}</div>
@@ -160,8 +161,7 @@ const BundleDetail = () => {
                 <div className="p-5">
                   <h3 className="text-white font-semibold">{b.name}</h3>
                   <div className="mt-2 flex items-baseline gap-2">
-                    <span className="text-green-400 font-bold text-xl">${b.bundlePrice.toLocaleString()}</span>
-                    <span className="text-neutral-500 line-through text-sm">${b.regularPrice.toLocaleString()}</span>
+                    {b.customQuote ? <span className="text-green-400 font-bold text-xl">Custom quote</span> : <><span className="text-green-400 font-bold text-xl">${b.bundlePrice.toLocaleString()}</span><span className="text-neutral-500 line-through text-sm">${b.regularPrice.toLocaleString()}</span></>}
                   </div>
                 </div>
               </Link>
@@ -170,7 +170,7 @@ const BundleDetail = () => {
         </div>
       </section>
 
-      <CTASection />
+      {bundle.quoteService ? <section className="py-20"><div className="max-w-4xl mx-auto px-5 lg:px-8 text-center"><h2 className="font-serif text-3xl text-white">Ready to discuss your rental?</h2><p className="text-neutral-400 mt-4">Tell us about the property, your checklist and desired date.</p><Link to={`/contact?service=${bundle.quoteService}`} className="btn-green inline-flex items-center gap-2 px-7 py-3.5 rounded-full font-semibold mt-7">Request a Quote <ArrowRight size={16}/></Link></div></section> : <CTASection />}
     </div>
   );
 };

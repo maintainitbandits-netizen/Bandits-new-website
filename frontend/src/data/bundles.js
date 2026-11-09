@@ -1,5 +1,5 @@
 // Service combo / bundle definitions
-// Bundles save customers money by combining commonly-paired services.
+// Some combinations are quoted individually based on the property's needs.
 
 export const BUNDLES = [
   {
@@ -70,22 +70,18 @@ export const BUNDLES = [
   {
     slug: 'property-refresh',
     name: 'Property Refresh Bundle',
-    tagline: 'Move-out / move-in made simple.',
-    description: 'Combine deep cleaning with property maintenance for the ultimate transition package. Ideal for sellers, renters moving out, or new homeowners moving in.',
+    tagline: 'A scope for your property transition.',
+    description: 'Discuss cleaning and property maintenance for a move, sale or rental transition. The work, price and schedule are based on your property.',
     services: ['cleaning', 'property-maintenance', 'lawn-mowing'],
-    idealFor: 'Real estate transitions, rental turnovers, new buyers',
-    regularPrice: 1850,
-    bundlePrice: 1450,
-    savings: 400,
-    duration: 'One-time service',
+    idealFor: 'Property owners, renters and managers planning a transition',
+    customQuote: true,
+    duration: 'Timing discussed per project',
     image: 'https://images.pexels.com/photos/6647052/pexels-photo-6647052.jpeg?w=1600&q=80',
     includes: [
-      'Full move-out or move-in deep clean',
-      'Inside cabinets, appliances & baseboards',
-      'Lawn mowing, edging & cleanup',
-      'Bed weeding & mulch touch-up',
-      'Light trim work',
-      'Trash & debris haul-off',
+      'Move-out or move-in cleaning to discuss',
+      'Lawn care and yard cleanup',
+      'Light property maintenance',
+      'Trash and debris haul-off',
     ],
   },
   {
@@ -112,25 +108,20 @@ export const BUNDLES = [
   {
     slug: 'rapid-turnover',
     name: 'Rapid Turnover Bundle',
-    tagline: 'One call. One crew. Unit rent-ready fast.',
-    description: 'The complete tenant turnover package for Austin landlords and property managers — junk haul-off, full deep cleaning, paint touch-ups, and a complete curb-appeal refresh bundled at a discount. Photo documentation on every line item, and rent-ready in as little as 48–72 hours.',
+    tagline: 'Make-ready work tailored to your rental.',
+    description: 'For Austin-area landlords and property managers: discuss cleaning, touch-ups, haul-off and exterior work together for your rental. Scope, pricing and scheduling depend on the property and availability.',
     services: ['make-ready-services', 'cleaning', 'junk-haul-off', 'pressure-washing'],
-    idealFor: 'Landlords & property managers turning units between tenants',
-    regularPrice: 1150,
-    bundlePrice: 895,
-    savings: 255,
-    duration: '2–4 business days per unit',
-    featured: true,
+    idealFor: 'Landlords and property managers preparing rentals between tenants',
+    customQuote: true,
+    quoteService: 'make-ready-services',
+    duration: 'Timing discussed per project',
     image: '/gallery/service-make-ready.jpg',
     includes: [
-      'Tenant junk & belongings haul-off',
-      'Full interior move-out deep clean',
-      'Kitchen, bath & appliance detailing',
-      'Paint touch-ups on scuffs & nail holes',
-      'Minor repairs & punch-list items',
-      'Lawn mowing, edging & bed cleanup',
-      'Driveway, patio & entry pressure washing',
-      'Before-and-after photo report',
+      'Move-out and appliance cleaning',
+      'Paint touch-ups and minor repairs to discuss',
+      'Junk and debris haul-off',
+      'Lawn and exterior cleanup',
+      'Your checklist and reporting requirements',
     ],
   },
 ];

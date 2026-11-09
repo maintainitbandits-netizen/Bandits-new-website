@@ -17,16 +17,16 @@ const Navbar = () => {
         <Link to="/" className="flex items-center gap-3">
           <img src={COMPANY.logo} alt={COMPANY.name} className="h-14 w-14 rounded-full bg-white p-0.5 ring-2 ring-green-500/30 object-contain" />
           <div className="leading-tight">
-            <div className="text-green-400 font-bold text-base md:text-lg">{COMPANY.name}</div>
+            <div className="text-green-400 font-bold text-base xl:whitespace-nowrap">{COMPANY.name}</div>
             <div className="text-[10px] tracking-[0.25em] text-orange-400/90 font-semibold">{COMPANY.tagline}</div>
           </div>
         </Link>
 
-        <nav className="hidden lg:flex items-center gap-1">
+        <nav className="hidden xl:flex items-center gap-0">
           {NAV_LINKS.map((l) => (
             l.hasDropdown === 'services' ? (
               <div key={l.path} className="relative" onMouseEnter={() => setSvcOpen(true)} onMouseLeave={() => setSvcOpen(false)}>
-                <NavLink to={l.path} className={({ isActive }) => `px-4 py-2 rounded-full text-sm flex items-center gap-1 ${isActive ? 'bg-[#161616] text-white' : 'text-neutral-300 hover:text-white'}`}>
+                <NavLink to={l.path} className={({ isActive }) => `px-2 py-2 rounded-full text-sm flex items-center gap-1 whitespace-nowrap ${isActive ? 'bg-[#161616] text-white' : 'text-neutral-300 hover:text-white'}`}>
                   {l.label} <ChevronDown size={14} />
                 </NavLink>
                 {svcOpen && (
@@ -44,7 +44,7 @@ const Navbar = () => {
               </div>
             ) : l.hasDropdown === 'areas' ? (
               <div key={l.path} className="relative" onMouseEnter={() => setAreaOpen(true)} onMouseLeave={() => setAreaOpen(false)}>
-                <NavLink to={l.path} className={({ isActive }) => `px-4 py-2 rounded-full text-sm flex items-center gap-1 ${isActive ? 'bg-[#161616] text-white' : 'text-neutral-300 hover:text-white'}`}>
+                <NavLink to={l.path} className={({ isActive }) => `px-2 py-2 rounded-full text-sm flex items-center gap-1 whitespace-nowrap ${isActive ? 'bg-[#161616] text-white' : 'text-neutral-300 hover:text-white'}`}>
                   {l.label} <ChevronDown size={14} />
                 </NavLink>
                 {areaOpen && (
@@ -58,7 +58,7 @@ const Navbar = () => {
                 )}
               </div>
             ) : (
-              <NavLink key={l.path} to={l.path} end={l.path === '/'} className={({ isActive }) => isActive ? `px-4 py-2 rounded-full text-sm bg-[#161616] ${l.highlight ? 'text-green-400' : 'text-white'}` : `px-4 py-2 rounded-full text-sm ${l.highlight ? 'text-green-400 font-semibold' : 'text-neutral-300'} hover:text-white`}>
+              <NavLink key={l.path} to={l.path} end={l.path === '/'} className={({ isActive }) => isActive ? `px-2 py-2 rounded-full text-sm whitespace-nowrap bg-[#161616] ${l.highlight ? 'text-green-400' : 'text-white'}` : `px-2 py-2 rounded-full text-sm whitespace-nowrap ${l.highlight ? 'text-green-400 font-semibold' : 'text-neutral-300'} hover:text-white`}>
                 {l.label}
               </NavLink>
             )
@@ -66,19 +66,19 @@ const Navbar = () => {
         </nav>
 
         <div className="hidden md:flex items-center gap-4">
-          <a href={`tel:${COMPANY.phoneRaw}`} className="flex items-center gap-2 text-neutral-200 text-sm hover:text-green-400">
+          <a href={`tel:${COMPANY.phoneRaw}`} className="flex items-center gap-2 text-neutral-200 text-sm hover:text-green-400 whitespace-nowrap">
             <Phone size={16} className="text-green-400" /> {COMPANY.phone}
           </a>
-          <Link to="/contact" className="btn-green px-5 py-2.5 rounded-full text-sm font-semibold">Free Estimate</Link>
+          <Link to="/contact" className="btn-green px-5 py-2.5 rounded-full text-sm font-semibold whitespace-nowrap">Request a Quote</Link>
         </div>
 
-        <button className="lg:hidden text-neutral-200" onClick={() => setOpen(!open)}>
+        <button className="xl:hidden text-neutral-200" aria-label={open ? 'Close menu' : 'Open menu'} onClick={() => setOpen(!open)}>
           {open ? <X size={26} /> : <Menu size={26} />}
         </button>
       </div>
 
       {open && (
-        <div className="lg:hidden bg-[#0c0c0c] border-t border-[#1a1a1a]">
+        <div className="xl:hidden bg-[#0c0c0c] border-t border-[#1a1a1a]">
           <div className="px-5 py-4 flex flex-col gap-1">
             {NAV_LINKS.map(l => (
               <NavLink key={l.path} to={l.path} end={l.path === '/'} className={({isActive}) => `px-4 py-3 rounded-lg ${isActive ? 'bg-[#161616] text-green-400' : l.highlight ? 'text-green-400 font-semibold' : 'text-neutral-300'}`}>
@@ -86,7 +86,7 @@ const Navbar = () => {
               </NavLink>
             ))}
             <a href={`tel:${COMPANY.phoneRaw}`} className="px-4 py-3 text-green-400 flex items-center gap-2"><Phone size={16} /> {COMPANY.phone}</a>
-            <Link to="/contact" className="btn-green text-center px-5 py-3 rounded-full font-semibold mt-2">Free Estimate</Link>
+            <Link to="/contact" className="btn-green text-center px-5 py-3 rounded-full font-semibold mt-2">Request a Quote</Link>
           </div>
         </div>
       )}

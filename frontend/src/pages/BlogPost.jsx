@@ -44,7 +44,9 @@ const BlogPost = () => {
   const { slug } = useParams();
   const post = BLOG_POSTS.find(p => p.slug === slug);
   if (!post) return <Navigate to="/blog" replace />;
-  const related = BLOG_POSTS.filter(p => p.slug !== slug).slice(0, 3);
+  const rentalPost = post.category === 'Make Ready & Turnovers';
+  const related = [...BLOG_POSTS.filter(p => p.slug !== slug && p.category === post.category), ...BLOG_POSTS.filter(p => p.slug !== slug && p.category !== post.category)].slice(0, 3);
+  const quoteLink = rentalPost ? `/contact?service=${slug === 'tenant-turnover-timeline-austin-tx' ? 'tenant-turnover-services' : 'make-ready-services'}` : '/contact';
   const imageUrl = new URL(post.image, 'https://www.maintainitbandits.com').href;
 
   const schema = {
@@ -86,9 +88,9 @@ const BlogPost = () => {
         </div>
 
         <div className="mt-12 p-6 bg-[#0f0f0f] border border-green-500/20 rounded-2xl">
-          <h3 className="font-serif text-2xl text-white">Need help with your Austin lawn?</h3>
-          <p className="text-neutral-400 mt-2 text-sm">Get a free estimate from Austin&apos;s trusted lawn care professionals.</p>
-          <Link to="/contact" className="btn-green inline-flex items-center gap-2 px-6 py-3 rounded-full font-semibold mt-5 text-sm">Get Free Estimate</Link>
+          <h3 className="font-serif text-2xl text-white">{rentalPost ? 'Planning your next rental turn?' : 'Need help with your Austin property?'}</h3>
+          <p className="text-neutral-400 mt-2 text-sm">{rentalPost ? 'Share your checklist, property location and desired date. We’ll respond within 24 hours.' : 'Tell us what your property needs and request an estimate.'}</p>
+          <Link to={quoteLink} className="btn-green inline-flex items-center gap-2 px-6 py-3 rounded-full font-semibold mt-5 text-sm">Request a Quote</Link>
         </div>
       </article>
 

@@ -7,7 +7,7 @@ const DEFAULT_OG_IMAGE = `${ORIGIN}/gallery/lush-lawn-after.jpg`;
 
 const SEO = ({ title, description, keywords, path = '/', image, imageAlt, type = 'website', schema }) => {
   const fullTitle = title ? `${title}` : `${SITE} | Lawn Care & Home Services Austin TX`;
-  const desc = description || 'Austin TX\u2019s one-stop shop for lawn care, landscaping, cleaning, and home services. Licensed & insured. Free estimates.';
+  const desc = description || 'Home and property services in greater Austin. Fully licensed and insured.';
   const url = `${ORIGIN}${path}`;
   const ogImage = image ? new URL(image, ORIGIN).href : DEFAULT_OG_IMAGE;
   return (

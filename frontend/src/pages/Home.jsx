@@ -1,8 +1,8 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Phone, ArrowRight, Link as LinkIcon, ShieldCheck, Clock, Star, DollarSign, Check, Quote, MapPin } from 'lucide-react';
-import { HERO_IMAGE, SERVICES, TESTIMONIALS, SERVICE_AREAS, WHY_CHOOSE, COMPANY } from '../mock';
-import { SOCIAL, REVIEW_STATS } from '../config/social';
+import { Phone, ArrowRight, Link as LinkIcon, ShieldCheck, Clock, Star, DollarSign, Check, MapPin } from 'lucide-react';
+import { HERO_IMAGE, SERVICES, SERVICE_AREAS, WHY_CHOOSE, COMPANY } from '../mock';
+import { SOCIAL } from '../config/social';
 import SEO from '../components/SEO';
 import TrustBar from '../components/TrustBar';
 import QuoteCalculator from '../components/QuoteCalculator';
@@ -28,7 +28,6 @@ const Home = () => {
     'url': 'https://maintainitbandits.com',
     'telephone': COMPANY.phone,
     'email': COMPANY.email,
-    'priceRange': '$$',
     'address': { '@type': 'PostalAddress', 'addressLocality': COMPANY.city, 'addressRegion': COMPANY.region, 'addressCountry': COMPANY.country },
     'areaServed': SERVICE_AREAS.map(a => a.name),
     'openingHoursSpecification': COMPANY.hoursStructured.filter(h => h.open).map(h => ({
@@ -37,14 +36,13 @@ const Home = () => {
       'opens': h.open,
       'closes': h.close,
     })),
-    'aggregateRating': { '@type': 'AggregateRating', 'ratingValue': REVIEW_STATS.rating.toString(), 'reviewCount': REVIEW_STATS.count.toString(), 'bestRating': '5' },
     'sameAs': [SOCIAL.googleBusinessProfile, SOCIAL.facebook, SOCIAL.instagram, SOCIAL.yelp, SOCIAL.nextdoor].filter(Boolean),
   };
   return (
     <div>
       <SEO
         title="Lawn Care, Landscaping, Make Ready & Home Services Austin TX | Maintain It Bandits LLC"
-        description="Austin TX's one-stop shop for lawn care, landscaping, cleaning, make readys & tenant turnovers. Rent-ready in 48-72 hours. Licensed & insured. Free estimates. Call (512) 518-1558."
+        description="Lawn care, landscaping, cleaning, make-ready and tenant turnover services in greater Austin. Fully licensed and insured. Call (512) 518-1558."
         keywords="lawn care Austin TX, landscaping Austin, home services Austin, lawn mowing Austin, Austin landscaper, make ready services Austin TX, tenant turnover services Austin, make ready cleaning Austin, rental make ready company Austin"
         path="/"
         image="https://maintainitbandits.com/images/hero-bg.jpg"
@@ -67,7 +65,7 @@ const Home = () => {
             </p>
             <div className="flex flex-col sm:flex-row gap-4 mt-9">
               <Link to="/contact" className="btn-green inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-full font-semibold">
-                Get Free Estimate <ArrowRight size={18} />
+                Request an Estimate <ArrowRight size={18} />
               </Link>
               <a href={`tel:${COMPANY.phoneRaw}`} className="btn-dark inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-full font-semibold">
                 <Phone size={18} className="text-green-400" /> {COMPANY.phone}
@@ -81,9 +79,9 @@ const Home = () => {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
             {[
               { icon: ShieldCheck, label: 'Licensed & Insured' },
-              { icon: Clock, label: 'Same Week Service' },
-              { icon: Star, label: '5-Star Rated' },
-              { icon: DollarSign, label: 'Free Estimates' },
+              { icon: Clock, label: '24-Hour Response' },
+              { icon: MapPin, label: 'Greater Austin' },
+              { icon: DollarSign, label: 'Project-Based Quotes' },
             ].map((t, i) => (
               <div key={i} className="flex items-center gap-3 px-4 py-3">
                 <div className="h-10 w-10 rounded-full bg-green-500/10 border border-green-500/30 grid place-items-center">
@@ -139,16 +137,16 @@ const Home = () => {
             <div className="grid grid-cols-1 lg:grid-cols-2">
               <div className="p-10 md:p-14">
                 <Badge>Landlords & Property Managers</Badge>
-                <h2 className="font-serif text-3xl md:text-5xl text-white mt-5 leading-tight">Make Readys &amp; Tenant Turnovers — One Call, Rent-Ready Fast</h2>
+                <h2 className="font-serif text-3xl md:text-5xl text-white mt-5 leading-tight">Make Readys &amp; Tenant Turnovers for Your Rental</h2>
                 <p className="text-neutral-400 mt-5 leading-relaxed">
-                  Stop juggling cleaners, painters, handymen, and lawn crews between tenants. Our make ready and turnover crews handle the deep clean, paint touch-ups, minor repairs, junk haul-off, and full curb-appeal refresh — with photo documentation on every line item. Rent-ready in as little as <span className="text-green-400 font-semibold">48–72 hours</span>.
+                  Preparing a property for its next tenant? Landlords and property managers can tell us about cleaning, touch-ups, haul-off and exterior work. We’ll discuss a custom scope and schedule for your rental.
                 </p>
                 <ul className="mt-7 space-y-3">
                   {[
-                    'One crew, one invoice for the entire turn',
-                    'Photo reports for owner & deposit files',
-                    'COI available · Net-terms invoicing for PMs',
-                    'Volume pricing for multi-unit portfolios',
+                    'Requests for single rentals and multiple units',
+                    'Share your checklist and requested date',
+                    'Fully licensed and insured',
+                    'Response within 24 hours',
                   ].map((f, i) => (
                     <li key={i} className="flex items-start gap-3 text-neutral-200 text-sm">
                       <span className="mt-0.5 h-5 w-5 rounded-full bg-green-500/15 border border-green-500/30 grid place-items-center flex-shrink-0"><Check size={12} className="text-green-400" /></span>
@@ -164,8 +162,8 @@ const Home = () => {
               <div className="relative min-h-[320px]">
                 <img src="/gallery/make-ready-hero.jpg" alt="Rental home refreshed with make ready and turnover services in Austin TX" className="absolute inset-0 w-full h-full object-cover" />
                 <div className="absolute bottom-5 right-5 bg-[#0c0c0c]/95 border border-green-500/30 rounded-2xl px-5 py-3 shadow-xl">
-                  <div className="text-green-400 font-bold text-2xl">48–72 hrs</div>
-                  <div className="text-neutral-400 text-[10px] uppercase tracking-wider">Typical Turnaround</div>
+                  <div className="text-green-400 font-bold text-xl">Your property, your scope</div>
+                  <div className="text-neutral-400 text-[10px] uppercase tracking-wider">Ask about a custom quote</div>
                 </div>
               </div>
             </div>
@@ -179,7 +177,7 @@ const Home = () => {
           <div className="text-center mb-10">
             <Badge>Instant Estimate</Badge>
             <h2 className="font-serif text-4xl md:text-5xl text-white mt-5">Ballpark Your Project in Seconds</h2>
-            <p className="text-neutral-400 mt-4 max-w-2xl mx-auto">No phone calls, no email forms — just pick your service and lot size to get an instant price range.</p>
+            <p className="text-neutral-400 mt-4 max-w-2xl mx-auto">Explore a ballpark for select services. Rental make-readys are quoted based on your property and scope.</p>
           </div>
           <QuoteCalculator />
         </div>
@@ -221,38 +219,22 @@ const Home = () => {
             <div className="absolute -inset-3 bg-green-500/10 rounded-3xl blur-xl" />
             <img src="/gallery/mower-action.jpg" alt="Maintain It Bandits crew mowing a lawn in Austin TX" className="relative w-full rounded-2xl border border-[#1a1a1a]" />
             <div className="absolute -bottom-6 -right-6 bg-[#0c0c0c] border border-green-500/30 rounded-2xl px-6 py-4 shadow-xl">
-              <div className="text-green-400 font-bold text-3xl">500+</div>
-              <div className="text-neutral-400 text-xs uppercase tracking-wider">Happy Customers</div>
+              <div className="text-green-400 font-bold text-xl">Greater Austin</div>
+              <div className="text-neutral-400 text-xs uppercase tracking-wider">Home &amp; rental services</div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* TESTIMONIALS */}
-      <section className="py-24 bg-[#0a0a0a]">
-        <div className="max-w-6xl mx-auto px-5 lg:px-8">
-          <div className="text-center mb-14">
-            <Badge icon={Star}>Testimonials</Badge>
-            <h2 className="font-serif text-4xl md:text-5xl text-white mt-5">What Austin Homeowners Say</h2>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {TESTIMONIALS.map((t, i) => (
-              <div key={i} className="bg-[#0f0f0f] border border-[#1c1c1c] rounded-2xl p-7 hover:border-green-500/30 transition-colors">
-                <Quote className="text-green-400" size={28} />
-                <div className="flex gap-1 mt-4">
-                  {[...Array(5)].map((_, j) => <Star key={j} size={16} className="text-green-400 fill-green-400" />)}
-                </div>
-                <p className="text-neutral-300 italic mt-5 leading-relaxed">&quot;{t.text}&quot;</p>
-                <div className="mt-6 pt-5 border-t border-[#1c1c1c]">
-                  <div className="text-white font-semibold">{t.name}</div>
-                  <div className="text-neutral-500 text-sm">{t.location}</div>
-                </div>
-              </div>
-            ))}
-          </div>
+      {/* GOOGLE REVIEWS */}
+      <section className="py-20 bg-[#0a0a0a]">
+        <div className="max-w-4xl mx-auto px-5 lg:px-8 text-center">
+          <Badge icon={Star}>Customer Reviews</Badge>
+          <h2 className="font-serif text-3xl md:text-5xl text-white mt-5">See What Customers Say</h2>
+          <p className="text-neutral-400 mt-4">Read current reviews directly on our Google Business Profile.</p>
+          <a href={SOCIAL.googleBusinessProfile} target="_blank" rel="noopener noreferrer" className="btn-dark inline-flex items-center gap-2 px-7 py-3.5 rounded-full font-semibold mt-7">Read Google Reviews <ArrowRight size={16} /></a>
         </div>
       </section>
-
 
       {/* LEAD MAGNET */}
       <LeadMagnet />
@@ -277,9 +259,9 @@ const Home = () => {
         <div className="max-w-4xl mx-auto px-5 lg:px-8">
           <div className="bg-gradient-to-br from-[#0f1d12] to-[#0a0a0a] border border-green-500/20 rounded-3xl p-10 md:p-14 text-center">
             <h2 className="font-serif text-3xl md:text-5xl text-white">Ready for the Best Home Services in Austin TX?</h2>
-            <p className="text-neutral-400 mt-5 max-w-2xl mx-auto">Get your free, no-obligation estimate today. Maintain It Bandits LLC is your one-stop shop for lawn care, landscaping, cleaning, and more in Austin TX.</p>
+            <p className="text-neutral-400 mt-5 max-w-2xl mx-auto">Tell us about your property and request an estimate. Maintain It Bandits LLC is your one-stop shop for lawn care, landscaping, cleaning, and more in Austin TX.</p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center mt-8">
-              <Link to="/contact" className="btn-green inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-full font-semibold">Get Free Estimate <ArrowRight size={18}/></Link>
+              <Link to="/contact" className="btn-green inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-full font-semibold">Request an Estimate <ArrowRight size={18}/></Link>
               <a href={`tel:${COMPANY.phoneRaw}`} className="btn-dark inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-full font-semibold"><Phone size={18} className="text-green-400"/> {COMPANY.phone}</a>
             </div>
           </div>
