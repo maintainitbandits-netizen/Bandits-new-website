@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useParams, Navigate } from 'react-router-dom';
-import { ArrowRight, Phone, Check, ShieldCheck, Clock, Star, DollarSign, MapPin } from 'lucide-react';
+import { ArrowRight, Phone, Check, ShieldCheck, Clock, DollarSign, MapPin } from 'lucide-react';
 import { SERVICES, COMPANY, SERVICE_AREAS } from '../mock';
 import { SERVICE_SEO } from '../seo';
 import { MAKE_READY_AREAS, MAKE_READY_AREA_INTRO } from '../data/makeReady';
@@ -189,10 +189,10 @@ const ServiceDetail = () => {
               { icon: MapPin, title: 'Greater Austin', text: 'Ask us to confirm your location' },
               { icon: DollarSign, title: 'Custom Quotes', text: 'Based on your property and scope' },
             ] : [
-              { icon: ShieldCheck, title: 'Licensed & Insured', text: 'Full coverage for your peace of mind' },
-              { icon: Clock, title: 'Same Week Service', text: 'Fast scheduling when you need it' },
-              { icon: Star, title: '5-Star Rated', text: 'Trusted by 500+ happy customers' },
-              { icon: DollarSign, title: 'Free Estimates', text: 'No obligation quotes' },
+              { icon: ShieldCheck, title: 'Licensed & Insured', text: 'Fully licensed and insured' },
+              { icon: Clock, title: '24-Hour Response', text: 'Work timing depends on availability' },
+              { icon: MapPin, title: 'Greater Austin', text: 'Ask us to confirm your location' },
+              { icon: DollarSign, title: 'Estimates', text: 'Discuss the work for your property' },
             ]).map((b, i) => (
               <div key={i} className="bg-[#0f0f0f] border border-[#1c1c1c] rounded-2xl p-6 text-center hover:border-green-500/30 transition-colors">
                 <div className="mx-auto h-12 w-12 rounded-full bg-green-500/10 border border-green-500/30 grid place-items-center"><b.icon className="text-green-400" size={20} /></div>

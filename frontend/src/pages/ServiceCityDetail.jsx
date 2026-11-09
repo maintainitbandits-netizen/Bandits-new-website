@@ -1,8 +1,9 @@
 import React from 'react';
 import { Link, useParams, Navigate } from 'react-router-dom';
-import { ArrowRight, Phone, Check, MapPin, ShieldCheck, Clock, Star, DollarSign } from 'lucide-react';
-import { SERVICES, SERVICE_AREAS, COMPANY } from '../mock';
+import { ArrowRight, Phone, Check } from 'lucide-react';
+import { SERVICES, COMPANY } from '../mock';
 import { SERVICE_AREAS_DETAIL, SERVICE_SEO } from '../seo';
+import { BUSINESS_SCHEMA_ID } from '../config/site';
 import SEO from '../components/SEO';
 import Breadcrumbs from '../components/Breadcrumbs';
 import RentalCityDetail from './RentalCityDetail';
@@ -20,7 +21,8 @@ const ServiceCityDetail = () => {
 
   const seo = SERVICE_SEO[slug] || {};
   const title = `${svc.title} in ${cityMeta.fullName} | ${COMPANY.name}`;
-  const description = `Professional ${svc.title.toLowerCase()} in ${cityMeta.fullName}. Licensed, insured, 5-star rated. Serving ZIPs ${cityMeta.zips.slice(0,3).join(', ')}${cityMeta.zips.length>3?'+':''}. Free estimates.`;
+  const description = `Explore ${svc.title.toLowerCase()} in ${cityMeta.fullName}. Fully licensed and insured. Request an estimate and confirm availability for your property.`;
+  const quoteLink = `/contact?service=${slug}&city=${city}`;
 
   const schema = {
     '@context': 'https://schema.org',
@@ -28,9 +30,9 @@ const ServiceCityDetail = () => {
     serviceType: svc.title,
     provider: {
       '@type': 'LocalBusiness',
+      '@id': BUSINESS_SCHEMA_ID,
       name: COMPANY.name,
       telephone: COMPANY.phone,
-      address: { '@type': 'PostalAddress', addressLocality: cityMeta.name, addressRegion: 'TX', addressCountry: 'US' },
     },
     areaServed: { '@type': 'City', name: cityMeta.fullName },
     description,
@@ -59,7 +61,7 @@ const ServiceCityDetail = () => {
             <h1 className="font-serif text-4xl md:text-6xl text-white leading-tight">{svc.title}<br/><span className="text-green-400 italic block text-3xl md:text-4xl mt-2">in {cityMeta.fullName}</span></h1>
             <p className="text-neutral-300 mt-6 leading-relaxed text-lg">Reliable, professional {svc.title.toLowerCase()} for {cityMeta.fullName} homeowners. {cityMeta.intro}</p>
             <div className="flex flex-col sm:flex-row gap-4 mt-8">
-              <Link to="/contact" className="btn-green inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-full font-semibold">Get Free Estimate <ArrowRight size={18}/></Link>
+              <Link to={quoteLink} className="btn-green inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-full font-semibold">Request an Estimate <ArrowRight size={18}/></Link>
               <a href={`tel:${COMPANY.phoneRaw}`} className="btn-dark inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-full font-semibold"><Phone size={18} className="text-green-400"/> {COMPANY.phone}</a>
             </div>
           </div>
@@ -74,7 +76,7 @@ const ServiceCityDetail = () => {
         <div className="max-w-5xl mx-auto px-5 lg:px-8">
           <h2 className="font-serif text-3xl md:text-4xl text-white">{svc.title} — Done Right for {cityMeta.name}</h2>
           <p className="text-neutral-300 mt-5 leading-relaxed text-lg">{svc.description}</p>
-          <p className="text-neutral-300 mt-4 leading-relaxed text-lg">{cityMeta.landmarks} Our crews know the local soil, climate, and grass types unique to {cityMeta.name} — which means better results from day one.</p>
+          <p className="text-neutral-300 mt-4 leading-relaxed text-lg">{cityMeta.landmarks} Tell us about your property and the work you need so we can discuss a quote and availability.</p>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-10">
             <div className="bg-[#0f0f0f] border border-[#1c1c1c] rounded-2xl p-6">
@@ -84,14 +86,14 @@ const ServiceCityDetail = () => {
               </ul>
             </div>
             <div className="bg-[#0f0f0f] border border-[#1c1c1c] rounded-2xl p-6">
-              <h3 className="font-serif text-xl text-white">Why {cityMeta.name} Picks Us</h3>
+              <h3 className="font-serif text-xl text-white">Working With Maintain It Bandits</h3>
               <ul className="mt-4 space-y-2 text-sm">
                 {[
-                  `Local crews familiar with ${cityMeta.name}`,
-                  `Licensed, insured, & 5-star rated`,
-                  `Same-week scheduling`,
-                  `Eco-friendly, water-wise approach`,
-                  `Trusted by 500+ Austin-area customers`,
+                  'Fully licensed and insured',
+                  'Response within 24 hours',
+                  'Quotes based on your property and work',
+                  'Scheduling depends on scope and availability',
+                  `Ask us to confirm service in ${cityMeta.name}`,
                 ].map((it, i) => <li key={i} className="flex items-start gap-3 text-neutral-200"><Check size={16} className="text-green-400 mt-1 flex-shrink-0"/> {it}</li>)}
               </ul>
             </div>
@@ -103,7 +105,7 @@ const ServiceCityDetail = () => {
       <section className="py-16 bg-[#080808]">
         <div className="max-w-5xl mx-auto px-5 lg:px-8">
           <h2 className="font-serif text-3xl md:text-4xl text-white text-center">{svc.title} Across {cityMeta.name}</h2>
-          <p className="text-neutral-400 mt-4 text-center max-w-2xl mx-auto">We provide {svc.title.toLowerCase()} throughout {cityMeta.fullName}. Don’t see your area listed? Give us a call.</p>
+          <p className="text-neutral-400 mt-4 text-center max-w-2xl mx-auto">Looking for {svc.title.toLowerCase()} in {cityMeta.fullName}? Share your property location so we can confirm availability, including for areas not listed.</p>
 
           {cityMeta.neighborhoods && (
             <div className="mt-8">
@@ -117,7 +119,7 @@ const ServiceCityDetail = () => {
           )}
 
           <div className="mt-10">
-            <h3 className="text-neutral-300 text-sm uppercase tracking-widest text-center">ZIP Codes Served</h3>
+            <h3 className="text-neutral-300 text-sm uppercase tracking-widest text-center">ZIP Codes in the Area</h3>
             <div className="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-8 gap-2 mt-4">
               {cityMeta.zips.map(z => (
                 <div key={z} className="bg-[#0f0f0f] border border-[#1c1c1c] rounded-lg py-2 text-center text-neutral-400 font-mono text-xs">{z}</div>
@@ -162,7 +164,7 @@ const ServiceCityDetail = () => {
         </div>
       </section>
 
-      <CTASection />
+      <CTASection quoteLink={quoteLink} />
     </div>
   );
 };

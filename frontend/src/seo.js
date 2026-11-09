@@ -4,8 +4,8 @@ export const SERVICE_AREAS_DETAIL = {
   'austin': {
     name: 'Austin',
     fullName: 'Austin, TX',
-    intro: 'Austin is our home base and where we do the most work. From the clay-heavy soils of South Austin and East Austin to the Hill Country limestone lots of Northwest Hills and Bee Cave Road, we know the unique challenges Austin lawns face. Maintain It Bandits LLC serves every zip code and neighborhood across the city with lawn mowing, landscaping, cleaning, and property maintenance.',
-    landmarks: 'Whether your yard is in Zilker, Circle C, Mueller, Hyde Park, or anywhere in between - we know your soil type, your grass variety, and what it takes to keep an Austin lawn looking great through 100-degree summers and unpredictable spring weather. We have been servicing Austin properties for 6+ years and have completed 2,500+ jobs across the city.',
+    intro: 'Maintain It Bandits LLC offers lawn care, landscaping, cleaning, and property maintenance in Austin and nearby communities. Share your property location and project details so we can discuss a quote and confirm availability.',
+    landmarks: 'Whether your property is in Zilker, Circle C, Mueller, Hyde Park, or another Austin neighborhood, tell us what it needs and we can discuss the work, a quote, and availability.',
     zips: [
       '78701','78702','78703','78704','78705','78712','78717','78719','78721','78722',
       '78723','78724','78725','78726','78727','78728','78729','78730','78731','78732',
@@ -18,8 +18,8 @@ export const SERVICE_AREAS_DETAIL = {
   'round-rock': {
     name: 'Round Rock',
     fullName: 'Round Rock, TX',
-    intro: 'Round Rock is one of our busiest service areas and we understand exactly what Round Rock lawns need. The newer master-planned communities like Teravista, Forest Creek, and Paloma Lake have strict HOA appearance standards - and we help hundreds of Round Rock homeowners stay compliant without the stress. Whether you need weekly mowing, sod installation, or a full landscape refresh, Maintain It Bandits LLC delivers consistent, professional results.',
-    landmarks: 'We regularly service properties near Old Settlers Park, the Dell Diamond area, Kalahari Resort, and throughout the Brushy Creek corridor. Round Rock\'s rapid growth means lots of new construction lawns that need establishment help - sod installation, fertilization, and weed control are among our most requested services here.',
+    intro: 'Need lawn care, landscaping, or property maintenance in Round Rock? Tell us about your property and the work you need. We can discuss lawn mowing, sod installation, or a landscape refresh and confirm the scope and availability for your location.',
+    landmarks: 'If your property is near Old Settlers Park, Dell Diamond, Kalahari Resort, the Brushy Creek corridor, or another part of Round Rock, share its location when requesting a quote so we can confirm availability.',
     zips: ['78664','78665','78681','78680','78682','78683'],
     neighborhoods: ['Teravista','Forest Creek','Brushy Creek','Paloma Lake','Sonoma','Vista Oaks','Mayfield Ranch','Behrens Ranch'],
   },
@@ -113,7 +113,7 @@ export const SERVICE_SEO = {
     longContent: [
       {
         heading: 'Austin\u2019s Trusted Lawn Mowing Service',
-        body: 'Maintain It Bandits LLC has built a reputation as one of Austin\u2019s most reliable lawn mowing services. We service hundreds of yards across Austin, Round Rock, Cedar Park, Georgetown, and beyond every single week. Our professional crews use commercial-grade equipment, follow proper mowing-height standards for Central Texas grass types (St. Augustine, Bermuda, Zoysia), and treat every property like it\u2019s our own.',
+        body: 'Maintain It Bandits LLC offers lawn mowing and maintenance in Austin and nearby communities, including Round Rock, Cedar Park, and Georgetown. Tell us about your property, your preferred schedule, and the work needed to discuss a quote and availability.',
       },
       {
         heading: 'What Makes Our Lawn Mowing Different',
