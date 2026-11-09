@@ -9,7 +9,7 @@ export const COMPANY = {
   phone: '(512) 518-1558',
   phoneRaw: '5125181558',
   email: 'info@maintainitbandits.com',
-  hours: 'Mon\u2013Fri: 7:00 AM \u2013 5:00 PM \u00b7 Sat: 9:00 AM \u2013 5:00 PM',
+  hours: 'Mon\u2013Fri: 7:00 AM \u2013 5:00 PM \u00b7 Sat\u2013Sun: 9:00 AM \u2013 5:00 PM',
   hoursStructured: [
     { day: 'Monday', open: '07:00', close: '17:00' },
     { day: 'Tuesday', open: '07:00', close: '17:00' },
@@ -17,7 +17,7 @@ export const COMPANY = {
     { day: 'Thursday', open: '07:00', close: '17:00' },
     { day: 'Friday', open: '07:00', close: '17:00' },
     { day: 'Saturday', open: '09:00', close: '17:00' },
-    { day: 'Sunday', open: null, close: null },
+    { day: 'Sunday', open: '09:00', close: '17:00' },
   ],
   area: 'Austin TX & Surrounding Areas',
   city: 'Austin',
