@@ -117,13 +117,13 @@ export default function FallCleanupAustinRentalProperties() {
           the yard look better. Depending on the property and your quote, the work can include:
         </p>
         <ol className="mt-4 list-decimal space-y-3 pl-6 leading-relaxed">
-          <li><strong className="text-white">Confirm the scope and access.</strong> Share addresses, showing dates, priorities, access instructions, and any owner requirements. We identify what needs attention and document the starting condition.</li>
+          <li><strong className="text-white">Confirm the scope and access.</strong> Share addresses, showing dates, priorities, access instructions, and any owner requirements. Discuss what needs attention and whether you need starting-condition photos.</li>
           <li><strong className="text-white">Remove leaves and debris.</strong> Clear built-up leaves, fallen branches, and ordinary yard debris from agreed lawn and common areas.</li>
           <li><strong className="text-white">Clean the beds and refresh mulch.</strong> Remove weeds and debris from landscape beds. Add mulch where it is included in the approved scope.</li>
           <li><strong className="text-white">Edge and trim.</strong> Tidy lawn edges, borders, and growth around the entry and other high-visibility areas.</li>
           <li><strong className="text-white">Prune accessible shrubs.</strong> Trim agreed shrubs and low growth that obstruct walkways, signs, or the view of the property. Specialized tree work is a separate discussion.</li>
           <li><strong className="text-white">Clear ground-level drainage areas and walkways.</strong> Remove surface debris around accessible drains, paths, and entrances so they are easier to inspect and use.</li>
-          <li><strong className="text-white">Haul off and document.</strong> Remove the agreed debris, complete a final walkthrough, and provide before-and-after photos of the work.</li>
+          <li><strong className="text-white">Haul off and document.</strong> Discuss the agreed debris removal, final walkthrough, and any requests for before-and-after photos.</li>
         </ol>
         <p className="mt-4 leading-relaxed">
           If you manage several homes, send the full list together. Note which
@@ -205,9 +205,8 @@ export default function FallCleanupAustinRentalProperties() {
       <section>
         <h2 className="mt-10 font-serif text-2xl text-white md:text-3xl">Why Property Managers Call Maintain It Bandits</h2>
         <p className="mt-4 leading-relaxed">
-          You should not have to chase a vendor for a basic update. We work from an
-          agreed scope, discuss scheduling up front, and document the finished work
-          with photos. Maintain It Bandits is fully licensed and insured, and we
+          You should not have to chase a vendor for a basic update. Discuss the scope,
+          scheduling, and any photo or reporting requirements before work starts. Maintain It Bandits is fully licensed and insured, and we
           respond to inquiries within 24 hours. For a portfolio, ask about recurring
           visits and consistent crew availability across properties. Confirm the
           details that matter to your owners before the work starts.

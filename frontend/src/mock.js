@@ -23,12 +23,6 @@ export const COMPANY = {
   city: 'Austin',
   region: 'TX',
   country: 'US',
-  // Credibility & trust info \u2014 update with your actual numbers
-  founded: 2020,
-  jobsCompleted: '2,500+',
-  licenseNumber: 'TX-LLC-2020', // Update with your real LLC / license number
-  insurance: 'General Liability & Workers\u2019 Comp',
-  guarantee: '100% Satisfaction Guaranteed',
 };
 
 export const NAV_LINKS = [
@@ -178,54 +172,44 @@ export const SERVICES = [
   {
     slug: 'make-ready-services',
     title: 'Rental Make Ready Services',
-    short: 'Complete make ready services for Austin TX landlords & property managers — deep cleaning, paint touch-ups, lawn refresh, minor repairs & haul-off. Units rent-ready fast.',
+    short: 'Make-ready work for Austin-area landlords and property managers, with a scope tailored to the rental.',
     image: '/gallery/service-make-ready.jpg',
-    description: 'When a tenant moves out, the clock starts ticking on your vacancy. Maintain It Bandits LLC provides complete rental make ready services throughout the Austin metro — one call handles the deep clean, paint touch-ups, appliance detailing, minor repairs, junk haul-off, and full lawn and curb-appeal refresh. We return your unit to rent-ready condition in days, not weeks, with photo documentation on every job.',
+    description: 'Preparing a rental for its next tenant? Maintain It Bandits LLC works with landlords and property managers on make-ready projects in Austin and nearby communities. Tell us about the property, your checklist and the date you have in mind.',
     included: [
-      'Full move-out deep cleaning (kitchen, baths, floors, windows)',
-      'Paint touch-ups & scuff repair',
-      'Appliance clean-out & detail (oven, fridge, dishwasher)',
-      'Carpet cleaning coordination & floor care',
-      'Minor repairs & fixture replacement',
-      'Junk & debris haul-off left by previous tenant',
-      'Lawn mowing, edging & curb-appeal refresh',
-      'Pressure washing of patios, driveways & entryways',
-      'Photo documentation of completed work',
+      'Move-out cleaning and appliance cleaning',
+      'Paint touch-ups and minor repairs to discuss',
+      'Junk and debris haul-off',
+      'Lawn care, exterior cleanup and pressure washing',
+      'Your requested checklist and reporting needs',
     ],
     benefits: [
-      'Reduce vacancy days — unit rents faster',
-      'One vendor instead of juggling five contractors',
-      'Rent-ready in as little as 48–72 hours',
-      'Photo proof of every completed item',
-      'Ideal for landlords, property managers & realtors',
-      'Volume pricing for multi-unit portfolios',
+      'A project scope tailored to your rental',
+      'Requests for single properties or multiple units',
+      'Fully licensed and insured',
+      'Response within 24 hours',
+      'Serving Austin and nearby communities',
     ],
     related: ['tenant-turnover-services', 'cleaning', 'junk-haul-off', 'pressure-washing'],
   },
   {
     slug: 'tenant-turnover-services',
     title: 'Tenant Turnover Services',
-    short: 'Fast, full-service tenant turnover for Austin TX rentals. One call turns your unit around — cleaned, repaired, refreshed, and rent-ready in days.',
+    short: 'Discuss tenant turnover work for a rental home, apartment or multiple units in greater Austin.',
     image: '/gallery/service-turnover.jpg',
-    description: 'Tenant turnovers are where property managers and landlords lose time, money, and patience — coordinating cleaners, painters, handymen, and lawn crews while your unit sits vacant. Maintain It Bandits LLC handles the entire turnover with one crew, one invoice, and one point of contact. From move-out haul-off to the final curb-appeal polish before the new tenant signs, we get Austin rental properties back on the market fast.',
+    description: 'A tenant turnover can involve several different tasks between move-out and move-in. Share the property location, condition, checklist and requested timing with Maintain It Bandits LLC so we can discuss the work and a custom quote.',
     included: [
-      'Move-out assessment & written scope of work',
-      'Junk, trash & belongings haul-off',
-      'Full interior deep cleaning & sanitizing',
-      'Paint touch-ups or full repaint coordination',
-      'Minor maintenance & repair punch list',
-      'Lawn care, bed cleanup & exterior refresh',
-      'Pressure washing patios, walkways & siding',
-      'Final walk-through with photo report',
-      'Recurring turnover scheduling for portfolios',
+      'Move-out cleaning and interior refresh',
+      'Paint touch-ups and minor repairs to discuss',
+      'Junk and debris removal',
+      'Lawn care and exterior cleanup',
+      'Your requested checklist and schedule',
     ],
     benefits: [
-      'Cut turnover time from weeks to days',
-      'One crew, one invoice, one point of contact',
-      'Consistent, repeatable quality every unit',
-      'Less vacancy loss between leases',
-      'Scalable for single units or full portfolios',
-      'Licensed & insured with COI available',
+      'Make-ready work discussed for your needs',
+      'Requests from landlords and property managers',
+      'Custom quote based on scope',
+      'Fully licensed and insured',
+      'Response within 24 hours',
     ],
     related: ['make-ready-services', 'cleaning', 'property-maintenance', 'junk-haul-off'],
   },
@@ -422,34 +406,16 @@ export const SERVICE_AREAS = [
   { slug: 'taylor', name: 'Taylor TX' },
 ];
 
-export const TESTIMONIALS = [
-  {
-    text: 'Maintain It Bandits LLC transformed our yard completely! Their lawn mowing service is always on time and our grass has never looked better. Best lawn care in Austin!',
-    name: 'Sarah M.',
-    location: 'West Austin, TX',
-  },
-  {
-    text: 'We switched from another Austin lawn service and the difference is night and day. Professional, reliable, and they actually care about doing quality work.',
-    name: 'James R.',
-    location: 'Round Rock, TX',
-  },
-  {
-    text: 'Their landscaping design completely transformed our backyard. The team was knowledgeable about Austin-native plants and created something beautiful and low-maintenance.',
-    name: 'Maria L.',
-    location: 'Cedar Park, TX',
-  },
-];
-
 export const HERO_IMAGE = '/gallery/lush-lawn-after.jpg';
 export const AUSTIN_SKYLINE = 'https://images.unsplash.com/photo-1666969565832-b55bf42a900d?w=1200&q=80';
 export const TEAM_IMAGE = '/gallery/mower-action.jpg';
 
 export const WHY_CHOOSE = [
   'Licensed & insured for your peace of mind',
-  'Reliable, on-time service every visit',
-  'Consistent 5-star reviews from Austin homeowners',
-  'Eco-friendly practices & Austin-native expertise',
-  'Water-wise solutions for Central Texas climate',
+  'Response within 24 hours',
+  'Custom quotes for your property',
+  'Home and rental property services',
+  'Serving Austin and nearby communities',
   'Full-service \u2014 lawn care, landscaping, cleaning & more',
 ];
 
@@ -463,8 +429,8 @@ export const VALUES = [
 ];
 
 export const STATS = [
-  { value: '500+', label: 'Happy Customers' },
-  { value: '5', label: 'Star Rating' },
-  { value: '12+', label: 'Service Areas' },
-  { value: '7', label: 'Days a Week' },
+  { value: 'Licensed', label: '& Insured' },
+  { value: '24 Hours', label: 'Response' },
+  { value: 'Austin', label: 'And Nearby' },
+  { value: 'Custom', label: 'Project Quotes' },
 ];

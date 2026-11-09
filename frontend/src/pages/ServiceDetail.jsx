@@ -3,6 +3,7 @@ import { Link, useParams, Navigate } from 'react-router-dom';
 import { ArrowRight, Phone, Check, ShieldCheck, Clock, Star, DollarSign, MapPin } from 'lucide-react';
 import { SERVICES, COMPANY, SERVICE_AREAS } from '../mock';
 import { SERVICE_SEO } from '../seo';
+import { MAKE_READY_AREAS, MAKE_READY_AREA_INTRO } from '../data/makeReady';
 import SEO from '../components/SEO';
 import Breadcrumbs from '../components/Breadcrumbs';
 import CTASection from '../components/CTASection';
@@ -12,6 +13,8 @@ const ServiceDetail = () => {
   const svc = SERVICES.find(s => s.slug === slug);
   if (!svc) return <Navigate to="/services" replace />;
   const seo = SERVICE_SEO[slug] || {};
+  const isRental = slug === 'make-ready-services' || slug === 'tenant-turnover-services';
+  const quoteLink = isRental ? `/contact?service=${slug}` : '/contact';
 
   const serviceSchema = {
     '@context': 'https://schema.org',
@@ -25,7 +28,7 @@ const ServiceDetail = () => {
       'areaServed': 'Austin TX',
     },
     'description': svc.description,
-    'areaServed': SERVICE_AREAS.map(a => a.name),
+    'areaServed': (isRental ? MAKE_READY_AREAS : SERVICE_AREAS).map(a => a.name),
   };
 
   // FAQ structured data → rich results in Google
@@ -49,7 +52,8 @@ const ServiceDetail = () => {
     ],
   };
 
-  const schemas = [serviceSchema, faqSchema, breadcrumbSchema].filter(Boolean);
+  // Rental pages use the shared Breadcrumbs component's structured data.
+  const schemas = [serviceSchema, faqSchema, !isRental && breadcrumbSchema].filter(Boolean);
 
   // Prefer editorially-chosen related services when available
   const relatedServices = svc.related
@@ -82,7 +86,7 @@ const ServiceDetail = () => {
             <h1 className="font-serif text-4xl md:text-6xl text-white mt-4 leading-tight">{svc.title} <span className="text-green-400 italic block text-3xl md:text-4xl mt-2">in Austin, TX</span></h1>
             <p className="text-neutral-400 mt-5 leading-relaxed text-lg">{svc.short}</p>
             <div className="flex flex-col sm:flex-row gap-4 mt-8">
-              <Link to="/contact" className="btn-green inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-full font-semibold">Get Free Estimate <ArrowRight size={18}/></Link>
+              <Link to={quoteLink} className="btn-green inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-full font-semibold">{isRental ? 'Request a Make Ready Quote' : 'Get Free Estimate'} <ArrowRight size={18}/></Link>
               <a href={`tel:${COMPANY.phoneRaw}`} className="btn-dark inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-full font-semibold"><Phone size={18} className="text-green-400"/> {COMPANY.phone}</a>
             </div>
           </div>
@@ -100,7 +104,8 @@ const ServiceDetail = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-14">
             <div className="bg-[#0f0f0f] border border-[#1c1c1c] rounded-2xl p-7">
-              <h3 className="font-serif text-2xl text-white">What&apos;s Included</h3>
+              <h3 className="font-serif text-2xl text-white">{isRental ? 'Work to Discuss' : 'What’s Included'}</h3>
+              {isRental && <p className="text-neutral-400 text-sm mt-3">Examples only; the work is confirmed for your property.</p>}
               <ul className="mt-5 space-y-3">
                 {svc.included.map((it, i) => (
                   <li key={i} className="flex items-start gap-3 text-neutral-200"><Check size={18} className="text-green-400 mt-1 flex-shrink-0" /> {it}</li>
@@ -137,9 +142,11 @@ const ServiceDetail = () => {
       <section className="py-20">
         <div className="max-w-6xl mx-auto px-5 lg:px-8">
           <h2 className="font-serif text-3xl md:text-4xl text-white text-center">{svc.title} Across Greater Austin</h2>
-          <p className="text-neutral-400 mt-4 max-w-2xl mx-auto text-center">We provide {svc.title.toLowerCase()} services throughout the Austin metro area:</p>
+          <p className="text-neutral-400 mt-4 max-w-2xl mx-auto text-center">{isRental ? MAKE_READY_AREA_INTRO : `We provide ${svc.title.toLowerCase()} services throughout the Austin metro area:`}</p>
           <div className="flex flex-wrap justify-center gap-3 mt-9">
-            {SERVICE_AREAS.map(a => (
+            {isRental ? MAKE_READY_AREAS.map(a => a.hasPage ? (
+              <Link key={a.slug} to={`/services/${slug}/${a.slug}`} className="px-5 py-2.5 rounded-full bg-[#0f0f0f] border border-[#1f1f1f] text-neutral-300 hover:text-green-400 hover:border-green-500/40 transition-colors text-sm inline-flex items-center gap-2"><MapPin size={14}/> {a.name}, TX</Link>
+            ) : <span key={a.slug} className="px-5 py-2.5 rounded-full bg-[#0f0f0f] border border-[#1f1f1f] text-neutral-300 text-sm inline-flex items-center gap-2"><MapPin size={14}/> {a.name}, TX</span>) : SERVICE_AREAS.map(a => (
               <Link key={a.slug} to={`/service-areas/${a.slug}`} className="px-5 py-2.5 rounded-full bg-[#0f0f0f] border border-[#1f1f1f] text-neutral-300 hover:text-green-400 hover:border-green-500/40 transition-colors text-sm inline-flex items-center gap-2">
                 <MapPin size={14}/> {a.name}
               </Link>
@@ -173,15 +180,20 @@ const ServiceDetail = () => {
         <div className="max-w-6xl mx-auto px-5 lg:px-8">
           <div className="text-center mb-12">
             <h2 className="font-serif text-3xl md:text-4xl text-white">Why Choose Maintain It Bandits?</h2>
-            <p className="text-neutral-400 mt-4 max-w-2xl mx-auto">Experience the difference of working with Austin&apos;s trusted lawn care and home services company.</p>
+            <p className="text-neutral-400 mt-4 max-w-2xl mx-auto">{isRental ? 'A clear conversation about your property, scope and timing.' : 'Experience the difference of working with Austin’s trusted lawn care and home services company.'}</p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {[
+            {(isRental ? [
+              { icon: ShieldCheck, title: 'Licensed & Insured', text: 'Fully licensed and insured' },
+              { icon: Clock, title: '24-Hour Response', text: 'Work timing depends on availability' },
+              { icon: MapPin, title: 'Greater Austin', text: 'Ask us to confirm your location' },
+              { icon: DollarSign, title: 'Custom Quotes', text: 'Based on your property and scope' },
+            ] : [
               { icon: ShieldCheck, title: 'Licensed & Insured', text: 'Full coverage for your peace of mind' },
               { icon: Clock, title: 'Same Week Service', text: 'Fast scheduling when you need it' },
               { icon: Star, title: '5-Star Rated', text: 'Trusted by 500+ happy customers' },
               { icon: DollarSign, title: 'Free Estimates', text: 'No obligation quotes' },
-            ].map((b, i) => (
+            ]).map((b, i) => (
               <div key={i} className="bg-[#0f0f0f] border border-[#1c1c1c] rounded-2xl p-6 text-center hover:border-green-500/30 transition-colors">
                 <div className="mx-auto h-12 w-12 rounded-full bg-green-500/10 border border-green-500/30 grid place-items-center"><b.icon className="text-green-400" size={20} /></div>
                 <div className="text-white font-semibold mt-4">{b.title}</div>
@@ -212,7 +224,16 @@ const ServiceDetail = () => {
         </div>
       </section>
 
-      <CTASection />
+      {isRental ? (
+        <section className="py-20 bg-[#0a0a0a]"><div className="max-w-4xl mx-auto px-5 lg:px-8 text-center">
+          <h2 className="font-serif text-3xl md:text-4xl text-white">Have a rental ready for its next turn?</h2>
+          <p className="text-neutral-400 mt-4">Tell us the property location, work needed and your desired date.</p>
+          <div className="flex flex-col sm:flex-row justify-center gap-3 mt-8">
+            <Link to={quoteLink} className="btn-green inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-full font-semibold">Request a Quote <ArrowRight size={18}/></Link>
+            <Link to="/make-ready-turnovers" className="btn-dark inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-full font-semibold">Explore Make-Ready Services</Link>
+          </div>
+        </div></section>
+      ) : <CTASection />}
     </div>
   );
 };

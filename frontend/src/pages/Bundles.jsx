@@ -9,8 +9,8 @@ import CTASection from '../components/CTASection';
 const Bundles = () => (
   <div>
     <SEO
-      title="Service Bundles & Combo Pricing | Save 15-20% | Maintain It Bandits LLC"
-      description="Combine lawn care, landscaping, fertilization, and cleaning services to save 15-20%. Austin TX bundle pricing for homeowners who want one company to handle it all."
+      title="Service Bundles & Combos | Maintain It Bandits LLC Austin TX"
+      description="Explore service combinations for Austin-area properties, including rental make-ready and turnover work."
       keywords="lawn care bundle Austin, landscape bundle Austin TX, home service combo, save on lawn care Austin"
       path="/bundles"
     />
@@ -19,8 +19,8 @@ const Bundles = () => (
     <section className="py-16 bg-[#0a0a0a] border-b border-[#161616]">
       <div className="max-w-5xl mx-auto px-5 lg:px-8 text-center">
         <span className="chip inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs tracking-widest font-medium uppercase"><Package size={14}/> Bundles & Combos</span>
-        <h1 className="font-serif text-5xl md:text-6xl text-white mt-5">Save by Bundling Services</h1>
-        <p className="text-neutral-400 mt-6 max-w-2xl mx-auto leading-relaxed">Combine the services you need into one package and save 15–20% vs booking individually. One company, one quote, one schedule — your Austin home, fully handled.</p>
+        <h1 className="font-serif text-5xl md:text-6xl text-white mt-5">Explore Service Combinations</h1>
+        <p className="text-neutral-400 mt-6 max-w-2xl mx-auto leading-relaxed">Explore ways to combine work for your property. Scope, pricing and scheduling are confirmed for each project.</p>
       </div>
     </section>
 
@@ -33,7 +33,7 @@ const Bundles = () => (
               {b.featured && (
                 <span className="absolute top-3 left-3 btn-green px-3 py-1 rounded-full text-[10px] font-bold tracking-widest uppercase flex items-center gap-1"><Star size={10}/> Most Popular</span>
               )}
-              <span className="absolute top-3 right-3 bg-[#0a0a0a]/85 backdrop-blur text-green-400 px-3 py-1.5 rounded-full text-xs font-bold border border-green-500/40">Save ${b.savings}</span>
+              {!b.customQuote && <span className="absolute top-3 right-3 bg-[#0a0a0a]/85 backdrop-blur text-green-400 px-3 py-1.5 rounded-full text-xs font-bold border border-green-500/40">Save ${b.savings}</span>}
             </div>
             <div className="p-6">
               <div className="flex items-center justify-between gap-3">
@@ -43,11 +43,11 @@ const Bundles = () => (
               <p className="text-neutral-400 text-sm mt-3 leading-relaxed line-clamp-2">{b.description}</p>
 
               <div className="mt-5 flex items-baseline gap-3">
-                <span className="text-green-400 font-bold text-3xl">${b.bundlePrice.toLocaleString()}</span>
-                <span className="text-neutral-500 line-through text-sm">${b.regularPrice.toLocaleString()}</span>
+                {b.customQuote ? <span className="text-green-400 font-bold text-2xl">Custom quote</span> : <><span className="text-green-400 font-bold text-3xl">${b.bundlePrice.toLocaleString()}</span><span className="text-neutral-500 line-through text-sm">${b.regularPrice.toLocaleString()}</span></>}
                 <span className="text-neutral-500 text-xs">{b.duration}</span>
               </div>
 
+              {b.customQuote && <div className="text-neutral-500 text-xs mt-4">Examples to discuss:</div>}
               <div className="mt-4 flex items-center gap-2 flex-wrap">
                 {b.includes.slice(0, 3).map((it, i) => (
                   <span key={i} className="text-xs text-neutral-400 flex items-center gap-1"><Check size={12} className="text-green-400"/> {it.split('(')[0].trim()}</span>

@@ -4,6 +4,7 @@ import { Check, X, ArrowRight, Star } from 'lucide-react';
 import SEO from '../components/SEO';
 import Breadcrumbs from '../components/Breadcrumbs';
 import CTASection from '../components/CTASection';
+import { MAKE_READY_PACKAGES } from '../data/makeReady';
 
 const PLANS = [
   {
@@ -59,8 +60,8 @@ const PROJECT_PRICING = [
   { name: 'Mulch Refresh', price: '$80–$120', unit: 'per cubic yard installed' },
   { name: 'Move-Out Cleaning', price: '$250–$650', unit: 'home size dependent' },
   { name: 'Fertilization Program', price: '$45–$95', unit: 'per application' },
-  { name: 'Rental Make Ready', price: '$295–$950', unit: 'per unit, scope-based' },
-  { name: 'Full Tenant Turnover', price: '$1,200–$2,500+', unit: 'per unit, scope-based' },
+  { name: 'Rental Make Ready', price: 'Custom', unit: 'quote based on scope' },
+  { name: 'Tenant Turnover', price: 'Custom', unit: 'quote based on scope' },
   { name: 'Property Maintenance', price: 'Custom', unit: 'contact for quote' },
 ];
 
@@ -75,7 +76,7 @@ const Pricing = () => {
     <div>
       <SEO
         title="Lawn Care & Make Ready Pricing Austin TX | Transparent Estimates | Maintain It Bandits LLC"
-        description="Transparent pricing for Austin TX: weekly mowing plans, sod installation, landscaping, cleaning, rental make readys & tenant turnovers. Free custom estimates."
+        description="Transparent pricing for Austin TX: weekly mowing plans, sod installation, landscaping, cleaning, rental make readys & tenant turnovers. Request a custom quote."
         keywords="lawn care pricing Austin TX, lawn mowing cost Austin, sod installation cost Austin, landscaping prices Austin, make ready cost Austin, turnover cost Austin TX"
         path="/pricing"
         schema={schema}
@@ -139,32 +140,19 @@ const Pricing = () => {
       <section className="py-16">
         <div className="max-w-5xl mx-auto px-5 lg:px-8">
           <div className="text-center">
-            <span className="chip inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs tracking-widest font-medium uppercase">Landlords & Property Managers</span>
-            <h2 className="font-serif text-3xl md:text-4xl text-white mt-5">Make Ready & Turnover Pricing</h2>
-            <p className="text-neutral-400 text-center mt-4 max-w-2xl mx-auto">One crew for the entire turn — cleaning, paint touch-ups, repairs, haul-off, and curb appeal. Photo documentation on every job, COI available, and volume pricing for portfolios.</p>
+            <span className="chip inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs tracking-widest font-medium uppercase">Landlords &amp; Property Managers</span>
+            <h2 className="font-serif text-3xl md:text-4xl text-white mt-5">Make Ready &amp; Turnover Quotes</h2>
+            <p className="text-neutral-400 mt-4 max-w-2xl mx-auto">There is no one-size-fits-all make-ready price. Tell us the property location, condition, work needed, number of units and desired date for a custom quote.</p>
           </div>
           <div className="mt-10 grid grid-cols-1 md:grid-cols-3 gap-6">
-            {[
-              { name: 'Refresh Make Ready', price: '$295+', unit: 'per unit', desc: 'Deep clean, appliance detailing, floors, windows & light touch-ups for well-kept units.', link: '/services/make-ready-services' },
-              { name: 'Standard Make Ready', price: '$550–$950', unit: 'per unit', desc: 'Deep clean + haul-off + paint touch-ups + minor repairs + lawn refresh + pressure washing.', link: '/services/make-ready-services', badge: 'Most Popular' },
-              { name: 'Full Turnover', price: '$1,200–$2,500+', unit: 'per unit', desc: 'Everything in Standard plus full repaint coordination, punch-list repairs & deep landscape refresh.', link: '/services/tenant-turnover-services' },
-            ].map(p => (
-              <div key={p.name} className={`relative bg-[#0f0f0f] border rounded-2xl p-7 ${p.badge ? 'border-green-500/40 shadow-xl shadow-green-500/10' : 'border-[#1c1c1c]'}`}>
-                {p.badge && <span className="absolute -top-3 left-1/2 -translate-x-1/2 btn-green px-3 py-1 rounded-full text-[10px] font-bold tracking-widest uppercase"><Star size={10} className="inline -mt-0.5 mr-1"/>{p.badge}</span>}
-                <h3 className="font-serif text-2xl text-white">{p.name}</h3>
-                <div className="mt-4 flex items-baseline gap-2">
-                  <span className="text-3xl md:text-4xl font-bold text-green-400">{p.price}</span>
-                  <span className="text-neutral-500 text-sm">{p.unit}</span>
-                </div>
-                <p className="text-neutral-400 text-sm mt-4 leading-relaxed">{p.desc}</p>
-                <div className="mt-6 flex flex-col gap-3">
-                  <Link to="/contact" className="btn-green w-full inline-flex items-center justify-center gap-2 py-3 rounded-full font-semibold text-sm">Get Free Quote <ArrowRight size={14}/></Link>
-                  <Link to={p.link} className="text-green-400 text-sm text-center hover:underline">See what&apos;s included</Link>
-                </div>
-              </div>
-            ))}
+            {MAKE_READY_PACKAGES.map(item => <div key={item.slug} className="bg-[#0f0f0f] border border-[#1c1c1c] rounded-2xl p-7 flex flex-col">
+              <h3 className="font-serif text-2xl text-white">{item.name}</h3>
+              <div className="text-green-400 font-bold text-xl mt-4">Custom quote</div>
+              <p className="text-neutral-400 text-sm mt-4 leading-relaxed">{item.tagline}. The scope is confirmed for your property.</p>
+              <Link to="/contact?service=make-ready-services" className="btn-green mt-6 w-full inline-flex items-center justify-center gap-2 py-3 rounded-full font-semibold text-sm">Request a Quote <ArrowRight size={14}/></Link>
+            </div>)}
           </div>
-          <p className="text-center text-neutral-500 text-xs mt-6">Typical Austin-market ranges. Every make ready estimate is free and itemized before work begins.</p>
+          <div className="text-center mt-6"><Link to="/make-ready-turnovers" className="text-green-400 text-sm hover:underline">Learn about make-ready services</Link></div>
         </div>
       </section>
 

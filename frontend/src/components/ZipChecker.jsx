@@ -24,7 +24,7 @@ const ZipChecker = () => {
     if (match) {
       setResult({ ok: true, name: match.name, slug: match.slug });
     } else {
-      setResult({ ok: false, message: 'Your ZIP isn\u2019t in our standard service area \u2014 but call us! We often service nearby ZIPs too.', notListed: true });
+      setResult({ ok: false, message: 'This ZIP is not on our list. Ask us about your property; availability depends on location and scope.', notListed: true });
     }
   };
 
@@ -34,7 +34,7 @@ const ZipChecker = () => {
         <div className="h-12 w-12 rounded-full bg-green-500/15 border border-green-500/40 grid place-items-center"><Search className="text-green-400" size={22}/></div>
         <div>
           <h3 className="font-serif text-2xl md:text-3xl text-white">Do We Service Your Area?</h3>
-          <p className="text-neutral-400 text-sm mt-1">Enter your ZIP code to check coverage — instant answer.</p>
+          <p className="text-neutral-400 text-sm mt-1">Check our listed areas, then contact us to confirm availability.</p>
         </div>
       </div>
 
@@ -60,10 +60,10 @@ const ZipChecker = () => {
             <div className="flex items-start gap-3">
               <CheckCircle2 className="text-green-400 mt-0.5 flex-shrink-0" size={22}/>
               <div>
-                <div className="text-white font-semibold">✅ Yes! We serve {result.name}.</div>
-                <p className="text-neutral-300 text-sm mt-1">Ready to schedule? Get your free estimate or call us today.</p>
+                <div className="text-white font-semibold">{result.name} is on our area list.</div>
+                <p className="text-neutral-300 text-sm mt-1">Contact us to confirm availability for your property and project.</p>
                 <div className="flex flex-col sm:flex-row gap-3 mt-4">
-                  <Link to="/contact" className="btn-green inline-flex items-center gap-2 px-5 py-2.5 rounded-full font-semibold text-sm">Get Free Quote <ArrowRight size={14}/></Link>
+                  <Link to="/contact" className="btn-green inline-flex items-center gap-2 px-5 py-2.5 rounded-full font-semibold text-sm">Request a Quote <ArrowRight size={14}/></Link>
                   <Link to={`/service-areas/${result.slug}`} className="btn-dark inline-flex items-center gap-2 px-5 py-2.5 rounded-full font-semibold text-sm">View Local Services</Link>
                 </div>
               </div>

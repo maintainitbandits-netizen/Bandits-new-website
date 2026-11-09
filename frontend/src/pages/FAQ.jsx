@@ -1,6 +1,6 @@
 import React from 'react';
 import { HelpCircle } from 'lucide-react';
-import { Helmet } from 'react-helmet-async';
+import { MAKE_READY_FAQS } from '../data/makeReady';
 import SEO from '../components/SEO';
 import Breadcrumbs from '../components/Breadcrumbs';
 import CTASection from '../components/CTASection';
@@ -9,10 +9,10 @@ const FAQ_GROUPS = [
   {
     title: 'General',
     faqs: [
-      { q: 'Are you licensed and insured?', a: 'Yes — Maintain It Bandits LLC is fully licensed and insured. We carry general liability and workers’ compensation coverage to protect your property and our crews.' },
-      { q: 'What areas of Austin do you serve?', a: 'We serve the entire greater Austin metro area including Austin (78701–78759), Round Rock, Cedar Park, Georgetown, Pflugerville, Leander, Bee Cave, West Lake Hills, Lakeway, and Dripping Springs.' },
-      { q: 'Do you offer free estimates?', a: 'Yes — every estimate is free and there’s zero obligation. We’ll visit your property, listen to your goals, and put together a written quote.' },
-      { q: 'How quickly can you start service?', a: 'Most new clients can be on our schedule within the same week. For larger landscape projects, scheduling depends on size and time of year.' },
+      { q: 'Are you licensed and insured?', a: 'Yes — Maintain It Bandits LLC is fully licensed and insured.' },
+      { q: 'What areas do you serve?', a: 'We consider projects in Austin and nearby communities. Tell us the property location and work needed so we can confirm availability.' },
+      { q: 'How do I request an estimate?', a: 'Contact us with the property location and details of the work. We respond within 24 hours.' },
+      { q: 'How quickly can you start service?', a: 'We respond within 24 hours. Scheduling depends on the project and availability.' },
       { q: 'What forms of payment do you accept?', a: 'Cash, check, all major credit/debit cards, Zelle, and Apple Pay. Recurring service clients can be set up on auto-pay.' },
     ],
   },
@@ -44,14 +44,7 @@ const FAQ_GROUPS = [
   },
   {
     title: 'Make Readys & Tenant Turnovers',
-    faqs: [
-      { q: 'What is a make ready service?', a: 'A make ready is the complete process of getting a rental unit back to rent-ready condition between tenants — deep cleaning, paint touch-ups, minor repairs, haul-off, and curb-appeal refresh. We handle the entire turn with one crew and one invoice.' },
-      { q: 'How fast can you turn a unit around?', a: 'Most make readys finish in 2–4 business days from move-out. Rush 24–48 hour turnarounds are available when a new lease is already signed.' },
-      { q: 'How much does a make ready cost in Austin?', a: 'Refresh make readys start around $295 per unit. Standard make readys typically run $550–$950. Full turnovers with paint and repairs run $1,200–$2,500+. Every estimate is free and itemized.' },
-      { q: 'Do you work with property managers?', a: 'Yes — we work from your scope sheets, reserve month-end crew capacity, provide COIs, offer net-terms invoicing, and send photo documentation on every line item. Volume pricing applies for portfolios.' },
-      { q: 'Can you remove items the previous tenant left behind?', a: 'Yes — junk, furniture, trash, and belongings left by previous tenants are hauled off as part of the make ready.' },
-      { q: 'Do you handle the exterior and lawn during a turn?', a: 'Yes — lawn mowing, bed cleanup, pressure washing, and curb-appeal refresh are all in-house. That is what makes us a true one-call make ready company.' },
-    ],
+    faqs: MAKE_READY_FAQS,
   },
 ];
 
