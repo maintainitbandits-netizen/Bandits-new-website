@@ -74,6 +74,17 @@ class CustomQuoteContentTests(unittest.TestCase):
         self.assertIn('Cleaning alone does not guarantee the return of a deposit', self.blog)
         self.assertIn('cdc.gov/healthy-pets/rodent-control/clean-up.html', self.blog)
 
+    def test_owner_confirmed_free_estimates_are_distinct_from_service_prices(self):
+        self.assertIn('Estimates are free.', self.calculator)
+        self.assertIn('Service pricing and scheduling', self.calculator)
+        self.assertIn('Estimates are free for every service', self.pricing)
+        self.assertIn('Request a Free Estimate', read('pages/Contact.jsx'))
+        self.assertIn('Service pricing depends on the work requested', read('pages/Contact.jsx'))
+        faq = read('pages/FAQ.jsx')
+        self.assertIn('Are estimates free?', faq)
+        self.assertIn('including make-ready and tenant turnover work', faq)
+        self.assertIn('Service pricing depends on your property', faq)
+
     def test_existing_free_guide_and_unrelated_quote_language_remain(self):
         # An offer of a free estimate is separate from an estimate of the service price.
         self.assertIn('Get Free Estimate', read('pages/ServiceDetail.jsx'))

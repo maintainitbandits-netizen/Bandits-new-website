@@ -53,7 +53,7 @@ const Pricing = () => (
       <div className="max-w-5xl mx-auto px-5 lg:px-8 text-center">
         <span className="chip inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs tracking-widest font-medium uppercase">Pricing</span>
         <h1 className="font-serif text-5xl md:text-6xl text-white mt-5">Quotes for Your Property</h1>
-        <p className="text-neutral-400 mt-6 max-w-2xl mx-auto leading-relaxed">Every property is different. Tell us about the location, condition, work needed and preferred timing so we can discuss a custom quote.</p>
+        <p className="text-neutral-400 mt-6 max-w-2xl mx-auto leading-relaxed">Estimates are free for every service. Tell us about the location, condition, work needed and preferred timing so we can discuss a custom price for your property.</p>
       </div>
     </section>
 
