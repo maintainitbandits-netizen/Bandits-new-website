@@ -104,8 +104,8 @@ const ServiceDetail = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-14">
             <div className="bg-[#0f0f0f] border border-[#1c1c1c] rounded-2xl p-7">
-              <h3 className="font-serif text-2xl text-white">{isRental ? 'Work to Discuss' : 'What’s Included'}</h3>
-              {isRental && <p className="text-neutral-400 text-sm mt-3">Examples only; the work is confirmed for your property.</p>}
+              <h3 className="font-serif text-2xl text-white">Work to Discuss</h3>
+              <p className="text-neutral-400 text-sm mt-3">Examples only; the work is confirmed for your property.</p>
               <ul className="mt-5 space-y-3">
                 {svc.included.map((it, i) => (
                   <li key={i} className="flex items-start gap-3 text-neutral-200"><Check size={18} className="text-green-400 mt-1 flex-shrink-0" /> {it}</li>

@@ -6,7 +6,7 @@ export const BUNDLES = [
     slug: 'healthy-lawn',
     name: 'Healthy Lawn Bundle',
     tagline: 'Mow it. Feed it. Watch it thrive.',
-    description: 'Our most popular bundle combines weekly mowing with seasonal fertilization & weed control. The result? A consistently green, weed-free Austin lawn that turns heads.',
+    description: 'A bundle combining mowing with seasonal fertilization and weed control. Discuss your lawn, treatment options and the scope before scheduling.',
     services: ['lawn-mowing', 'fertilization'],
     idealFor: 'Homeowners who want a beautiful lawn with zero hassle',
     regularPrice: 1380,

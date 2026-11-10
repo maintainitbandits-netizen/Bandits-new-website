@@ -1,0 +1,2 @@
+# Keep generated and uploaded PDF files byte-for-byte intact.
+*.pdf binary

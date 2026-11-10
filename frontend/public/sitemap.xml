@@ -60,6 +60,13 @@
     <priority>0.7</priority>
   </url>
 
+  <!-- FREE RESOURCE -->
+  <url>
+    <loc>https://www.maintainitbandits.com/guides/austin-lawn-care-calendar.html</loc>
+    <changefreq>yearly</changefreq>
+    <priority>0.6</priority>
+  </url>
+
   <!-- SERVICE PAGES -->
   <url>
     <loc>https://www.maintainitbandits.com/services/lawn-mowing</loc>

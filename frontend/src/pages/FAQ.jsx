@@ -22,24 +22,24 @@ const FAQ_GROUPS = [
       { q: 'How often should I mow my Austin lawn?', a: 'During peak growing season (April–September), most Austin lawns benefit from weekly mowing. In cooler months, bi-weekly is usually sufficient.' },
       { q: 'Do you bag clippings or mulch them?', a: 'We typically mulch clippings back into the lawn to return nutrients, but we will bag on request or when growth is excessive.' },
       { q: 'What if it rains on my mowing day?', a: 'We’ll reschedule to the next available day. We never mow saturated lawns — it damages turf and leaves ruts.' },
-      { q: 'How much does weekly lawn mowing cost in Austin?', a: 'Most residential weekly plans range from $45–$95 per visit depending on lot size and condition. See our pricing page for details.' },
+      { q: 'How much does weekly lawn mowing cost in Austin?', a: 'Pricing depends on the property size, condition, frequency and work requested. Contact us to discuss a quote.' },
     ],
   },
   {
     title: 'Landscaping',
     faqs: [
-      { q: 'How long does a landscape installation take?', a: 'Small projects (mulch refresh, bed install) often complete in 1–2 days. Full landscape renovations typically take 1–3 weeks depending on scope.' },
+      { q: 'How long does a landscape installation take?', a: 'Timing depends on the size, site conditions, materials and agreed scope. Share your target date when requesting an estimate.' },
       { q: 'Do you offer design plans?', a: 'Yes — we offer design consultations and detailed plans so you know exactly what your finished landscape will look like.' },
       { q: 'What plants do you recommend for Austin?', a: 'We design with Texas-tough natives: Salvia, Mexican Feather Grass, Mountain Laurel, Yaupon Holly, Lantana, and more. They look great with very little water.' },
-      { q: 'Will you remove old plants and debris?', a: 'Yes — full debris haul-off is included with every install.' },
+      { q: 'Will you remove old plants and debris?', a: 'Tell us whether old plants or debris need to be removed so the scope can be included in your quote.' },
     ],
   },
   {
     title: 'Cleaning Services',
     faqs: [
-      { q: 'Do you bring your own cleaning supplies?', a: 'Yes — all standard cleaning supplies and equipment are included. We can use your preferred eco-friendly products on request.' },
-      { q: 'How long does a move-out clean take?', a: 'Most homes take 3–6 hours depending on size and condition.' },
-      { q: 'Is rodent feces cleanup safe?', a: 'When done correctly, yes. We follow CDC-recommended procedures with proper PPE, HEPA vacuums, and EPA-approved disinfectants.' },
+      { q: 'Do you bring your own cleaning supplies?', a: 'Mention any supply or product preferences when requesting a quote so the details can be discussed for your property.' },
+      { q: 'How long does a move-out clean take?', a: 'Timing depends on the property size, condition and agreed work. Share your target date when requesting a quote.' },
+      { q: 'Is rodent feces cleanup safe?', a: 'Do not sweep or vacuum rodent droppings. Follow current CDC guidance and discuss the conditions, precautions and appropriate scope before work begins.' },
     ],
   },
   {

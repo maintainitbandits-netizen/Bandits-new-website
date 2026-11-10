@@ -1,0 +1,167 @@
+{
+  "title": "Austin Lawn Care Calendar",
+  "subtitle": "A practical 12-month guide for Central Texas lawns",
+  "intro": "Use this calendar as a starting point for Bermuda, St. Augustine and Zoysia lawns. Adjust the work to your grass, shade, soil, rainfall and current conditions.",
+  "notice": "This is general guidance, not a fixed treatment schedule. Watering rules change and differ by provider. Check your current local restrictions before watering; new sod may need an approved variance. Follow product labels and ask a qualified professional when needed.",
+  "quickTips": [
+    "Mow according to growth and avoid removing more than one-third of the leaf height at once.",
+    "Water only when needed and allowed; skip irrigation when rain has supplied enough moisture.",
+    "Do not fertilize dormant or drought-stressed warm-season grass. Consider a soil test to guide nutrient decisions."
+  ],
+  "seasons": [
+    {
+      "title": "Winter to early spring",
+      "months": [
+        {
+          "name": "January",
+          "focus": "Observe and plan",
+          "tasks": [
+            "Clear heavy leaf buildup and debris when the ground is not saturated or frozen.",
+            "Dormant warm-season grass can turn brown in winter; avoid pushing growth with fertilizer.",
+            "Check tools, sharpen mower blades and note areas with drainage or weed concerns."
+          ]
+        },
+        {
+          "name": "February",
+          "focus": "Prepare, do not rush",
+          "tasks": [
+            "Identify your grass type and consider a soil test before planning fertilizer.",
+            "If crabgrass has been a problem, ask about pre-emergent timing before it germinates. Choose only a product labeled for your grass and follow its directions.",
+            "Water only when needed and permitted by current local rules."
+          ]
+        },
+        {
+          "name": "March",
+          "focus": "Watch for green-up",
+          "tasks": [
+            "Mow as the lawn starts growing; adjust frequency rather than cutting too short.",
+            "Check sprinklers for leaks, overspray and runoff when testing is permitted.",
+            "Wait until warm-season grass is actively growing and has been mowed at least twice before considering spring nitrogen."
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Spring to early summer",
+      "months": [
+        {
+          "name": "April",
+          "focus": "Support active growth",
+          "tasks": [
+            "Use soil-test guidance and grass condition to decide whether fertilizer is needed; avoid applying before heavy rain.",
+            "Keep mower blades sharp and follow the one-third rule as growth increases.",
+            "Check your provider's watering schedule and adjust irrigation for rainfall."
+          ]
+        },
+        {
+          "name": "May",
+          "focus": "Build healthy habits",
+          "tasks": [
+            "Mow on the schedule your lawn's growth actually requires.",
+            "For compacted soil, consider core aeration while warm-season grass is actively growing and conditions allow recovery. Avoid aerating stressed or newly established turf.",
+            "Watch for runoff or puddling and adjust irrigation without exceeding local restrictions."
+          ]
+        },
+        {
+          "name": "June",
+          "focus": "Prepare for heat",
+          "tasks": [
+            "Check moisture and recent rainfall before watering, and stay within local rules.",
+            "Watch for wilting, footprints that remain in the grass or spreading brown patches; the cause may need investigation.",
+            "Avoid fertilizing grass that is dormant or stressed by heat and drought."
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Summer to early fall",
+      "months": [
+        {
+          "name": "July",
+          "focus": "Manage heat stress",
+          "tasks": [
+            "Let mowing frequency follow growth; do not scalp the lawn during hot, dry weather.",
+            "Water only when needed and permitted by your water provider. Avoid runoff onto pavement.",
+            "Investigate persistent damage before choosing a treatment; brown grass can have several causes."
+          ]
+        },
+        {
+          "name": "August",
+          "focus": "Protect the lawn",
+          "tasks": [
+            "Continue mowing carefully and avoid fertilizer on drought-stressed or dormant turf.",
+            "If winter weeds have been a recurring problem, ask about fall pre-emergent timing and products labeled for your grass.",
+            "Check irrigation equipment and follow any updated watering restrictions."
+          ]
+        },
+        {
+          "name": "September",
+          "focus": "Plan for cooler weather",
+          "tasks": [
+            "Remove heavy leaf buildup and adjust mowing as growth changes.",
+            "If considering late-season nitrogen, apply only while the grass is actively growing; consult local extension guidance and allow at least six weeks before the expected first frost.",
+            "Choose weed-control products carefully for your grass and follow all label directions."
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Fall to winter",
+      "months": [
+        {
+          "name": "October",
+          "focus": "Ease into fall",
+          "tasks": [
+            "Keep leaves from forming a thick, wet mat over the grass.",
+            "Mow only as growth requires and reduce irrigation as weather and rainfall change.",
+            "Avoid pushing late growth as warm-season turf approaches dormancy."
+          ]
+        },
+        {
+          "name": "November",
+          "focus": "Prepare for cold",
+          "tasks": [
+            "Clear accumulated leaves and debris, especially after wet weather.",
+            "Review irrigation settings and local freeze-protection advice; follow the current rules for your provider.",
+            "Do not fertilize dormant warm-season turf."
+          ]
+        },
+        {
+          "name": "December",
+          "focus": "Rest and review",
+          "tasks": [
+            "Keep heavy traffic and equipment off frozen or saturated grass where practical.",
+            "Clean tools and make a list of repairs, drainage issues and lawn goals for next year.",
+            "Check current watering restrictions if dry conditions make watering necessary."
+          ]
+        }
+      ]
+    }
+  ],
+  "sources": [
+    {
+      "label": "Austin Water: current watering days and restrictions",
+      "url": "https://www.austintexas.gov/water/find-your-watering-day"
+    },
+    {
+      "label": "Texas A&M AgriLife: Bermudagrass home lawn management calendar",
+      "url": "https://agrilifeextension.tamu.edu/library/landscaping/bermudagrass-home-lawn-management-calendar/"
+    },
+    {
+      "label": "Texas A&M AgriLife: maintaining St. Augustinegrass lawns",
+      "url": "https://agrilifeextension.tamu.edu/wp-content/uploads/2025/05/Maintaining-St-Augustine-Grass.pdf"
+    },
+    {
+      "label": "Texas A&M AgriLife: Zoysiagrass lawn management guide",
+      "url": "https://agrilifeextension.tamu.edu/asset-external/zoysiagrass-lawn-management-guide/"
+    },
+    {
+      "label": "Texas A&M AgriLife: fertilizing warm-season lawns",
+      "url": "https://agrilifeextension.tamu.edu/wp-content/uploads/2025/06/Fertilizing-Texas-Lawns.pdf"
+    },
+    {
+      "label": "Texas A&M: soil, water and forage testing laboratory",
+      "url": "https://soiltesting.tamu.edu/"
+    }
+  ]
+}

@@ -88,8 +88,8 @@ const About = () => (
               body: 'Most lawn companies are started by someone who bought a truck and some equipment. Our knowledge goes back three generations. We have seen what works and what does not - and that experience shows in every job we do.',
             },
             {
-              title: 'We Show Up - Every Time',
-              body: 'The number one complaint about lawn services is inconsistency. We built this company on reliability. Same crew, same day, every week. If something changes you hear from us first - not after the fact.',
+              title: 'Clear Scheduling',
+              body: 'Tell us if a consistent schedule or advance notice matters to you. We can discuss expectations and availability when you request service.',
             },
             {
               title: 'One Call for Everything',

@@ -3,6 +3,7 @@ import { Link, useParams, Navigate } from 'react-router-dom';
 import { ArrowRight, Phone, Check } from 'lucide-react';
 import { SERVICES, COMPANY } from '../mock';
 import { SERVICE_AREAS_DETAIL, SERVICE_SEO } from '../seo';
+import { serviceCityIntro } from '../data/serviceCity';
 import { BUSINESS_SCHEMA_ID } from '../config/site';
 import SEO from '../components/SEO';
 import Breadcrumbs from '../components/Breadcrumbs';
@@ -43,7 +44,7 @@ const ServiceCityDetail = () => {
       <SEO
         title={title}
         description={description}
-        keywords={`${svc.title.toLowerCase()} ${cityMeta.name} TX, ${slug} ${cityMeta.name}, lawn service ${cityMeta.name}, ${svc.title} near me`}
+        keywords={`${svc.title.toLowerCase()} ${cityMeta.name} TX, ${svc.title.toLowerCase()} ${cityMeta.name}, ${svc.title.toLowerCase()} near ${cityMeta.name}`}
         path={`/services/${slug}/${city}`}
         image={svc.image}
         schema={schema}
@@ -59,7 +60,7 @@ const ServiceCityDetail = () => {
         <div className="max-w-6xl mx-auto px-5 lg:px-8 grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
           <div>
             <h1 className="font-serif text-4xl md:text-6xl text-white leading-tight">{svc.title}<br/><span className="text-green-400 italic block text-3xl md:text-4xl mt-2">in {cityMeta.fullName}</span></h1>
-            <p className="text-neutral-300 mt-6 leading-relaxed text-lg">Reliable, professional {svc.title.toLowerCase()} for {cityMeta.fullName} homeowners. {cityMeta.intro}</p>
+            <p className="text-neutral-300 mt-6 leading-relaxed text-lg">{serviceCityIntro(svc, cityMeta)}</p>
             <div className="flex flex-col sm:flex-row gap-4 mt-8">
               <Link to={quoteLink} className="btn-green inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-full font-semibold">Request an Estimate <ArrowRight size={18}/></Link>
               <a href={`tel:${COMPANY.phoneRaw}`} className="btn-dark inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-full font-semibold"><Phone size={18} className="text-green-400"/> {COMPANY.phone}</a>
@@ -76,11 +77,12 @@ const ServiceCityDetail = () => {
         <div className="max-w-5xl mx-auto px-5 lg:px-8">
           <h2 className="font-serif text-3xl md:text-4xl text-white">{svc.title} — Done Right for {cityMeta.name}</h2>
           <p className="text-neutral-300 mt-5 leading-relaxed text-lg">{svc.description}</p>
-          <p className="text-neutral-300 mt-4 leading-relaxed text-lg">{cityMeta.landmarks} Tell us about your property and the work you need so we can discuss a quote and availability.</p>
+          <p className="text-neutral-300 mt-4 leading-relaxed text-lg">Share your property location in {cityMeta.name} and any scheduling needs so we can confirm availability and discuss your project.</p>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-10">
             <div className="bg-[#0f0f0f] border border-[#1c1c1c] rounded-2xl p-6">
-              <h3 className="font-serif text-xl text-white">What&apos;s Included</h3>
+              <h3 className="font-serif text-xl text-white">Work to Discuss</h3>
+              <p className="mt-3 text-neutral-400 text-sm">These are examples; the work is confirmed for your property.</p>
               <ul className="mt-4 space-y-2">
                 {svc.included.map((it, i) => <li key={i} className="flex items-start gap-3 text-neutral-200 text-sm"><Check size={16} className="text-green-400 mt-1 flex-shrink-0"/> {it}</li>)}
               </ul>

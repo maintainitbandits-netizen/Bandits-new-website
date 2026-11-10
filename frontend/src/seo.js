@@ -117,7 +117,7 @@ export const SERVICE_SEO = {
       },
       {
         heading: 'What Makes Our Lawn Mowing Different',
-        body: 'Unlike pop-up services, we show up consistently \u2014 same day, same crew when possible. We sharpen our blades regularly so your grass is cut cleanly (not torn), reducing disease and stress. We adjust cutting height seasonally and follow the one-third rule to maintain healthy turf. Every visit includes mowing, line trimming, edging along driveways and sidewalks, and a thorough blow-off of all hard surfaces.',
+        body: 'Lawn needs vary with grass type, weather and growth. Tell us about your property and preferred schedule; mowing, trimming, edging and cleanup can be discussed as part of the quote.',
       },
       {
         heading: 'Choosing Between Weekly and Bi-Weekly Mowing',
@@ -132,7 +132,7 @@ export const SERVICE_SEO = {
       { q: 'How often should I mow my Austin lawn?', a: 'During peak growing season (April\u2013September), most Austin lawns need weekly mowing. In cooler months, bi-weekly is usually sufficient.' },
       { q: 'Do you bag the clippings or mulch them?', a: 'We typically mulch clippings to return nutrients to your lawn, but we can bag if you prefer or if growth is excessive.' },
       { q: 'Are you licensed and insured?', a: 'Yes \u2014 Maintain It Bandits LLC is fully licensed and insured to protect your property and our crew.' },
-      { q: 'How much does lawn mowing cost in Austin?', a: 'Pricing depends on lot size, frequency, and condition. Most weekly residential plans start around the price of a few coffees per week. Get a free estimate today.' },
+      { q: 'How much does lawn mowing cost in Austin?', a: 'Pricing depends on the property size, condition, frequency and work requested. Contact us to discuss a quote.' },
     ],
   },
   'landscaping': {
@@ -146,7 +146,7 @@ export const SERVICE_SEO = {
       { heading: 'Native Plant Expertise', body: 'We design with Texas-tough plants like Salvia greggii, Mexican Feather Grass, Mountain Laurel, Yaupon Holly, and Lantana \u2014 plants that look gorgeous and won\u2019t demand constant water or replacement.' },
     ],
     faqs: [
-      { q: 'How long does a landscape install take?', a: 'Small projects (mulch refresh, bed install) can be completed in 1\u20132 days. Full landscape renovations typically take 1\u20133 weeks depending on scope.' },
+      { q: 'How long does a landscape install take?', a: 'Timing depends on the size, site conditions, materials and agreed scope. Share your target date when requesting an estimate.' },
       { q: 'Do you offer landscape design plans?', a: 'Yes \u2014 we provide design consultations and detailed plans so you know exactly what your finished landscape will look like.' },
       { q: 'Can you work with my existing irrigation?', a: 'Absolutely. We design around existing irrigation and can recommend updates if needed.' },
     ],
@@ -157,14 +157,14 @@ export const SERVICE_SEO = {
     keywords: 'lawn fertilization Austin, weed control Austin TX, lawn treatment Austin, fertilizer company Austin',
     longContent: [
       { heading: 'Custom Fertilization Programs for Central Texas', body: 'A healthy Austin lawn requires more than just water and mowing. Our seasonal fertilization programs are designed specifically for St. Augustine, Bermuda, and Zoysia grasses in Central Texas \u2014 delivering the right nutrients at the right times.' },
-      { heading: 'Pre-Emergent & Post-Emergent Weed Control', body: 'We stop crabgrass, dallisgrass, and broadleaf weeds before they germinate with timed pre-emergent applications, then spot-treat any weeds that break through with targeted post-emergent products.' },
+      { heading: 'Pre-Emergent & Post-Emergent Weed Control', body: 'Pre-emergent products target certain weeds before they sprout, while post-emergent products target existing weeds. Suitability depends on the grass, weed and product label. Discuss options for your lawn.' },
       { heading: 'Soil Testing & Customization', body: 'Austin soil varies dramatically from neighborhood to neighborhood. We can test soil pH and nutrient levels to ensure our applications are tuned to your specific lawn.' },
-      { heading: 'Safe for Kids, Pets & Pollinators', body: 'We use industry-standard products applied by trained crews \u2014 with care for the families, pets, and pollinators that share your yard.' },
+      { heading: 'Questions About Lawn Treatments', body: 'Ask about the specific product and read its label, including instructions for people, pets and pollinators. Requirements vary by treatment.' },
     ],
     faqs: [
-      { q: 'How many treatments will I need each year?', a: 'Most Austin lawns benefit from 5\u20137 applications throughout the year for optimal results.' },
-      { q: 'When can I let my pets back on the lawn?', a: 'In most cases, once the treatment has dried (typically 1\u20132 hours).' },
-      { q: 'Will fertilization fix my brown lawn?', a: 'Often yes \u2014 but we\u2019ll inspect first to confirm the cause (drought, fungus, pests, or compaction).' },
+      { q: 'How many treatments will I need each year?', a: 'Treatment frequency depends on the grass, soil, lawn condition and product. Discuss your goals and the applicable product labels before setting a schedule.' },
+      { q: 'When can I let my pets back on the lawn?', a: 'Follow the specific product label and any instructions from the applicator before allowing pets or people onto treated areas. Re-entry times vary by product.' },
+      { q: 'Will fertilization fix my brown lawn?', a: 'Brown patches can have several causes, including drought, disease or pests. Fertilizer is not always appropriate; discuss the conditions before choosing a treatment.' },
     ],
   },
   'sod-installation': {
@@ -175,12 +175,12 @@ export const SERVICE_SEO = {
       { heading: 'Instant Green Lawn with Professional Sod Installation', body: 'Whether you\u2019re starting fresh, replacing a dead lawn, or finishing new construction \u2014 we install premium sod that gives you a lush, green lawn the same day. Our team handles every step: site prep, soil amendment, sod delivery, installation, and rolling.' },
       { heading: 'Choosing the Right Sod for Austin', body: 'Bermuda thrives in full sun and high traffic. St. Augustine (Raleigh, Palmetto, Floratam) handles shade better and gives that classic Southern lawn look. Zoysia provides a fine-bladed, dense turf with great drought tolerance. We\u2019ll help you pick the right variety for your yard.' },
       { heading: 'Site Preparation Matters', body: 'A great sod install starts with great prep. We remove old grass, till and grade the soil, add quality topsoil where needed, and ensure proper drainage before laying a single piece of sod.' },
-      { heading: 'Aftercare for a Lasting Lawn', body: 'We provide detailed watering schedules and care instructions so your new sod takes root quickly. You\u2019ll have a beautiful lawn in just a few weeks.' },
+      { heading: 'Aftercare for New Sod', body: 'Ask about care for your new sod and check current watering rules with your water provider. Establishment varies with weather, grass and site conditions.' },
     ],
     faqs: [
-      { q: 'How long until I can walk on new sod?', a: 'Avoid heavy traffic for 2\u20133 weeks while roots establish.' },
+      { q: 'How long until I can walk on new sod?', a: 'Avoid heavy traffic while roots establish. Ask your installer for guidance suited to the sod, weather and conditions on your property.' },
       { q: 'When is the best time to install sod in Austin?', a: 'Spring (March\u2013May) and fall (September\u2013October) are ideal, though we install year-round.' },
-      { q: 'How much water does new sod need?', a: 'New sod needs frequent light watering \u2014 typically twice daily for the first 2 weeks, then tapering off.' },
+      { q: 'How much water does new sod need?', a: 'New sod needs an establishment plan suited to the weather, grass and site. Ask your installer for guidance and check current local watering rules and any applicable variances.' },
     ],
   },
   'property-maintenance': {
@@ -194,25 +194,25 @@ export const SERVICE_SEO = {
       { heading: 'Seasonal Cleanups', body: 'Spring cleanups to wake your landscape from winter, fall cleanups to prep beds for cooler months, and storm response when Mother Nature gets rough.' },
     ],
     faqs: [
-      { q: 'Do you handle tree trimming?', a: 'Yes \u2014 routine shrub and small-tree trimming. For very large trees we partner with certified arborists.' },
+      { q: 'Do you handle tree trimming?', a: 'Tell us about the trees and their approximate size so we can discuss the work. Large or hazardous trees may require a qualified arborist.' },
       { q: 'Do you offer commercial contracts?', a: 'Yes \u2014 contact us for a custom maintenance proposal.' },
       { q: 'Is leaf removal included?', a: 'Yes, during fall and winter we provide leaf cleanup as part of our maintenance plans or as a one-time service.' },
     ],
   },
   'cleaning': {
     metaTitle: 'Cleaning Services Austin TX | Move-In, Move-Out & Deep Clean | Maintain It Bandits LLC',
-    metaDesc: 'Professional cleaning services in Austin TX. Move-in cleaning, move-out cleaning, deep cleaning, and rodent feces cleanup. Safe & reliable.',
+    metaDesc: 'Discuss move-in, move-out, deep cleaning, and specialty cleanup in Austin TX. Request an estimate for your property.',
     keywords: 'move out cleaning Austin TX, deep cleaning Austin, move in cleaning Austin, rodent cleanup Austin',
     longContent: [
       { heading: 'Move-In & Move-Out Cleaning You Can Trust', body: 'Whether you\u2019re moving into your dream home or trying to get your deposit back, our cleaning crews do the deep work \u2014 inside cabinets, inside appliances, baseboards, blinds, light fixtures, and every corner most people forget.' },
       { heading: 'Deep Cleaning for Austin Homes', body: 'Top-to-bottom cleans that include scrubbing of kitchens, bathrooms, floors, baseboards, fixtures, and high-touch surfaces.' },
-      { heading: 'Rodent Feces Cleanup & Sanitation', body: 'A specialized service many cleaning companies won\u2019t handle. We safely clean, sanitize, and deodorize attics, garages, and other affected spaces using proper PPE and approved products.' },
-      { heading: 'Why Customers Choose Us', body: 'We\u2019re thorough, trustworthy, and we show up when we say we will. All cleaning supplies and equipment provided.' },
+      { heading: 'Rodent Droppings and Specialty Cleanup', body: 'Rodent droppings can require special precautions. Describe the affected area and conditions when you request an estimate so safety requirements, appropriate methods and the scope of work can be discussed.' },
+      { heading: 'Planning Your Cleaning Request', body: 'Tell us which rooms and surfaces need attention, your desired date and any requests for supplies or products. The work and schedule depend on the agreed scope and availability.' },
     ],
     faqs: [
-      { q: 'Do you bring your own supplies?', a: 'Yes \u2014 all standard cleaning supplies and equipment are included. We can use your preferred eco-friendly products on request.' },
-      { q: 'How long does a move-out clean take?', a: 'Most homes take 3\u20136 hours depending on size and condition.' },
-      { q: 'Is rodent cleanup safe?', a: 'When done correctly, yes. We follow CDC-recommended procedures with proper PPE and disinfectants.' },
+      { q: 'Do you bring your own supplies?', a: 'Mention any supply or product preferences when requesting a quote so the details can be discussed for your property.' },
+      { q: 'How long does a move-out clean take?', a: 'Timing depends on the property size, condition and agreed work. Share your target date when requesting a quote.' },
+      { q: 'Is rodent cleanup safe?', a: 'Do not sweep or vacuum rodent droppings. Follow current CDC guidance and discuss the conditions, precautions and appropriate scope before work begins.' },
     ],
   },
   'mulching': {
@@ -246,7 +246,7 @@ export const SERVICE_SEO = {
   },
   'shrub-trimming': {
     metaTitle: 'Shrub & Hedge Trimming Austin TX | Professional Pruning | Maintain It Bandits LLC',
-    metaDesc: 'Expert shrub and hedge trimming in Austin TX. We shape, prune, and maintain all shrub types. Licensed & insured. Same-week service. Free estimates.',
+    metaDesc: 'Expert shrub and hedge trimming in Austin TX. We shape, prune, and maintain all shrub types. Licensed & insured. Request an estimate.',
     keywords: 'shrub trimming Austin TX, hedge trimming Austin, bush trimming Austin TX, shrub pruning Cedar Park',
     longContent: [
       {
@@ -269,7 +269,7 @@ export const SERVICE_SEO = {
     faqs: [
       { q: 'When is the best time to trim shrubs in Austin?', a: 'For most flowering shrubs, prune immediately after they bloom. For non-flowering shrubs like Ligustrum and Boxwood, late winter or early spring before new growth is ideal. We can advise based on what you have.' },
       { q: 'Do you clean up the clippings?', a: 'Yes. We bag or blow all clippings and leave your property clean.' },
-      { q: 'Can you trim large overgrown shrubs?', a: 'Yes. We handle overgrown shrubs regularly. For very large trees requiring an arborist, we can refer a certified partner.' },
+      { q: 'Can you trim large overgrown shrubs?', a: 'Tell us about the shrubs and their approximate size. Large or hazardous trees may require a qualified arborist.' },
       { q: 'How often should hedges be trimmed?', a: 'Most hedges in Austin need trimming 3-4 times per year to stay looking sharp. Fast growers like Ligustrum may need more frequent attention.' },
     ],
   },
@@ -297,14 +297,14 @@ export const SERVICE_SEO = {
     ],
     faqs: [
       { q: 'Do you provide the plants or do I need to buy them?', a: 'We supply everything. Plants, soil amendments, and mulch are all included in our install quotes.' },
-      { q: 'How long does a flower bed installation take?', a: 'Most residential flower bed installs are completed in one day. Larger projects may take two days.' },
-      { q: 'Will the plants survive Austin summers?', a: 'Yes. We only install plants we know are suited for Central Texas heat and soil. We will always tell you what to expect from each plant we use.' },
+      { q: 'How long does a flower bed installation take?', a: 'Timing depends on the bed size, site conditions, plant availability and agreed work. Share your preferred schedule when requesting a quote.' },
+      { q: 'Will the plants survive Austin summers?', a: 'Plant performance depends on the variety, sun, soil, watering and weather. Discuss plant choices and care for your property.' },
       { q: 'Can you replant or refresh existing beds?', a: 'Absolutely. We can remove tired or dead plants, refresh the soil, and replant with new selections. This is one of our most popular spring services.' },
     ],
   },
   'seasonal-cleanup': {
     metaTitle: 'Seasonal Yard Cleanup Austin TX | Spring & Fall Cleanup | Maintain It Bandits LLC',
-    metaDesc: 'Spring and fall yard cleanup services in Austin TX. Leaf removal, bed cleanouts, debris hauling & more. Licensed & insured. Same-week service. Free estimates.',
+    metaDesc: 'Spring and fall yard cleanup services in Austin TX. Leaf removal, bed cleanouts, debris hauling & more. Licensed & insured. Request an estimate.',
     keywords: 'seasonal yard cleanup Austin TX, spring cleanup Austin, fall yard cleanup Austin TX, leaf removal Austin',
     longContent: [
       {
@@ -328,12 +328,12 @@ export const SERVICE_SEO = {
       { q: 'When should I book a spring cleanup in Austin?', a: 'We recommend scheduling in February or early March before the growing season kicks in. Our schedule fills up fast in spring so booking early gets you the best availability.' },
       { q: 'Do you haul away the debris?', a: 'Yes. All debris from cleanups is bagged and hauled off your property. We leave nothing behind.' },
       { q: 'Can I add mulching to a seasonal cleanup?', a: 'Absolutely. A fresh mulch install after a spring cleanup is one of the most popular combinations we offer. It makes a huge visual difference.' },
-      { q: 'How long does a yard cleanup take?', a: 'Most residential cleanups take 2-4 hours depending on property size and how much debris has accumulated. Heavily overgrown properties may take longer.' },
+      { q: 'How long does a yard cleanup take?', a: 'The time depends on the property size, amount of debris and work requested. Share your target date when requesting an estimate.' },
     ],
   },
   'yard-work': {
     metaTitle: 'Yard Work Services Austin TX | General Lawn & Yard Maintenance | Maintain It Bandits LLC',
-    metaDesc: 'Professional yard work in Austin TX. Mowing, edging, raking, trimming, cleanup and more. Licensed & insured. Same-week service available. Free estimates.',
+    metaDesc: 'Professional yard work in Austin TX. Mowing, edging, raking, trimming, cleanup and more. Licensed & insured. Request an estimate.',
     keywords: 'yard work Austin TX, yard maintenance Austin, general yard cleanup Austin TX, yard workers Austin near me',
     longContent: [
       {
@@ -349,14 +349,14 @@ export const SERVICE_SEO = {
         body: 'You can book a one-time yard cleanup or set up recurring weekly or bi-weekly service. We do not require contracts. Customers stay with us because we show up on time and do quality work, not because they are locked in.',
       },
       {
-        heading: 'Same-Week Service Available',
-        body: 'Need your yard cleaned up fast? Maybe you have company coming, you are listing your home, or the neighbors are starting to notice. We offer same-week scheduling for most yard work jobs throughout the Austin metro area. Call (512) 518-1558 and we will get you on the schedule.',
+        heading: 'Discuss Your Preferred Schedule',
+        body: 'Have a target date for your yard work? Share the property location and requested tasks so we can discuss a quote and availability. We respond within 24 hours.',
       },
     ],
     faqs: [
       { q: 'What is included in a general yard work visit?', a: 'It depends on what you need. Standard visits include mowing, edging, trimming, and blowing. We can add raking, leaf removal, bed cleanup, and debris haul-off based on your property.' },
       { q: 'Do you offer one-time yard cleanups?', a: 'Yes. No contract required. Many customers start with a one-time cleanup and then switch to recurring service once they see the results.' },
-      { q: 'How quickly can you schedule?', a: 'Most jobs can be scheduled within the same week. Call (512) 518-1558 for current availability.' },
+      { q: 'How quickly can you schedule?', a: 'Tell us your preferred date. Scheduling depends on the work requested and current availability.' },
       { q: 'Do you work on rental properties?', a: 'Yes. We work with many Austin landlords and property managers to maintain rental properties on a regular schedule.' },
     ],
   },
@@ -379,19 +379,19 @@ export const SERVICE_SEO = {
       },
       {
         heading: 'Weed Barrier Installation',
-        body: 'For rock and gravel installations, we always recommend installing a quality weed barrier fabric first. This is the step many DIYers skip, and it is the reason weeds eventually push through. We use commercial-grade fabric that allows water through while blocking weed growth for years.',
+        body: 'Weed barrier fabric is one option to discuss for rock or gravel installations. The appropriate preparation depends on the site, materials and maintenance goals.',
       },
     ],
     faqs: [
       { q: 'What is the difference between mulch and rock for Austin landscapes?', a: 'Organic mulch like hardwood and cedar breaks down over time, feeding the soil but requiring replacement every 1-2 years. Rock and gravel are permanent with no replacement needed. Mulch is better for planted beds while rock is better for low-traffic accent areas.' },
-      { q: 'Do you install weed barrier under rock?', a: 'Yes. We always recommend and install commercial weed barrier fabric under all rock and gravel installations to prevent weed breakthrough.' },
+      { q: 'Do you install weed barrier under rock?', a: 'Ask about options for site preparation and weed barrier fabric when discussing your project. The scope depends on the property and materials.' },
       { q: 'How much decomposed granite do I need?', a: 'We calculate the right amount during your free estimate based on the square footage and desired depth. Typically 3-4 inches of DG is recommended for pathways and 2 inches for decorative areas.' },
       { q: 'Can you remove old rock and replace with mulch or new rock?', a: 'Yes. We can remove existing rock groundcover and replace it with fresh mulch or updated stone as part of a landscape refresh.' },
     ],
   },
   'junk-haul-off': {
     metaTitle: 'Junk & Brush Haul-Off Austin TX | Yard Debris Removal | Maintain It Bandits LLC',
-    metaDesc: 'Fast junk and brush haul-off in Austin TX. Yard debris, brush piles, storm waste, and junk removed quickly. Same-week service. Free estimates. Call (512) 518-1558.',
+    metaDesc: 'Fast junk and brush haul-off in Austin TX. Yard debris, brush piles, storm waste, and junk removed quickly. Request an estimate. Call (512) 518-1558.',
     keywords: 'junk haul off Austin TX, brush removal Austin TX, yard debris removal Austin, storm debris cleanup Austin TX',
     longContent: [
       {
@@ -400,11 +400,11 @@ export const SERVICE_SEO = {
       },
       {
         heading: 'Storm Cleanup in Austin TX',
-        body: 'Austin gets hit with strong storms that knock down branches, scatter debris, and leave a mess across your property. We offer same-week storm cleanup and haul-off to get your yard back to normal fast. Whether it is a single downed limb or a full yard covered in debris, we handle it.',
+        body: 'Storms can leave branches and debris across a property. Tell us what needs attention, including any access or safety concerns, so we can discuss the work and availability.',
       },
       {
         heading: 'Great for Landlords and Property Managers',
-        body: 'Tenants move out and leave behind junk. Properties sit vacant and accumulate brush. We provide fast haul-off services for Austin landlords and property managers who need a property cleared quickly between tenants or before listing. We can usually schedule within a few days of your call.',
+        body: 'Share the property location, the items or brush to be removed, and your preferred date. We can discuss a haul-off quote and availability for landlords and property managers.',
       },
       {
         heading: 'What We Can and Cannot Haul',
@@ -412,15 +412,15 @@ export const SERVICE_SEO = {
       },
     ],
     faqs: [
-      { q: 'How quickly can you do a haul-off?', a: 'Most haul-off jobs can be scheduled within the same week. Call (512) 518-1558 for current availability.' },
-      { q: 'How is haul-off priced?', a: 'Pricing is based on the volume of material and number of truck loads required. Most residential haul-off jobs run between $150 and $400. We give you an exact quote before we start.' },
-      { q: 'Do you do storm debris cleanup?', a: 'Yes. We offer same-week storm cleanup and haul-off throughout Austin, Round Rock, Cedar Park, and surrounding areas.' },
+      { q: 'How quickly can you do a haul-off?', a: 'Tell us what needs to be removed and your preferred date so we can discuss availability.' },
+      { q: 'How is haul-off priced?', a: 'Pricing depends on the type and amount of material, access and agreed work. Request a custom quote for your property.' },
+      { q: 'Do you do storm debris cleanup?', a: 'Storm debris cleanup and haul-off can be discussed for your property. Share your location, the material and your preferred date to confirm scope and availability.' },
       { q: 'Can you clear a whole lot or overgrown property?', a: 'Yes. Full lot clearing and heavily overgrown property cleanups are jobs we handle regularly. Contact us for a custom quote.' },
     ],
   },
   'pressure-washing': {
     metaTitle: 'Pressure Washing Austin TX | Driveways, Patios & More | Maintain It Bandits LLC',
-    metaDesc: 'Professional pressure washing in Austin TX. We remove dirt, mold & grime from driveways, patios, fences & siding. Same-week service. Free estimates. Call (512) 518-1558.',
+    metaDesc: 'Professional pressure washing in Austin TX. We remove dirt, mold & grime from driveways, patios, fences & siding. Request an estimate. Call (512) 518-1558.',
     keywords: 'pressure washing Austin TX, power washing Austin, driveway cleaning Austin TX, patio cleaning Austin, soft wash Austin TX',
     longContent: [
       {
@@ -429,7 +429,7 @@ export const SERVICE_SEO = {
       },
       {
         heading: 'Pressure Washing vs Soft Washing',
-        body: 'Not every surface should be blasted with high pressure. Concrete driveways and stone patios can handle full pressure. Painted wood siding, stucco, and roof shingles require soft washing - lower pressure combined with a cleaning solution that kills mold and algae at the root. We assess every surface before we start and use the right method every time.',
+        body: 'Different materials and surface conditions need different cleaning methods. Share what needs cleaning so the approach, products and scope can be discussed before work begins.',
       },
       {
         heading: 'What We Pressure Wash in Austin',
@@ -441,10 +441,10 @@ export const SERVICE_SEO = {
       },
     ],
     faqs: [
-      { q: 'Will pressure washing damage my concrete?', a: 'No - when done correctly with the right pressure settings. We adjust PSI based on the surface. Concrete can handle high pressure while painted surfaces and wood need lower settings.' },
-      { q: 'How long does pressure washing take?', a: 'A standard driveway takes 45-90 minutes. Full exterior house washing takes 2-4 hours depending on size. We give you a time estimate when we quote.' },
+      { q: 'Will pressure washing damage my concrete?', a: 'Pressure washing can damage surfaces if the method or pressure is not suited to the material. Share the surface condition and ask how the work will be approached.' },
+      { q: 'How long does pressure washing take?', a: 'Timing depends on the surfaces, their condition and the agreed scope. Ask about the schedule when requesting a quote.' },
       { q: 'Do I need to be home during pressure washing?', a: 'No. As long as we have access to the areas being washed and a water spigot, we can complete the job without you present.' },
-      { q: 'How soon can I walk on the surface after washing?', a: 'Concrete and stone surfaces are safe to walk on once dry, typically 30-60 minutes. We let you know before we leave.' },
+      { q: 'How soon can I walk on the surface after washing?', a: 'Ask about slip hazards and when each surface is safe to use. Drying time varies with the surface, weather and products used.' },
     ],
   },
   'make-ready-services': {

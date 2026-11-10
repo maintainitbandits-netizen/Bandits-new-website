@@ -147,7 +147,7 @@ export const GALLERY = [
     category: 'Property Maintenance',
     location: 'Austin, TX',
     image: '/gallery/service-junk-haul-off.jpg',
-    description: 'Trailer loaded with brush, branches, and yard debris ready for haul-off. Same-week service for storm cleanup, tree work, and seasonal cleanouts.',
+    description: 'Trailer loaded with brush, branches, and yard debris ready for haul-off. Contact us to discuss the work and availability.',
   },
   {
     id: 111,
