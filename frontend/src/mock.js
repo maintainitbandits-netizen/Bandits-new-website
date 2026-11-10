@@ -84,15 +84,15 @@ export const SERVICES = [
   {
     slug: 'fertilization',
     title: 'Fertilization & Weed Control',
-    short: 'Seasonal fertilization programs and targeted weed control to keep your Austin lawn green, healthy, and weed-free.',
+    short: 'Discuss seasonal lawn fertilization and weed control for your Austin property.',
     image: '/gallery/fresh-mow-stripes-after.jpg',
-    description: 'A healthy lawn starts with proper nutrition and weed management. Our seasonal fertilization programs are tailored to Austin\u2019s climate and grass types, ensuring lush, green growth all year long.',
+    description: 'Lawn nutrition and weed management depend on grass type, growing conditions and the products used. Share your lawn concerns so we can discuss the work and a quote.',
     included: [
       'Custom fertilization programs',
       'Pre-emergent weed control',
       'Post-emergent treatments',
       'Soil pH testing',
-      'Grub & pest prevention',
+      'Treatment options to discuss',
       'Seasonal applications',
     ],
     benefits: [
@@ -150,7 +150,7 @@ export const SERVICES = [
   {
     slug: 'cleaning',
     title: 'Cleaning Services',
-    short: 'Move-in cleaning, move-out cleaning, and rodent feces cleanup services for Austin TX homes. Thorough, safe, and reliable.',
+    short: 'Discuss move-in, move-out and specialty cleanup for your Austin-area property.',
     image: '/gallery/service-cleaning.jpg',
     description: 'Our professional cleaning services are perfect for move-in/move-out situations and specialty cleanups. We handle the dirty work so you can focus on what matters.',
     included: [
@@ -159,11 +159,11 @@ export const SERVICES = [
       'Deep cleaning',
       'Rodent feces cleanup',
       'Kitchen & bathroom focus',
-      'Eco-friendly products',
+      'Preferred products and supplies to discuss',
     ],
     benefits: [
       'Spotless results',
-      'Safe sanitization',
+      'A cleaning scope for your property',
       'Time-saving',
       'Stress-free moves',
       'Trusted professionals',
@@ -357,7 +357,7 @@ export const SERVICES = [
       'Old yard waste and leaves',
       'Unwanted outdoor furniture and junk',
       'Full property clearing available',
-      'Same-week service available',
+      'Scheduling based on availability',
     ],
     benefits: [
       'Fast, clean removal',
@@ -370,9 +370,9 @@ export const SERVICES = [
   {
     slug: 'pressure-washing',
     title: 'Pressure Washing',
-    short: 'Professional pressure washing in Austin TX. We remove dirt, mold, mildew and grime from driveways, patios, fences and siding. Same-week service.',
+    short: 'Discuss pressure washing for driveways, patios, fences and siding in the Austin area.',
     image: 'https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?w=1200&q=80',
-    description: 'Austin heat and humidity create the perfect conditions for algae, mold, and mildew to build up on your driveway, patio, walkways, fences, and siding. Our professional pressure washing service blasts years of buildup away fast, restoring surfaces to like-new condition. We use the right pressure and detergent for every surface type.',
+    description: 'Tell us which outdoor surfaces need cleaning, such as driveways, patios, walkways, fences or siding. We can discuss the material, condition and requested work before quoting.',
     included: [
       'Concrete driveways and walkways',
       'Patios and pool decks',
@@ -383,10 +383,10 @@ export const SERVICES = [
     ],
     benefits: [
       'Instant curb appeal boost',
-      'Removes mold, mildew and algae',
+      'Cleaning for weathered outdoor surfaces',
       'Protects surfaces from long-term damage',
-      'Safe for kids and pets after drying',
-      'Same-week scheduling available',
+      'Discuss product and drying instructions',
+      'Quotes based on your project',
     ],
   },
 ];

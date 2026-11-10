@@ -6,7 +6,11 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 let playwright, chromium;
-try { playwright = require('playwright-core'); chromium = require('@sparticuz/chromium').default; } catch (_) {}
+try {
+  playwright = require('playwright-core');
+  const packagedChromium = require('@sparticuz/chromium');
+  chromium = packagedChromium.default || packagedChromium;
+} catch (_) {}
 const build = process.env.SITE_BUILD_DIR;
 const skip = { skip: !(playwright && chromium && build && fs.existsSync(path.join(build, 'index.html'))) && 'Set NODE_PATH and SITE_BUILD_DIR to external browser dependencies and a local frontend build' };
 
