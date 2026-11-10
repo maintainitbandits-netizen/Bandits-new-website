@@ -135,9 +135,9 @@ const BundleDetail = () => {
             { icon: Clock, title: '24-Hour Response', text: 'Work timing depends on availability' },
             { icon: Package, title: 'Custom Quote', text: 'Based on your property and scope' },
           ] : [
-            { icon: ShieldCheck, title: 'Licensed & Insured', text: 'Full coverage for every job' },
-            { icon: Clock, title: 'Flexible Scheduling', text: 'Pause, cancel, or adjust anytime' },
-            { icon: Star, title: '5-Star Rated', text: 'Trusted by 500+ Austin homeowners' },
+            { icon: ShieldCheck, title: 'Licensed & Insured', text: 'Fully licensed and insured' },
+            { icon: Clock, title: '24-Hour Response', text: 'Work timing depends on availability' },
+            { icon: Package, title: 'Property Services', text: 'Discuss the work for your property' },
           ]).map((t, i) => (
             <div key={i} className="bg-[#0f0f0f] border border-[#1c1c1c] rounded-2xl p-6 text-center">
               <div className="mx-auto h-12 w-12 rounded-full bg-green-500/10 border border-green-500/30 grid place-items-center"><t.icon className="text-green-400" size={20}/></div>

@@ -1,8 +1,8 @@
 import React from 'react';
 import { Helmet } from 'react-helmet-async';
+import { SITE_ORIGIN as ORIGIN } from '../config/site';
 
 const SITE = 'Maintain It Bandits LLC';
-const ORIGIN = 'https://www.maintainitbandits.com';
 const DEFAULT_OG_IMAGE = `${ORIGIN}/gallery/lush-lawn-after.jpg`;
 
 const SEO = ({ title, description, keywords, path = '/', image, imageAlt, type = 'website', schema }) => {

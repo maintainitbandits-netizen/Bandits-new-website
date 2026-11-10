@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Phone, ArrowRight, Link as LinkIcon, ShieldCheck, Clock, Star, DollarSign, Check, MapPin } from 'lucide-react';
 import { HERO_IMAGE, SERVICES, SERVICE_AREAS, WHY_CHOOSE, COMPANY } from '../mock';
 import { SOCIAL } from '../config/social';
+import { BUSINESS_SCHEMA_ID, SITE_ORIGIN } from '../config/site';
 import SEO from '../components/SEO';
 import TrustBar from '../components/TrustBar';
 import QuoteCalculator from '../components/QuoteCalculator';
@@ -22,10 +23,10 @@ const Home = () => {
   const homeSchema = {
     '@context': 'https://schema.org',
     '@type': 'LocalBusiness',
-    '@id': 'https://maintainitbandits.com/#business',
+    '@id': BUSINESS_SCHEMA_ID,
     'name': COMPANY.name,
-    'image': 'https://maintainitbandits.com/images/hero-bg.jpg',
-    'url': 'https://maintainitbandits.com',
+    'image': `${SITE_ORIGIN}${HERO_IMAGE}`,
+    'url': `${SITE_ORIGIN}/`,
     'telephone': COMPANY.phone,
     'email': COMPANY.email,
     'address': { '@type': 'PostalAddress', 'addressLocality': COMPANY.city, 'addressRegion': COMPANY.region, 'addressCountry': COMPANY.country },
@@ -45,7 +46,7 @@ const Home = () => {
         description="Lawn care, landscaping, cleaning, make-ready and tenant turnover services in greater Austin. Fully licensed and insured. Call (512) 518-1558."
         keywords="lawn care Austin TX, landscaping Austin, home services Austin, lawn mowing Austin, Austin landscaper, make ready services Austin TX, tenant turnover services Austin, make ready cleaning Austin, rental make ready company Austin"
         path="/"
-        image="https://maintainitbandits.com/images/hero-bg.jpg"
+        image={HERO_IMAGE}
         schema={homeSchema}
       />
       {/* HERO */}

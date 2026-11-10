@@ -3,6 +3,7 @@ import { Link, useParams, Navigate } from 'react-router-dom';
 import { MapPin, ArrowRight, Phone, Check, Home as HomeIcon } from 'lucide-react';
 import { SERVICES, COMPANY, SERVICE_AREAS } from '../mock';
 import { SERVICE_AREAS_DETAIL } from '../seo';
+import { BUSINESS_SCHEMA_ID } from '../config/site';
 import SEO from '../components/SEO';
 import CTASection from '../components/CTASection';
 
@@ -13,26 +14,23 @@ const ServiceAreaDetail = () => {
   if (!meta || !area) return <Navigate to="/service-areas" replace />;
 
   const title = `Lawn Care & Home Services in ${meta.fullName} | ${COMPANY.name}`;
-  const description = `Professional lawn care, landscaping, fertilization, sod, property maintenance, and cleaning services in ${meta.fullName}. Serving ZIP codes ${meta.zips.slice(0,5).join(', ')}${meta.zips.length>5?'+':''}. Free estimates.`;
+  const description = `Explore lawn care, landscaping, cleaning, and property services in ${meta.fullName}. Tell us about your property and request an estimate.`;
+  const quoteLink = `/contact?city=${slug}`;
 
+  // This is a service area, not a separate business location in this city.
   const schema = {
     '@context': 'https://schema.org',
-    '@type': 'LocalBusiness',
-    'name': `${COMPANY.name} \u2013 ${meta.fullName}`,
-    'image': 'https://maintainitbandits.com/images/hero-bg.jpg',
-    'telephone': COMPANY.phone,
-    'email': COMPANY.email,
-    'priceRange': '$$',
-    'address': {
-      '@type': 'PostalAddress',
-      'addressLocality': meta.name,
-      'addressRegion': 'TX',
-      'addressCountry': 'US',
+    '@type': 'Service',
+    'name': `Lawn care and home services in ${meta.fullName}`,
+    'serviceType': 'Lawn care and home services',
+    'provider': {
+      '@type': 'LocalBusiness',
+      '@id': BUSINESS_SCHEMA_ID,
+      'name': COMPANY.name,
+      'telephone': COMPANY.phone,
     },
-    'areaServed': {
-      '@type': 'City',
-      'name': meta.fullName,
-    },
+    'areaServed': { '@type': 'City', 'name': meta.fullName },
+    'description': description,
   };
 
   return (
@@ -53,7 +51,7 @@ const ServiceAreaDetail = () => {
           <h1 className="font-serif text-5xl md:text-6xl text-white mt-5">Lawn Care & Home Services<br/><span className="text-green-400 italic">in {meta.fullName}</span></h1>
           <p className="text-neutral-300 mt-6 max-w-3xl mx-auto leading-relaxed text-lg">{meta.intro}</p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center mt-9">
-            <Link to="/contact" className="btn-green inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-full font-semibold">Get Free Estimate <ArrowRight size={18}/></Link>
+            <Link to={quoteLink} className="btn-green inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-full font-semibold">Request an Estimate <ArrowRight size={18}/></Link>
             <a href={`tel:${COMPANY.phoneRaw}`} className="btn-dark inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-full font-semibold"><Phone size={18} className="text-green-400"/> {COMPANY.phone}</a>
           </div>
         </div>
@@ -87,8 +85,8 @@ const ServiceAreaDetail = () => {
       <section className="py-20 bg-[#080808]">
         <div className="max-w-5xl mx-auto px-5 lg:px-8">
           <div className="text-center mb-10">
-            <h2 className="font-serif text-3xl md:text-4xl text-white">ZIP Codes We Service in {meta.name}</h2>
-            <p className="text-neutral-400 mt-4 max-w-2xl mx-auto">We proudly serve all {meta.zips.length} ZIP code{meta.zips.length>1?'s':''} in the {meta.fullName} area. If you don&apos;t see your ZIP listed, give us a call \u2014 we likely service your area.</p>
+            <h2 className="font-serif text-3xl md:text-4xl text-white">ZIP Codes in the {meta.name} Area</h2>
+            <p className="text-neutral-400 mt-4 max-w-2xl mx-auto">Looking for service in the {meta.fullName} area? Contact us to confirm availability for your property, including locations not listed here.</p>
           </div>
           <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3">
             {meta.zips.map(z => (
@@ -105,8 +103,8 @@ const ServiceAreaDetail = () => {
         <section className="py-20">
           <div className="max-w-5xl mx-auto px-5 lg:px-8">
             <div className="text-center mb-10">
-              <h2 className="font-serif text-3xl md:text-4xl text-white">Neighborhoods We Serve in {meta.name}</h2>
-              <p className="text-neutral-400 mt-4 max-w-2xl mx-auto">From master-planned communities to long-established neighborhoods, we keep yards across {meta.name} looking their best.</p>
+              <h2 className="font-serif text-3xl md:text-4xl text-white">Neighborhoods in the {meta.name} Area</h2>
+              <p className="text-neutral-400 mt-4 max-w-2xl mx-auto">Tell us where your property is so we can confirm availability for your project.</p>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {meta.neighborhoods.map(n => (
@@ -127,11 +125,11 @@ const ServiceAreaDetail = () => {
             <h3 className="font-serif text-2xl text-white">Why {meta.name} Homeowners Choose Us</h3>
             <ul className="mt-5 space-y-3">
               {[
-                `Local crews familiar with ${meta.name} soil & grass types`,
-                'Licensed, insured, and trusted by 500+ Austin-area customers',
-                'Reliable, on-time service \u2014 same crew when possible',
-                'Eco-friendly, water-wise practices for Central Texas',
-                'One company for lawn care, landscaping, & cleaning',
+                'Fully licensed and insured',
+                'Response within 24 hours',
+                'Quotes based on your property and work',
+                'Scheduling depends on scope and availability',
+                'Lawn care, landscaping, cleaning, and more',
               ].map((it, i) => (
                 <li key={i} className="flex items-start gap-3 text-neutral-200"><Check size={18} className="text-green-400 mt-1 flex-shrink-0"/> {it}</li>
               ))}
@@ -149,7 +147,7 @@ const ServiceAreaDetail = () => {
         </div>
       </section>
 
-      <CTASection />
+      <CTASection quoteLink={quoteLink} />
     </div>
   );
 };
