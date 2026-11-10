@@ -1,6 +1,6 @@
 # Website content review — October 27, 2026
 
-This review accompanies the unpublished service-city and lawn-calendar changes. It is a focused review, not a guarantee that every fact or external integration on the site is correct.
+This focused review records the service-city and lawn-calendar work and the follow-up custom-quote changes. It is not a guarantee that every fact or external integration on the site is correct.
 
 ## Corrected in this change
 
@@ -11,7 +11,7 @@ This review accompanies the unpublished service-city and lawn-calendar changes. 
 
 ## Owner verification still needed
 
-1. **Prices and package scope.** The pricing page, quote calculator, bundles and older pricing blog contain specific figures and inclusions that have not been confirmed. They can also disagree: the pricing page lists sod at $2.50–$4.50 per square foot while the older lawn-care pricing article lists different ranges by grass type. Confirm which figures, minimums, discounts, package schedules and inclusions are current before treating them as authoritative. These core prices were not replaced with invented numbers.
+1. **Prices and package scope.** The live site had unconfirmed figures and conflicting sod ranges. The follow-up change replaces unverified service prices, savings and numeric calculator estimates with custom-quote requests. Existing free-estimate language describes the estimate fee rather than the service price and remains unchanged elsewhere; confirm whether that offer is accurate. The proposed changes are not live until separately approved and deployed. Before publishing new figures, confirm actual prices, minimums, discounts, and package schedules and inclusions. Package examples are not guarantees.
 2. **Older gallery captions and locations.** Several older cards describe specific cities, completed work, timelines or customer jobs. Confirm the photos, permission, location and descriptions before presenting those details as facts. The recently supplied room-cleanup image does not identify a location or customer.
 3. **Specific business practices and offers.** Review payment methods, design plans, materials/supplies, service inclusions and other operational details against actual practice. The website changes qualify selected claims but do not independently verify every listed service.
 4. **Newsletter.** Brevo setup was paused at the owner's request. The signup destination, owner notification, welcome email and seasonal emails remain unfinished and have not been verified. The separate free calendar does not collect email addresses.

@@ -1,85 +1,55 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Calculator, ArrowRight, Sparkles } from 'lucide-react';
+import { ArrowRight, ClipboardList } from 'lucide-react';
+import { SERVICES } from '../mock';
+import { RENTAL_SLUGS } from '../data/quote';
 
-const SERVICE_RATES = {
-  'Lawn Mowing': { base: 0.012, min: 45, label: 'per visit' },
-  'Sod Installation': { base: 3.25, min: 800, label: 'one-time install' },
-  'Mulch Refresh': { base: 0.35, min: 150, label: 'all beds installed' },
-  'Landscape Design': { base: 0.85, min: 1500, label: 'project starting at' },
-  'Property Maintenance': { base: 0.018, min: 95, label: 'per visit' },
+// Service selector only: prices are discussed for each property rather than
+// calculated from unverified rates. Keep the selected service in the request.
+const OPTION_LABELS = {
+  'lawn-mowing': 'Lawn Mowing',
+  landscaping: 'Landscape Design',
+  mulching: 'Mulch Refresh',
+  'make-ready-services': 'Make Ready / Turnover',
 };
+const QUOTE_OPTIONS = SERVICES.map(service => ({
+  slug: service.slug,
+  label: OPTION_LABELS[service.slug] || service.title,
+}));
 
 const QuoteCalculator = () => {
-  const [service, setService] = useState('Lawn Mowing');
-  const [sqft, setSqft] = useState(5000);
-  const [frequency, setFrequency] = useState('weekly');
-
-  const estimate = useMemo(() => {
-    const rate = SERVICE_RATES[service];
-    if (!rate) return null; // Rental make-readys require a scope-based quote.
-    const base = Math.max(rate.min, sqft * rate.base);
-    let low = base * 0.9;
-    let high = base * 1.25;
-    if (service === 'Lawn Mowing' && frequency === 'bi-weekly') {
-      low *= 1.15; high *= 1.15;
-    }
-    return {
-      low: Math.round(low / 5) * 5,
-      high: Math.round(high / 5) * 5,
-      label: rate.label,
-    };
-  }, [service, sqft, frequency]);
+  const [label, setLabel] = useState(QUOTE_OPTIONS[0].label);
+  const selected = QUOTE_OPTIONS.find(option => option.label === label) || QUOTE_OPTIONS[0];
+  const rental = RENTAL_SLUGS.includes(selected.slug);
+  const quoteTitle = selected.slug === 'make-ready-services' ? 'Custom Make-Ready Quote' : selected.slug === 'tenant-turnover-services' ? 'Custom Turnover Quote' : 'Custom Quote';
+  const quoteLink = `/contact?service=${selected.slug}`;
 
   return (
     <div className="bg-[#0f0f0f] border border-[#1c1c1c] rounded-3xl p-7 md:p-10">
       <div className="flex items-center gap-3">
-        <div className="h-12 w-12 rounded-full bg-green-500/15 border border-green-500/40 grid place-items-center"><Calculator className="text-green-400" size={22}/></div>
+        <div className="h-12 w-12 rounded-full bg-green-500/15 border border-green-500/40 grid place-items-center"><ClipboardList className="text-green-400" size={22}/></div>
         <div>
-          <h3 className="font-serif text-2xl md:text-3xl text-white">Instant Quote Calculator</h3>
-          <p className="text-neutral-400 text-sm mt-1">Explore estimates for select services. Make-readys are quoted for your project.</p>
+          <h3 className="font-serif text-2xl md:text-3xl text-white">Start Your Quote Request</h3>
+          <p className="text-neutral-400 text-sm mt-1">Choose the service closest to what you need.</p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-7">
-        <div>
-          <label className="block text-xs text-neutral-400 uppercase tracking-widest mb-2">Service</label>
-          <select value={service} onChange={e => setService(e.target.value)} className="w-full bg-[#0a0a0a] border border-[#222] rounded-lg px-4 py-3 text-white focus:outline-none focus:border-green-500/60">
-            {Object.keys(SERVICE_RATES).map(s => <option key={s} value={s}>{s}</option>)}
-            <option value="Make Ready / Turnover">Make Ready / Turnover</option>
-          </select>
-        </div>
-        {estimate && <div>
-          <label className="block text-xs text-neutral-400 uppercase tracking-widest mb-2">Lot Size: <span className="text-white">{sqft.toLocaleString()} sq ft</span></label>
-          <input type="range" min="1000" max="30000" step="500" value={sqft} onChange={e => setSqft(Number(e.target.value))} className="w-full accent-green-500"/>
-          <div className="flex justify-between text-[10px] text-neutral-500 mt-1"><span>1,000</span><span>30,000+</span></div>
-        </div>}
+      <div className="mt-7">
+        <label htmlFor="quote-service" className="block text-xs text-neutral-400 uppercase tracking-widest mb-2">Service</label>
+        <select id="quote-service" value={label} onChange={event => setLabel(event.target.value)} className="w-full bg-[#0a0a0a] border border-[#222] rounded-lg px-4 py-3 text-white focus:outline-none focus:border-green-500/60">
+          {QUOTE_OPTIONS.map(option => <option key={option.slug} value={option.label}>{option.label}</option>)}
+        </select>
       </div>
-
-      {service === 'Lawn Mowing' && (
-        <div className="mt-5">
-          <label className="block text-xs text-neutral-400 uppercase tracking-widest mb-2">Frequency</label>
-          <div className="flex gap-2">
-            {['weekly', 'bi-weekly'].map(f => (
-              <button key={f} onClick={() => setFrequency(f)} className={`px-5 py-2 rounded-full text-sm transition-colors ${frequency === f ? 'btn-green' : 'bg-[#111] border border-[#222] text-neutral-300'}`}>
-                {f.charAt(0).toUpperCase() + f.slice(1)}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
 
       <div className="mt-8 p-6 rounded-2xl bg-gradient-to-br from-[#0f1d12] to-[#0a0a0a] border border-green-500/30">
-        {estimate ? <>
-          <div className="flex items-center justify-between gap-4 flex-wrap">
-            <div><div className="text-neutral-400 text-xs uppercase tracking-widest">Estimated Range</div><div className="text-green-400 text-3xl md:text-4xl font-bold mt-1">${estimate.low}–${estimate.high}</div><div className="text-neutral-500 text-sm mt-1">{estimate.label}</div></div>
-            <Link to="/contact" className="btn-green inline-flex items-center gap-2 px-6 py-3 rounded-full font-semibold">Get Exact Quote <ArrowRight size={16}/></Link>
+        <div className="flex items-center justify-between gap-4 flex-wrap">
+          <div>
+            <div className="text-green-400 text-2xl font-bold">{quoteTitle}</div>
+            <p className="text-neutral-400 text-sm mt-2 max-w-lg">{rental ? 'Share the property location, work needed, number of units and desired date.' : 'Share the property location, the work needed and your preferred timing.'}</p>
           </div>
-          <p className="text-neutral-500 text-xs mt-4 flex items-start gap-2"><Sparkles size={12} className="text-green-400 mt-0.5 flex-shrink-0"/> Final quote may vary based on property condition, accessibility, and specific requirements.</p>
-        </> : <div className="flex items-center justify-between gap-4 flex-wrap">
-          <div><div className="text-green-400 text-2xl font-bold">Custom Make-Ready Quote</div><p className="text-neutral-400 text-sm mt-2 max-w-lg">Each rental has a different scope. Share the location, work needed, units and desired date.</p></div>
-          <Link to="/contact?service=make-ready-services" className="btn-green inline-flex items-center gap-2 px-6 py-3 rounded-full font-semibold">Request a Quote <ArrowRight size={16}/></Link>
-        </div>}
+          <Link to={quoteLink} className="btn-green inline-flex items-center gap-2 px-6 py-3 rounded-full font-semibold">Request a Quote <ArrowRight size={16}/></Link>
+        </div>
+        <p className="text-neutral-500 text-xs mt-4">Pricing and scheduling are discussed for your property and requested work.</p>
       </div>
     </div>
   );

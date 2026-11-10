@@ -172,13 +172,13 @@ const Home = () => {
         </div>
       </section>
 
-      {/* QUOTE CALCULATOR */}
+      {/* SERVICE-SPECIFIC QUOTE REQUEST */}
       <section className="py-24 bg-[#080808]">
         <div className="max-w-4xl mx-auto px-5 lg:px-8">
           <div className="text-center mb-10">
-            <Badge>Instant Estimate</Badge>
-            <h2 className="font-serif text-4xl md:text-5xl text-white mt-5">Ballpark Your Project in Seconds</h2>
-            <p className="text-neutral-400 mt-4 max-w-2xl mx-auto">Explore a ballpark for select services. Rental make-readys are quoted based on your property and scope.</p>
+            <Badge>Custom Quotes</Badge>
+            <h2 className="font-serif text-4xl md:text-5xl text-white mt-5">Tell Us About Your Project</h2>
+            <p className="text-neutral-400 mt-4 max-w-2xl mx-auto">Select a service to start your request. We&apos;ll discuss the work, pricing and timing for your property.</p>
           </div>
           <QuoteCalculator />
         </div>
