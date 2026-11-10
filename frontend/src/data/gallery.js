@@ -25,7 +25,7 @@ export const GALLERY = [
     location: 'Austin, TX',
     featured: true,
     before: '/gallery/mulch-before.jpg',
-    after: '/gallery/mulch-after.jpg',
+    after: '/gallery/mulch-after.jpg?v=privacy-1',
     description: 'Transformed a tired, weedy front bed into a clean, dark hardwood mulch refresh with sharp edging. Drag the slider to see the transformation.',
   },
 

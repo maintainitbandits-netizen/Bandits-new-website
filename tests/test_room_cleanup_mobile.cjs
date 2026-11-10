@@ -163,3 +163,69 @@ test('blog cards preserve both halves and the article has one canonical and the 
     }
   } finally { await browser.close(); }
 });
+
+// Check the decoded public images themselves, not just the presence of a CSS overlay.
+async function reviewedImage(locator, expectedWidth, expectedHeight, region) {
+  await locator.scrollIntoViewIfNeeded();
+  const data = await locator.evaluate(async (img, region) => {
+    await img.decode();
+    const canvas = document.createElement('canvas');
+    canvas.width = img.naturalWidth;
+    canvas.height = img.naturalHeight;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    ctx.drawImage(img, 0, 0);
+    const { x, y, width, height } = region;
+    const pixels = ctx.getImageData(x, y, width, height).data;
+    const intensity = i => (pixels[i * 4] * 0.2126 + pixels[i * 4 + 1] * 0.7152 + pixels[i * 4 + 2] * 0.0722);
+    let delta = 0, pairs = 0;
+    for (let yy = 0; yy < height; yy++) {
+      for (let xx = 0; xx < width; xx++) {
+        const i = yy * width + xx;
+        if (xx) { delta += Math.abs(intensity(i) - intensity(i - 1)); pairs++; }
+        if (yy) { delta += Math.abs(intensity(i) - intensity(i - width)); pairs++; }
+      }
+    }
+    return { width: img.naturalWidth, height: img.naturalHeight, gradient: delta / pairs };
+  }, region);
+  assert.equal(data.width, expectedWidth);
+  assert.equal(data.height, expectedHeight);
+  assert.ok(data.gradient < 2, `The reviewed address area must stay strongly blurred: ${JSON.stringify(data)}`);
+}
+
+test('blurred gallery and service photos load with fresh URLs at mobile and desktop sizes', skip, async () => {
+  const browser = await makeBrowser();
+  const mulchRegion = { x: 442, y: 185, width: 36, height: 160 };
+  const heroRegion = { x: 632, y: 374, width: 24, height: 10 };
+  const mulchAfter = '/gallery/mulch-after.jpg?v=privacy-1';
+  const mulchService = '/gallery/service-mulching.jpg?v=privacy-1';
+  const hero = '/gallery/make-ready-hero.jpg?v=privacy-1';
+  try {
+    for (const width of [320, 1280]) {
+      const { context, page, errors, forbidden } = await setup(browser, width);
+      try {
+        await goto(page, '/gallery');
+        await reviewedImage(page.locator(`img[src="${mulchAfter}"]`), 1400, 1859, mulchRegion);
+        assert.equal(await page.locator('img[src="/gallery/mulch-before.jpg"]').count(), 1);
+        await noOverflow(page, `gallery privacy at ${width}`);
+
+        await goto(page, '/');
+        await reviewedImage(page.locator(`img[src="${mulchService}"]`).first(), 1400, 1859, mulchRegion);
+        await reviewedImage(page.locator(`img[src="${hero}"]`).first(), 1408, 768, heroRegion);
+        await noOverflow(page, `home privacy at ${width}`);
+
+        await goto(page, '/services/mulching');
+        await reviewedImage(page.locator(`img[src="${mulchService}"]`).first(), 1400, 1859, mulchRegion);
+        await page.waitForFunction(url => document.querySelector('meta[property="og:image"]')?.content.endsWith(url), mulchService);
+        await noOverflow(page, `mulching privacy at ${width}`);
+
+        await goto(page, '/blog/tenant-turnover-timeline-austin-tx');
+        await reviewedImage(page.locator(`article img[src="${hero}"]`), 1408, 768, heroRegion);
+        await page.waitForFunction(url => document.querySelector('meta[property="og:image"]')?.content.endsWith(url), hero);
+        const schemas = await page.locator('script[type="application/ld+json"]').evaluateAll(tags => tags.map(tag => JSON.parse(tag.textContent)));
+        assert.ok(schemas.some(schema => schema['@type'] === 'BlogPosting' && schema.image.endsWith(hero)));
+        await noOverflow(page, `turnover article privacy at ${width}`);
+        await checkCleanRun(errors, forbidden);
+      } finally { await context.close(); }
+    }
+  } finally { await browser.close(); }
+});

@@ -70,7 +70,7 @@ export const BLOG_POSTS = [
     author: 'Maintain It Bandits Team',
     readTime: '4 min read',
     category: 'Make Ready & Turnovers',
-    image: '/gallery/make-ready-hero.jpg',
+    image: '/gallery/make-ready-hero.jpg?v=privacy-1',
     keywords: 'tenant turnover timeline, how long does a turnover take, turnover planning Austin, rental turnover services Austin TX',
     content: [
       { type: 'p', text: 'A turnover schedule depends on the condition of the rental, the work needed, access, materials and the availability of the people doing the work. Instead of assuming a fixed number of days, plan the sequence around the property and your desired move-in or showing date.' },
