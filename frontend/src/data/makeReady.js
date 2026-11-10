@@ -5,6 +5,7 @@ import content from './makeReadyContent.json';
 export const MAKE_READY_META = content.meta;
 export const MAKE_READY_HEADLINE = content.headline;
 export const MAKE_READY_INTRO = content.intro;
+export const MAKE_READY_SPOTLIGHT = content.spotlight;
 export const MAKE_READY_AREAS = content.areas;
 export const MAKE_READY_AREA_INTRO = content.areaIntro;
 export const MAKE_READY_PACKAGES = content.packages;

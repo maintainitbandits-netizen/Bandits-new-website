@@ -4,6 +4,7 @@ import { GALLERY, GALLERY_CATEGORIES } from '../data/gallery';
 import SEO from '../components/SEO';
 import Breadcrumbs from '../components/Breadcrumbs';
 import CTASection from '../components/CTASection';
+import BeforeAfterPhoto from '../components/BeforeAfterPhoto';
 
 const BeforeAfter = ({ before, after, alt }) => {
   const [pos, setPos] = useState(50);
@@ -52,14 +53,14 @@ const Showcase = ({ image, alt }) => (
 
 const Gallery = () => {
   const [filter, setFilter] = useState('All');
-  const filtered = filter === 'All' ? GALLERY : GALLERY.filter(g => g.category === filter);
+  const filtered = filter === 'All' ? GALLERY : GALLERY.filter(g => g.category === filter || g.tags?.includes(filter));
 
   return (
     <div>
       <SEO
-        title="Before & After Photo Gallery | Lawn Care & Landscaping Austin TX | Maintain It Bandits LLC"
-        description="See real before-and-after results from our lawn care, landscaping, and home services projects across Austin, Round Rock, Cedar Park, and the surrounding Texas metro."
-        keywords="lawn care before after Austin, landscaping photos Austin, lawn transformation gallery Texas"
+        title="Before & After Project Gallery | Austin TX | Maintain It Bandits"
+        description="Browse before-and-after photos and project examples for cleaning, make-ready, lawn care and landscaping services in the greater Austin area."
+        keywords="make ready before and after, room cleanup, lawn care before after Austin, landscaping photos Austin"
         path="/gallery"
       />
       <Breadcrumbs items={[{ name: 'Gallery', path: '/gallery' }]} />
@@ -67,16 +68,16 @@ const Gallery = () => {
       <section className="py-16 bg-[#0a0a0a] border-b border-[#161616]">
         <div className="max-w-5xl mx-auto px-5 lg:px-8 text-center">
           <span className="chip inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs tracking-widest font-medium uppercase"><Camera size={14}/> Project Gallery</span>
-          <h1 className="font-serif text-5xl md:text-6xl text-white mt-5">Real Results in <span className="text-green-400 italic">Austin TX</span></h1>
-          <p className="text-neutral-400 mt-6 max-w-2xl mx-auto leading-relaxed">Real customer properties, real results. Drag the slider on before/after photos to see the transformation, or browse recent jobs from across the Austin metro.</p>
+          <h1 className="font-serif text-5xl md:text-6xl text-white mt-5">See the Difference <span className="text-green-400 italic">for Yourself</span></h1>
+          <p className="text-neutral-400 mt-6 max-w-2xl mx-auto leading-relaxed">Explore before-and-after comparisons and project photos from our property services. Some comparisons have a slider you can drag to see the change.</p>
         </div>
       </section>
 
       {/* Filter */}
-      <section className="py-8 sticky top-20 bg-[#0a0a0a]/90 backdrop-blur z-30 border-b border-[#161616]">
+      <section className="py-8 md:sticky top-20 bg-[#0a0a0a]/90 backdrop-blur z-30 border-b border-[#161616]">
         <div className="max-w-6xl mx-auto px-5 lg:px-8 flex flex-wrap gap-2 justify-center">
           {GALLERY_CATEGORIES.map(c => (
-            <button key={c} onClick={() => setFilter(c)} className={`px-4 py-2 rounded-full text-sm transition-colors ${filter === c ? 'btn-green' : 'bg-[#111] border border-[#222] text-neutral-300 hover:text-green-400 hover:border-green-500/40'}`}>
+            <button key={c} onClick={() => setFilter(c)} aria-pressed={filter === c} className={`px-4 py-2 rounded-full text-sm transition-colors ${filter === c ? 'btn-green' : 'bg-[#111] border border-[#222] text-neutral-300 hover:text-green-400 hover:border-green-500/40'}`}>
               {c}
             </button>
           ))}
@@ -87,7 +88,9 @@ const Gallery = () => {
         <div className="max-w-6xl mx-auto px-5 lg:px-8 grid grid-cols-1 md:grid-cols-2 gap-8">
           {filtered.map(g => (
             <div key={g.id} className={`bg-[#0f0f0f] border ${g.featured ? 'border-green-500/40 shadow-xl shadow-green-500/10' : 'border-[#1c1c1c]'} rounded-2xl overflow-hidden`}>
-              {g.type === 'showcase' ? (
+              {g.type === 'combined' ? (
+                <BeforeAfterPhoto src={g.image} alt={g.imageAlt} caption={g.imageCaption} className="p-3 pb-0" />
+              ) : g.type === 'showcase' ? (
                 <Showcase image={g.image} alt={g.title} />
               ) : (
                 <BeforeAfter before={g.before} after={g.after} alt={g.title}/>
@@ -96,7 +99,7 @@ const Gallery = () => {
                 <div className="flex items-center gap-3 text-xs text-neutral-500 flex-wrap">
                   {g.featured && <span className="chip px-2 py-0.5 rounded-full text-green-400 font-semibold">★ Featured Project</span>}
                   <span className="chip px-2 py-0.5 rounded-full">{g.category}</span>
-                  <span className="flex items-center gap-1"><MapPin size={11}/> {g.location}</span>
+                  {g.location && <span className="flex items-center gap-1"><MapPin size={11}/> {g.location}</span>}
                 </div>
                 <h3 className="text-white font-semibold text-lg mt-3">{g.title}</h3>
                 <p className="text-neutral-400 text-sm mt-2 leading-relaxed">{g.description}</p>

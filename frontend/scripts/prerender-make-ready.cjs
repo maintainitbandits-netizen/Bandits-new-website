@@ -6,6 +6,7 @@ const path = require('path');
 const appRoot = path.resolve(__dirname, '..');
 const buildDir = path.resolve(process.env.MAKE_READY_BUILD_DIR || path.join(appRoot, 'build'));
 const content = JSON.parse(fs.readFileSync(path.join(appRoot, 'src/data/makeReadyContent.json'), 'utf8'));
+const roomCleanupPost = JSON.parse(fs.readFileSync(path.join(appRoot, 'src/data/roomCleanupPost.json'), 'utf8'));
 const site = 'https://www.maintainitbandits.com';
 const url = `${site}/make-ready-turnovers`;
 const image = new URL(content.meta.image, site).href;
@@ -64,7 +65,7 @@ const page = [
   '<main>',
   '<section class="bg-[#080c09] border-b border-[#1b291e]"><div class="max-w-6xl mx-auto px-5 py-16 grid lg:grid-cols-2 gap-10 items-center">',
   `<div><p class="text-green-400 text-sm">For landlords &amp; property managers</p><h1 class="font-serif text-4xl md:text-5xl text-white mt-5">${esc(content.headline)}</h1><p class="text-neutral-300 mt-6 leading-relaxed">${esc(content.intro)}</p><p class="text-neutral-300 mt-5">Fully licensed &amp; insured · Response within 24 hours</p><div class="mt-8">${action} <a href="tel:5125181558" class="text-green-400 ml-3">(512) 518-1558</a></div></div>`,
-  `<img src="${esc(content.meta.image)}" alt="${esc(content.meta.imageAlt)}" class="w-full rounded-2xl"/></div></section>`,
+  `<div><figure><div class="relative overflow-hidden rounded-xl border border-white/10 bg-[#111]"><img src="${esc(roomCleanupPost.image)}" alt="${esc(roomCleanupPost.imageAlt)}" width="1448" height="1086" class="block h-auto w-full"/><span aria-hidden="true" class="absolute left-2 top-2 rounded bg-black/80 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-white">Before</span><span aria-hidden="true" class="absolute left-1/2 top-2 ml-2 rounded bg-[#76B900] px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-black">After</span></div><figcaption class="mt-3 text-xs leading-relaxed text-neutral-400">${esc(roomCleanupPost.imageCaption)}</figcaption></figure><div class="mt-5"><p class="text-green-400 text-xs uppercase tracking-widest font-semibold">${esc(content.spotlight.eyebrow)}</p><h2 class="font-serif text-2xl text-white mt-2">${esc(content.spotlight.heading)}</h2><p class="text-neutral-300 text-sm mt-3 leading-relaxed">${esc(content.spotlight.description)}</p><p class="text-neutral-400 text-sm mt-2 leading-relaxed">${esc(content.spotlight.planning)}</p><p class="mt-4"><a href="/blog/${esc(roomCleanupPost.slug)}" class="text-green-400">${esc(content.spotlight.guideLabel)}</a> · <a href="/gallery" class="text-neutral-300">${esc(content.spotlight.galleryLabel)}</a></p></div></div></div></section>`,
   '<section class="max-w-6xl mx-auto px-5 py-16"><h2 class="font-serif text-3xl text-white">A smoother start for your next tenant</h2>',
   cards(content.audiences, item => `<h3 class="text-white text-xl font-semibold">${esc(item.title)}</h3><p class="text-neutral-400 mt-3">${esc(item.text)}</p>`), '</section>',
   '<section class="bg-[#080808] py-16"><div class="max-w-6xl mx-auto px-5"><h2 class="font-serif text-3xl text-white">Tell us what your rental needs</h2><p class="text-neutral-400 mt-4">Every property is different. These are examples of needs we can discuss; the work and price are confirmed for your project.</p>',

@@ -9,9 +9,9 @@ import CTASection from '../components/CTASection';
 const Blog = () => (
   <div>
     <SEO
-      title="Lawn Care Blog | Tips, Guides & Local Insights | Maintain It Bandits LLC"
-      description="Expert lawn care, landscaping, and home services tips for Austin TX homeowners. Seasonal guides, native plant recommendations, watering schedules and more."
-      keywords="Austin lawn care blog, landscaping tips Austin, lawn care guides Texas"
+      title="Property Care & Make-Ready Guides | Maintain It Bandits LLC"
+      description="Practical guides to cleaning, rental make-readys, lawn care and landscaping for Austin-area property owners and managers."
+      keywords="Austin property care guides, rental make ready tips, landscaping tips Austin, lawn care guides Texas"
       path="/blog"
     />
     <Breadcrumbs items={[{ name: 'Blog', path: '/blog' }]} />
@@ -19,8 +19,8 @@ const Blog = () => (
     <section className="py-16 bg-[#0a0a0a] border-b border-[#161616]">
       <div className="max-w-5xl mx-auto px-5 lg:px-8 text-center">
         <span className="chip inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs tracking-widest font-medium uppercase">Blog</span>
-        <h1 className="font-serif text-5xl md:text-6xl text-white mt-5">Lawn Care Tips & Local Guides</h1>
-        <p className="text-neutral-400 mt-6 max-w-2xl mx-auto leading-relaxed">Expert advice from Austin&apos;s trusted lawn care professionals. Seasonal guides, native plants, watering schedules, and more.</p>
+        <h1 className="font-serif text-5xl md:text-6xl text-white mt-5">Property Care Tips &amp; Local Guides</h1>
+        <p className="text-neutral-400 mt-6 max-w-2xl mx-auto leading-relaxed">Practical ideas for rental make-ready work, cleaning, landscaping and lawn care in the Austin area.</p>
       </div>
     </section>
 
@@ -29,7 +29,7 @@ const Blog = () => (
         {BLOG_POSTS.map(p => (
           <Link to={`/blog/${p.slug}`} key={p.slug} className="svc-card bg-[#0f0f0f] border border-[#1c1c1c] rounded-2xl overflow-hidden group">
             <div className="aspect-[16/10] overflow-hidden">
-              <img src={p.image} alt={p.imageAlt || p.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" loading="lazy" />
+              <img src={p.image} alt={p.imageAlt || p.title} className={`w-full h-full transition-transform duration-700 ${p.imageLayout === 'before-after' ? 'object-contain bg-[#111]' : 'object-cover group-hover:scale-105'}`} loading="lazy" />
             </div>
             <div className="p-6">
               <div className="flex flex-wrap items-center gap-3 text-xs text-neutral-500">

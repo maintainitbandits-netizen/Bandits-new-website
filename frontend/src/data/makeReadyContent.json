@@ -3,11 +3,19 @@
     "title": "Austin Make Ready & Turnover Services | Maintain It Bandits",
     "description": "Rental make-ready and tenant turnover services for Austin-area landlords and property managers. Tell us about your property and request a quote.",
     "keywords": "make ready services Austin TX, rental turnover Austin, make ready cleaning Round Rock, property management make ready, landlord turnover services",
-    "image": "/gallery/service-make-ready.jpg",
-    "imageAlt": "Bright, empty rental home interior"
+    "image": "/gallery/interior-room-cleanup-before-after.jpg",
+    "imageAlt": "Before-and-after room comparison: dust and scattered debris on the floor at left, and the floor clear afterward at right"
   },
   "headline": "Make Ready & Tenant Turnover Services in Austin, TX",
   "intro": "Getting a rental ready for its next tenant? Tell us what the property needs. We work with landlords and property managers on make-ready projects across Austin and nearby communities.",
+  "spotlight": {
+    "eyebrow": "Before & After",
+    "heading": "See what a clear room can look like",
+    "description": "Dust and debris covered the floor in the first photo. In the second, the room is clear. This side-by-side shows the visible difference a cleanup can make.",
+    "planning": "Every property has its own needs. Tell us what you want cleaned or cleared, and we can discuss a scope for your project.",
+    "guideLabel": "Read the room cleanup guide",
+    "galleryLabel": "Explore the project gallery"
+  },
   "areas": [
     { "slug": "austin", "name": "Austin", "hasPage": true },
     { "slug": "hutto", "name": "Hutto", "hasPage": true },

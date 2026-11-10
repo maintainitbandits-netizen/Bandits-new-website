@@ -5,6 +5,7 @@ import { BLOG_POSTS } from '../data/blog';
 import SEO from '../components/SEO';
 import Breadcrumbs from '../components/Breadcrumbs';
 import CTASection from '../components/CTASection';
+import BeforeAfterPhoto from '../components/BeforeAfterPhoto';
 import { COMPANY } from '../mock';
 
 // Inline markdown: **bold** and [link text](/path)
@@ -82,7 +83,11 @@ const BlogPost = () => {
           <span className="flex items-center gap-2"><Calendar size={12}/> {new Date(post.date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' })}</span>
           <span className="flex items-center gap-2"><Clock size={12}/> {post.readTime}</span>
         </div>
-        <img src={post.image} alt={post.imageAlt || post.title} className="w-full rounded-2xl border border-[#1a1a1a] mt-8 aspect-[16/9] object-cover" />
+        {post.imageLayout === 'before-after' ? (
+          <BeforeAfterPhoto src={post.image} alt={post.imageAlt} caption={post.imageCaption} loading="eager" className="mt-8" />
+        ) : (
+          <img src={post.image} alt={post.imageAlt || post.title} className="w-full rounded-2xl border border-[#1a1a1a] mt-8 aspect-[16/9] object-cover" />
+        )}
         <div className="mt-8">
           {post.content.map(renderBlock)}
         </div>
@@ -101,7 +106,7 @@ const BlogPost = () => {
             {related.map(p => (
               <Link to={`/blog/${p.slug}`} key={p.slug} className="bg-[#0f0f0f] border border-[#1c1c1c] rounded-2xl overflow-hidden group hover:border-green-500/30 transition-colors">
                 <div className="aspect-[16/10] overflow-hidden">
-                  <img src={p.image} alt={p.imageAlt || p.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" loading="lazy"/>
+                  <img src={p.image} alt={p.imageAlt || p.title} className={`w-full h-full transition-transform duration-700 ${p.imageLayout === 'before-after' ? 'object-contain bg-[#111]' : 'object-cover group-hover:scale-105'}`} loading="lazy"/>
                 </div>
                 <div className="p-5">
                   <h3 className="text-white font-semibold text-base group-hover:text-green-400 transition-colors">{p.title}</h3>
