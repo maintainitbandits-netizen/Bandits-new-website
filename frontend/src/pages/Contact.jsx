@@ -69,8 +69,8 @@ const Contact = () => {
   return (
     <div>
       <SEO
-        title="Contact Maintain It Bandits LLC | Request a Quote Austin TX"
-        description="Contact Maintain It Bandits LLC about lawn care, landscaping, cleaning, make-ready and home services in Austin TX. Call (512) 518-1558."
+        title="Contact Maintain It Bandits LLC | Free Estimates Austin TX"
+        description="Request a free estimate for lawn care, landscaping, cleaning, make-ready and turnover services in greater Austin. Call (512) 518-1558."
         keywords="contact lawn care Austin TX, quote Austin, Maintain It Bandits contact"
         path="/contact"
       />
@@ -78,8 +78,8 @@ const Contact = () => {
       <section className="py-16 bg-[#0a0a0a] border-b border-[#161616]">
         <div className="max-w-5xl mx-auto px-5 lg:px-8 text-center">
           <span className="chip inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs tracking-widest font-medium uppercase">Contact</span>
-          <h1 className="font-serif text-5xl md:text-6xl text-white mt-5">Request an Estimate</h1>
-          <p className="text-neutral-400 mt-6 max-w-2xl mx-auto leading-relaxed">Tell us about your property using the step-by-step request or a detailed message. We&apos;ll respond within 24 hours.</p>
+          <h1 className="font-serif text-5xl md:text-6xl text-white mt-5">Request a Free Estimate</h1>
+          <p className="text-neutral-400 mt-6 max-w-2xl mx-auto leading-relaxed">Tell us about your property using the step-by-step request or a detailed message. We&apos;ll respond within 24 hours. Service pricing depends on the work requested.</p>
         </div>
       </section>
 

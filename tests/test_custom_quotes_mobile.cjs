@@ -86,6 +86,8 @@ async function selectedService(page, slug) {
   assert.ok(service, `Known service ${slug}`);
   const button = page.getByRole('button', { name: service.title, exact: true });
   assert.equal(await button.getAttribute('aria-pressed'), 'true', `preselected ${slug}`);
+  assert.equal(await page.locator('h1').innerText(), 'Request a Free Estimate');
+  assert.match(await page.locator('body').innerText(), /Service pricing depends on the work requested/i);
 }
 
 test('every homepage service option links to a correctly preselected quote, including both rental choices', skip, async () => {
@@ -100,6 +102,7 @@ test('every homepage service option links to a correctly preselected quote, incl
     for (const service of services) {
       await page.locator('#quote-service').selectOption(aliases[service.slug] || service.title);
       const card = page.locator('#quote-service').locator('..').locator('..');
+      assert.match(await card.innerText(), /Estimates are free\. Service pricing and scheduling/i);
       const link = card.getByRole('link', { name: 'Request a Quote', exact: true });
       assert.equal(await link.getAttribute('href'), `/contact?service=${service.slug}`);
       await quoteOnly(page, `home: ${service.slug}`);
@@ -122,6 +125,7 @@ test('pricing, bundle and article pages stay quote-only and fit narrow and deskt
       try {
         await goto(page, '/pricing');
         assert.match(await page.locator('body').innerText(), /Make Ready & Turnover Quotes/);
+        assert.match(await page.locator('body').innerText(), /Estimates are free for every service/i);
         await quoteOnly(page, `pricing ${width}`);
         await noOverflow(page, `pricing ${width}`);
         const pricingLinks = await page.locator('a[href^="/contact?service="]').evaluateAll(links => [...new Set(links.map(link => link.getAttribute('href')))]);
@@ -158,6 +162,16 @@ test('pricing, bundle and article pages stay quote-only and fit narrow and deskt
             await selectedService(page, 'cleaning');
           }
         }
+        await goto(page, '/faq');
+        const freeEstimateFaq = page.locator('details').filter({ hasText: 'Are estimates free?' });
+        await freeEstimateFaq.locator('summary').click();
+        assert.match(await freeEstimateFaq.innerText(), /Estimates are free for every service, including make-ready and tenant turnover work/i);
+        assert.match(await freeEstimateFaq.innerText(), /Service pricing depends on your property/i);
+        const faqSchemas = await page.locator('script[type="application/ld+json"]').evaluateAll(tags => tags.map(tag => JSON.parse(tag.textContent)));
+        const faqSchema = faqSchemas.find(schema => schema['@type'] === 'FAQPage');
+        const freeQuestion = faqSchema?.mainEntity.find(item => item.name === 'Are estimates free?');
+        assert.match(freeQuestion?.acceptedAnswer?.text || '', /including make-ready and tenant turnover work/i);
+        await noOverflow(page, `FAQ ${width}`);
         assert.deepEqual(writes, []);
         assert.deepEqual(errors, []);
       } finally { await context.close(); }

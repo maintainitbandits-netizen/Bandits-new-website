@@ -49,7 +49,7 @@ const QuoteCalculator = () => {
           </div>
           <Link to={quoteLink} className="btn-green inline-flex items-center gap-2 px-6 py-3 rounded-full font-semibold">Request a Quote <ArrowRight size={16}/></Link>
         </div>
-        <p className="text-neutral-500 text-xs mt-4">Pricing and scheduling are discussed for your property and requested work.</p>
+        <p className="text-neutral-500 text-xs mt-4">Estimates are free. Service pricing and scheduling are discussed for your property and requested work.</p>
       </div>
     </div>
   );

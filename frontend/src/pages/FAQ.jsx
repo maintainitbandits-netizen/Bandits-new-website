@@ -11,6 +11,7 @@ const FAQ_GROUPS = [
     faqs: [
       { q: 'Are you licensed and insured?', a: 'Yes — Maintain It Bandits LLC is fully licensed and insured.' },
       { q: 'What areas do you serve?', a: 'We consider projects in Austin and nearby communities. Tell us the property location and work needed so we can confirm availability.' },
+      { q: 'Are estimates free?', a: 'Yes. Estimates are free for every service, including make-ready and tenant turnover work. Service pricing depends on your property and the work requested.' },
       { q: 'How do I request an estimate?', a: 'Contact us with the property location and details of the work. We respond within 24 hours.' },
       { q: 'How quickly can you start service?', a: 'We respond within 24 hours. Scheduling depends on the project and availability.' },
       { q: 'What forms of payment do you accept?', a: 'Cash, check, all major credit/debit cards, Zelle, and Apple Pay. Recurring service clients can be set up on auto-pay.' },
