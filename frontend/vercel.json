@@ -1,5 +1,5 @@
 {
-  "buildCommand": "npm run build && node scripts/prerender-fall-cleanup.cjs && node scripts/prerender-make-ready.cjs",
+  "buildCommand": "npm run build && node scripts/prerender-fall-cleanup.cjs && node scripts/prerender-make-ready.cjs && node scripts/prerender-room-cleanup.cjs",
   "functions": {
     "api/crm-quote.js": { "maxDuration": 150 }
   },
@@ -170,6 +170,14 @@
     {
       "source": "/blog/fall-cleanup-austin-rental-properties/",
       "destination": "/_prerendered/fall-cleanup-austin-rental-properties.html"
+    },
+    {
+      "source": "/blog/room-cleanup-before-after-make-ready-guide",
+      "destination": "/_prerendered/room-cleanup-before-after-make-ready-guide.html"
+    },
+    {
+      "source": "/blog/room-cleanup-before-after-make-ready-guide/",
+      "destination": "/_prerendered/room-cleanup-before-after-make-ready-guide.html"
     },
     {
       "source": "/make-ready-turnovers",

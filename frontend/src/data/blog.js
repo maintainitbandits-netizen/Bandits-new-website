@@ -1,7 +1,9 @@
-// SEO-optimized blog posts for local lawn care ranking
+// Guides for property care, rental turnovers and landscaping.
 import fallCleanupPost from './fallCleanupPost.json';
+import roomCleanupPost from './roomCleanupPost.json';
 
 export const BLOG_POSTS = [
+  roomCleanupPost,
   fallCleanupPost,
   {
     slug: 'austin-rental-make-ready-checklist-landlords',

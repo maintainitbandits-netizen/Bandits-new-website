@@ -2,7 +2,21 @@
 // "type: 'showcase'" entries render a single image card (no slider).
 // Entries without "type" default to the before/after slider.
 
+import roomCleanupPost from './roomCleanupPost.json';
+
 export const GALLERY = [
+  {
+    id: 212,
+    type: 'combined',
+    title: 'Room Cleanup: Before & After',
+    category: 'Make Ready',
+    tags: ['Cleaning'],
+    image: roomCleanupPost.image,
+    imageAlt: roomCleanupPost.imageAlt,
+    imageCaption: roomCleanupPost.imageCaption,
+    description: 'A side-by-side look at a room before and after cleanup.',
+    featured: true,
+  },
   // ===== REAL BEFORE / AFTER SLIDER (Mulch refresh) =====
   {
     id: 200,
@@ -146,4 +160,4 @@ export const GALLERY = [
   },
 ];
 
-export const GALLERY_CATEGORIES = ['All', 'Lawn Mowing', 'Landscaping', 'Sod Installation', 'Property Maintenance', 'Cleaning'];
+export const GALLERY_CATEGORIES = ['All', 'Make Ready', 'Lawn Mowing', 'Landscaping', 'Sod Installation', 'Property Maintenance', 'Cleaning'];

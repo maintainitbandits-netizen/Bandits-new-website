@@ -8,10 +8,12 @@ import { COMPANY } from '../mock';
 import {
   MAKE_READY_META, MAKE_READY_HEADLINE, MAKE_READY_INTRO, MAKE_READY_AREAS,
   MAKE_READY_AREA_INTRO, MAKE_READY_PACKAGES, MAKE_READY_CHECKLIST,
-  TURN_TIMELINE, MAKE_READY_AUDIENCES, MAKE_READY_FAQS,
+  TURN_TIMELINE, MAKE_READY_AUDIENCES, MAKE_READY_FAQS, MAKE_READY_SPOTLIGHT,
 } from '../data/makeReady';
+import roomCleanupPost from '../data/roomCleanupPost.json';
 import SEO from '../components/SEO';
 import Breadcrumbs from '../components/Breadcrumbs';
+import BeforeAfterPhoto from '../components/BeforeAfterPhoto';
 
 const QUOTE_LINK = '/contact?service=make-ready-services';
 const Badge = ({ children, icon: Icon }) => (
@@ -79,11 +81,17 @@ const MakeReadyHub = () => {
             <p className="text-neutral-400 text-sm mt-5">Prefer to text? <a href={`sms:${COMPANY.phoneRaw}`} className="text-green-400 hover:underline">Send us a message</a>.</p>
           </div>
           <div className="relative">
-            <div className="absolute -inset-3 bg-green-500/10 rounded-3xl blur-xl" />
-            <img src={MAKE_READY_META.image} alt={MAKE_READY_META.imageAlt} className="relative w-full aspect-[4/3] object-cover rounded-3xl border border-[#314135]" />
-            <div className="absolute bottom-4 left-4 right-4 sm:right-auto bg-[#0b130d]/95 border border-green-500/30 rounded-2xl px-5 py-4 shadow-xl">
-              <div className="text-green-400 text-xs uppercase tracking-widest font-semibold">Your property. Your checklist.</div>
-              <div className="text-white font-medium mt-1">A quote built around the work you need.</div>
+            <div className="absolute -inset-3 bg-green-500/10 rounded-3xl blur-xl pointer-events-none" />
+            <BeforeAfterPhoto src={roomCleanupPost.image} alt={roomCleanupPost.imageAlt} caption={roomCleanupPost.imageCaption} loading="eager" className="relative" />
+            <div className="relative mt-5">
+              <div className="text-green-400 text-xs uppercase tracking-widest font-semibold">{MAKE_READY_SPOTLIGHT.eyebrow}</div>
+              <h2 className="font-serif text-2xl text-white mt-2">{MAKE_READY_SPOTLIGHT.heading}</h2>
+              <p className="text-neutral-300 text-sm mt-3 leading-relaxed">{MAKE_READY_SPOTLIGHT.description}</p>
+              <p className="text-neutral-400 text-sm mt-2 leading-relaxed">{MAKE_READY_SPOTLIGHT.planning}</p>
+              <div className="flex flex-wrap gap-x-6 gap-y-3 mt-4 text-sm font-semibold">
+                <Link to={`/blog/${roomCleanupPost.slug}`} className="inline-flex items-center gap-2 text-green-400 hover:text-green-300">{MAKE_READY_SPOTLIGHT.guideLabel} <ArrowRight size={16} /></Link>
+                <Link to="/gallery" className="inline-flex items-center gap-2 text-neutral-300 hover:text-white">{MAKE_READY_SPOTLIGHT.galleryLabel} <ArrowRight size={16} /></Link>
+              </div>
             </div>
           </div>
         </div>
