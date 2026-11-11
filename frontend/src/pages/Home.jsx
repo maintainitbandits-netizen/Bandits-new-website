@@ -161,7 +161,7 @@ const Home = () => {
                 </div>
               </div>
               <div className="relative min-h-[320px]">
-                <img src="/gallery/make-ready-hero.jpg" alt="Rental home refreshed with make ready and turnover services in Austin TX" className="absolute inset-0 w-full h-full object-cover" />
+                <img src="/gallery/make-ready-hero.jpg?v=privacy-1" alt="Rental home refreshed with make ready and turnover services in Austin TX" className="absolute inset-0 w-full h-full object-cover" />
                 <div className="absolute bottom-5 right-5 bg-[#0c0c0c]/95 border border-green-500/30 rounded-2xl px-5 py-3 shadow-xl">
                   <div className="text-green-400 font-bold text-xl">Your property, your scope</div>
                   <div className="text-neutral-400 text-[10px] uppercase tracking-wider">Ask about a custom quote</div>

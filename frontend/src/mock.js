@@ -217,7 +217,7 @@ export const SERVICES = [
     slug: 'mulching',
     title: 'Mulching',
     short: 'Professional mulch supply and installation for Austin TX garden beds. Retains moisture, suppresses weeds, and boosts curb appeal year-round.',
-    image: '/gallery/service-mulching.jpg',
+    image: '/gallery/service-mulching.jpg?v=privacy-1',
     description: 'Fresh mulch is one of the best investments you can make in your Austin landscape. It regulates soil temperature, locks in moisture through brutal Texas summers, suppresses weeds, and gives every bed a clean, finished look. We supply and install hardwood, cedar, pine bark, and specialty mulches.',
     included: [
       'Hardwood, cedar & pine bark mulch options',

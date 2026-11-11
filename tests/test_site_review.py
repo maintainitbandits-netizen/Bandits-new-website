@@ -136,7 +136,7 @@ class ServiceCityReviewTests(unittest.TestCase):
 
     def test_referenced_local_media_exists(self):
         missing = set()
-        pattern = re.compile(r"[\"'](/(?:gallery|images|guides)/[^\"'?#]+\.(?:jpe?g|png|webp|svg|gif|pdf|html))[\"']", re.I)
+        pattern = re.compile(r"[\"'](/(?:gallery|images|guides)/[^\"'?#]+\.(?:jpe?g|png|webp|svg|gif|pdf|html))(?:\?[^\"']*)?[\"']", re.I)
         for path in SRC.rglob('*'):
             if path.suffix not in ('.js', '.jsx', '.json'):
                 continue
