@@ -107,7 +107,8 @@ export const SERVICES = [
     slug: 'sod-installation',
     title: 'Sod Installation',
     short: 'Fresh sod installation with premium grass varieties suited for Austin TX climate \u2014 Bermuda, St. Augustine, and Zoysia.',
-    image: '/gallery/service-sod-installation.jpg',
+    image: '/gallery/sod-install-after.jpg',
+    imageAlt: 'Front yard after sod installation',
     description: 'Get an instant lawn with our professional sod installation service. We prepare the soil, install fresh sod, and provide care instructions so your new lawn thrives from day one.',
     included: [
       'Site preparation & grading',
@@ -261,7 +262,8 @@ export const SERVICES = [
     slug: 'flower-bed-planting',
     title: 'Flower Bed Design & Planting',
     short: 'Custom flower bed design and installation in Austin TX. We create colorful, low-maintenance garden beds with plants suited for Central Texas.',
-    image: '/gallery/crepe-myrtle-landscaping.jpg',
+    image: '/gallery/flower-bed-planting.jpg',
+    imageAlt: 'A planted flower bed with dark mulch and a stone border',
     description: 'A well-designed flower bed transforms the front or back of any Austin home. We design, install, and plant custom garden beds using flowering plants, ornamental grasses, and Austin-native species that thrive in Central Texas heat, clay soil, and variable rainfall.',
     included: [
       'Custom bed layout and design',
@@ -327,7 +329,8 @@ export const SERVICES = [
     slug: 'mulch-rock-installation',
     title: 'Mulch & Rock Installation',
     short: 'Mulch and decorative rock installation in Austin TX. River rock, decomposed granite, and hardwood mulch installed to enhance and protect your landscape.',
-    image: '/gallery/hedge-row-finished.jpg',
+    image: '/gallery/decorative-rock-bed.jpg',
+    imageAlt: 'Decorative rock around shrubs in a landscaped bed',
     description: 'Ground cover is one of the most impactful and practical upgrades you can make to your Austin landscape. We install a wide range of materials including hardwood mulch, cedar mulch, river rock, decomposed granite, and decorative stone to protect your soil, reduce weeds, and dramatically improve curb appeal.',
     included: [
       'Hardwood and cedar mulch installation',

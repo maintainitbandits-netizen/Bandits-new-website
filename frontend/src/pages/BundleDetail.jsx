@@ -6,6 +6,7 @@ import { SERVICES, COMPANY } from '../mock';
 import SEO from '../components/SEO';
 import Breadcrumbs from '../components/Breadcrumbs';
 import CTASection from '../components/CTASection';
+import { SITE_ORIGIN } from '../config/site';
 
 const BundleDetail = () => {
   const { slug } = useParams();
@@ -22,7 +23,7 @@ const BundleDetail = () => {
     '@type': 'Service',
     name: bundle.name,
     description: bundle.description,
-    image: bundle.image,
+    image: new URL(bundle.image, SITE_ORIGIN).href,
     provider: { '@type': 'LocalBusiness', name: COMPANY.name },
   };
 
@@ -34,6 +35,7 @@ const BundleDetail = () => {
         keywords={`${bundle.name.toLowerCase()} Austin TX, property service bundle, custom quote`}
         path={`/bundles/${slug}`}
         image={bundle.image}
+        imageAlt={bundle.imageAlt}
         schema={schema}
       />
       <Breadcrumbs items={[
@@ -66,7 +68,7 @@ const BundleDetail = () => {
 
           <div className="relative">
             <div className="absolute -inset-3 bg-green-500/10 rounded-3xl blur-xl"/>
-            <img src={bundle.image} alt={bundle.name} className="relative w-full aspect-[4/3] object-cover rounded-2xl border border-[#1a1a1a]"/>
+            <img src={bundle.image} alt={bundle.imageAlt || bundle.name} className="relative w-full aspect-[4/3] object-cover rounded-2xl border border-[#1a1a1a]"/>
           </div>
         </div>
       </section>
@@ -103,7 +105,7 @@ const BundleDetail = () => {
             {includedServices.map(s => (
               <Link to={`/services/${s.slug}`} key={s.slug} className="svc-card bg-[#0f0f0f] border border-[#1c1c1c] rounded-2xl overflow-hidden group">
                 <div className="aspect-[4/3] overflow-hidden">
-                  <img src={s.image} alt={s.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" loading="lazy"/>
+                  <img src={s.image} alt={s.imageAlt || s.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" loading="lazy"/>
                 </div>
                 <div className="p-5">
                   <h3 className="text-white font-semibold">{s.title}</h3>
@@ -140,7 +142,7 @@ const BundleDetail = () => {
             {otherBundles.map(b => (
               <Link to={`/bundles/${b.slug}`} key={b.slug} className="svc-card bg-[#0f0f0f] border border-[#1c1c1c] rounded-2xl overflow-hidden group hover:border-green-500/30 transition-colors">
                 <div className="aspect-[16/9] overflow-hidden">
-                  <img src={b.image} alt={b.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" loading="lazy"/>
+                  <img src={b.image} alt={b.imageAlt || b.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" loading="lazy"/>
                 </div>
                 <div className="p-5">
                   <h3 className="text-white font-semibold">{b.name}</h3>

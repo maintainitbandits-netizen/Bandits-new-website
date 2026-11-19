@@ -31,7 +31,8 @@ export const BUNDLES = [
     customQuote: true,
     quoteService: 'landscaping',
     duration: 'Timing discussed per project',
-    image: 'https://images.unsplash.com/photo-1738193830098-2d92352a1856?w=1600&q=80',
+    image: '/gallery/flower-bed-planting.jpg',
+    imageAlt: 'A planted flower bed with dark mulch and a stone border',
     includes: [
       'Landscape ideas and bed work',
       'Mulch and materials to discuss',
@@ -50,7 +51,8 @@ export const BUNDLES = [
     customQuote: true,
     quoteService: 'sod-installation',
     duration: 'Timing discussed per project',
-    image: 'https://images.unsplash.com/photo-1734079692079-aae7e24a7035?w=1600&q=80',
+    image: '/gallery/sod-install-after.jpg',
+    imageAlt: 'Front yard after sod installation',
     includes: [
       'Existing turf and weed removal',
       'Soil preparation and grading',

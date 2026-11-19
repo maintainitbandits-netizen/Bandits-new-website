@@ -68,7 +68,7 @@ const ServiceAreaDetail = () => {
             {SERVICES.map(s => (
               <Link key={s.slug} to={`/services/${s.slug}/${slug}`} className="svc-card bg-[#0f0f0f] border border-[#1c1c1c] rounded-2xl overflow-hidden group">
                 <div className="aspect-[4/3] overflow-hidden">
-                  <img src={s.image} alt={`${s.title} in ${meta.name} TX`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" loading="lazy" />
+                  <img src={s.image} alt={s.imageAlt || `${s.title} in ${meta.name} TX`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" loading="lazy" />
                 </div>
                 <div className="p-6">
                   <h3 className="text-white font-semibold text-lg">{s.title} in {meta.name}</h3>
