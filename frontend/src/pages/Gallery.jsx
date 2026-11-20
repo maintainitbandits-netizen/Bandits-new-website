@@ -5,48 +5,18 @@ import SEO from '../components/SEO';
 import Breadcrumbs from '../components/Breadcrumbs';
 import CTASection from '../components/CTASection';
 import BeforeAfterPhoto from '../components/BeforeAfterPhoto';
+import BeforeAfterSlider from '../components/BeforeAfterSlider';
 
-const BeforeAfter = ({ before, after, alt }) => {
-  const [pos, setPos] = useState(50);
-  const handleMove = (clientX, target) => {
-    const rect = target.getBoundingClientRect();
-    const x = ((clientX - rect.left) / rect.width) * 100;
-    setPos(Math.max(0, Math.min(100, x)));
-  };
-  return (
-    <div
-      className="relative aspect-[4/3] overflow-hidden rounded-xl select-none cursor-ew-resize"
-      onMouseMove={(e) => handleMove(e.clientX, e.currentTarget)}
-      onTouchMove={(e) => handleMove(e.touches[0].clientX, e.currentTarget)}
-    >
-      <img src={after} alt={`${alt} – after`} className="absolute inset-0 w-full h-full object-cover" loading="lazy" />
-      <img
-        src={before}
-        alt={`${alt} – before`}
-        className="absolute inset-0 w-full h-full object-cover"
-        style={{ clipPath: `inset(0 ${100 - pos}% 0 0)` }}
-        loading="lazy"
-      />
-      <div className="absolute inset-y-0 pointer-events-none" style={{ left: `${pos}%` }}>
-        <div className="absolute inset-y-0 -ml-px w-0.5 bg-white/90" />
-        <div className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 h-10 w-10 rounded-full bg-white shadow-2xl grid place-items-center text-neutral-900 font-bold">↔</div>
-      </div>
-      <span className="absolute top-3 left-3 bg-black/70 text-white text-[10px] px-2 py-1 rounded-full tracking-widest uppercase z-10">Before</span>
-      <span className="absolute top-3 right-3 bg-green-500 text-[#0a0a0a] text-[10px] px-2 py-1 rounded-full tracking-widest uppercase font-bold z-10">After</span>
-    </div>
-  );
-};
-
-const Showcase = ({ image, alt }) => (
-  <div className="relative aspect-[4/5] overflow-hidden rounded-xl bg-[#0a0a0a]">
+const Showcase = ({ image, alt, fullFrame, badge = 'Recent Job' }) => (
+  <div className={`relative overflow-hidden rounded-xl bg-[#0a0a0a] ${fullFrame ? '' : 'aspect-[4/5]'}`}>
     <img
       src={image}
       alt={alt}
-      className="absolute inset-0 w-full h-full object-contain transition-transform duration-700 hover:scale-105"
+      className={fullFrame ? 'block w-full h-auto' : 'absolute inset-0 w-full h-full object-contain transition-transform duration-700 hover:scale-105'}
       loading="lazy"
     />
     <span className="absolute top-3 right-3 bg-green-500 text-[#0a0a0a] text-[10px] px-2 py-1 rounded-full tracking-widest uppercase font-bold z-10">
-      Recent Job
+      {badge}
     </span>
   </div>
 );
@@ -91,9 +61,9 @@ const Gallery = () => {
               {g.type === 'combined' ? (
                 <BeforeAfterPhoto src={g.image} alt={g.imageAlt} caption={g.imageCaption} className="p-3 pb-0" />
               ) : g.type === 'showcase' ? (
-                <Showcase image={g.image} alt={g.title} />
+                <Showcase image={g.image} alt={g.imageAlt || g.title} fullFrame={g.fullFrame} badge={g.badge} />
               ) : (
-                <BeforeAfter before={g.before} after={g.after} alt={g.title}/>
+                <BeforeAfterSlider before={g.before} after={g.after} alt={g.title} beforeAlt={g.beforeAlt} afterAlt={g.afterAlt} aspectRatio={g.imageAspect} imageFit={g.imageFit} />
               )}
               <div className="p-6">
                 <div className="flex items-center gap-3 text-xs text-neutral-500 flex-wrap">

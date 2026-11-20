@@ -7,6 +7,8 @@ import { MAKE_READY_AREAS, MAKE_READY_AREA_INTRO } from '../data/makeReady';
 import SEO from '../components/SEO';
 import Breadcrumbs from '../components/Breadcrumbs';
 import CTASection from '../components/CTASection';
+import BeforeAfterSlider from '../components/BeforeAfterSlider';
+import { GALLERY } from '../data/gallery';
 
 const ServiceDetail = () => {
   const { slug } = useParams();
@@ -15,6 +17,7 @@ const ServiceDetail = () => {
   const seo = SERVICE_SEO[slug] || {};
   const isRental = slug === 'make-ready-services' || slug === 'tenant-turnover-services';
   const quoteLink = isRental ? `/contact?service=${slug}` : '/contact';
+  const sodProject = slug === 'sod-installation' ? GALLERY.find(project => project.id === 213) : null;
 
   const serviceSchema = {
     '@context': 'https://schema.org',
@@ -71,6 +74,7 @@ const ServiceDetail = () => {
         keywords={seo.keywords}
         path={`/services/${slug}`}
         image={svc.image}
+        imageAlt={svc.imageAlt}
         schema={schemas}
       />
       <Breadcrumbs items={[
@@ -91,10 +95,24 @@ const ServiceDetail = () => {
             </div>
           </div>
           <div className="relative">
-            <img src={svc.image} alt={`${svc.title} in Austin TX`} className="w-full rounded-2xl border border-[#1a1a1a] aspect-[4/3] object-cover" />
+            <img src={svc.image} alt={svc.imageAlt || `${svc.title} in Austin TX`} className="w-full rounded-2xl border border-[#1a1a1a] aspect-[4/3] object-cover" />
           </div>
         </div>
       </section>
+
+      {sodProject && (
+        <section className="py-16 bg-[#080808] border-b border-[#161616]">
+          <div className="max-w-6xl mx-auto px-5 lg:px-8 grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
+            <BeforeAfterSlider before={sodProject.before} after={sodProject.after} alt={sodProject.title} beforeAlt={sodProject.beforeAlt} afterAlt={sodProject.afterAlt} aspectRatio={sodProject.imageAspect} imageFit={sodProject.imageFit} />
+            <div>
+              <span className="chip inline-flex px-4 py-1.5 rounded-full text-xs tracking-widest font-medium uppercase">Project Photos</span>
+              <h2 className="font-serif text-3xl md:text-4xl text-white mt-5">See the Sod Transformation</h2>
+              <p className="text-neutral-300 mt-4 leading-relaxed">See the front yard before and after sod installation. Move the slider to compare the two views, or use the arrow keys when the slider is focused.</p>
+              <Link to="/gallery" className="mt-6 inline-flex items-center gap-2 text-green-400 font-medium hover:underline">Explore the project gallery <ArrowRight size={18}/></Link>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* OVERVIEW */}
       <section className="py-20">
@@ -212,7 +230,7 @@ const ServiceDetail = () => {
             {relatedServices.map(s => (
               <Link to={`/services/${s.slug}`} key={s.slug} className="svc-card bg-[#0f0f0f] border border-[#1c1c1c] rounded-2xl overflow-hidden group">
                 <div className="aspect-[4/3] overflow-hidden">
-                  <img src={s.image} alt={s.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+                  <img src={s.image} alt={s.imageAlt || s.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
                 </div>
                 <div className="p-6">
                   <h3 className="text-white font-semibold text-lg">{s.title}</h3>

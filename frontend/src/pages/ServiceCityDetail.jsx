@@ -47,6 +47,7 @@ const ServiceCityDetail = () => {
         keywords={`${svc.title.toLowerCase()} ${cityMeta.name} TX, ${svc.title.toLowerCase()} ${cityMeta.name}, ${svc.title.toLowerCase()} near ${cityMeta.name}`}
         path={`/services/${slug}/${city}`}
         image={svc.image}
+        imageAlt={svc.imageAlt}
         schema={schema}
       />
       <Breadcrumbs items={[
@@ -67,7 +68,7 @@ const ServiceCityDetail = () => {
             </div>
           </div>
           <div>
-            <img src={svc.image} alt={`${svc.title} in ${cityMeta.fullName}`} className="w-full aspect-[4/3] object-cover rounded-2xl border border-[#1a1a1a]"/>
+            <img src={svc.image} alt={svc.imageAlt || `${svc.title} in ${cityMeta.fullName}`} className="w-full aspect-[4/3] object-cover rounded-2xl border border-[#1a1a1a]"/>
           </div>
         </div>
       </section>

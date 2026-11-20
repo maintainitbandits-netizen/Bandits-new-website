@@ -29,7 +29,7 @@ const Bundles = () => (
         {BUNDLES.map(bundle => (
           <Link to={`/bundles/${bundle.slug}`} key={bundle.slug} className="svc-card bg-[#0f0f0f] border border-[#1c1c1c] rounded-2xl overflow-hidden group">
             <div className="aspect-[16/9] overflow-hidden relative">
-              <img src={bundle.image} alt={bundle.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" loading="lazy" />
+              <img src={bundle.image} alt={bundle.imageAlt || bundle.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" loading="lazy" />
             </div>
             <div className="p-6">
               <h2 className="font-serif text-2xl text-white">{bundle.name}</h2>

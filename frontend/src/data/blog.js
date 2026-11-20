@@ -221,7 +221,8 @@ export const BLOG_POSTS = [
     author: 'Maintain It Bandits Team',
     readTime: '3 min read',
     category: 'Pricing',
-    image: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=1600&q=80',
+    image: '/gallery/sod-install-after.jpg',
+    imageAlt: 'Front yard after sod installation',
     keywords: 'lawn care cost Austin TX, lawn mowing quote Austin, sod installation pricing Austin',
     content: [
       { type: 'p', text: 'Lawn care pricing depends on the property and the work requested. Instead of relying on a fixed range, share the details below to discuss a quote for your yard.' },
@@ -295,7 +296,8 @@ export const BLOG_POSTS = [
     author: 'Maintain It Bandits Team',
     readTime: '7 min read',
     category: 'Landscaping',
-    image: 'https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=1600&q=80',
+    image: '/gallery/flower-bed-planting.jpg',
+    imageAlt: 'A planted flower bed with dark mulch and a stone border',
     keywords: 'mulching Austin TX, best mulch for Texas, how much mulch Austin, mulch installation Cedar Park Round Rock',
     content: [
       { type: 'p', text: 'Mulch is one of the hardest-working materials in your landscape. It conserves moisture, regulates soil temperature, suppresses weeds, and gives your beds a clean, finished look. But there\u2019s a right and wrong way to mulch in Central Texas \u2014 here\u2019s everything you need to know.' },

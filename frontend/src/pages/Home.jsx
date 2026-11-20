@@ -116,7 +116,7 @@ const Home = () => {
             {SERVICES.map((s) => (
               <Link to={`/services/${s.slug}`} key={s.slug} className="svc-card group bg-[#0f0f0f] border border-[#1c1c1c] rounded-2xl overflow-hidden flex flex-col">
                 <div className="aspect-[4/3] overflow-hidden bg-[#111]">
-                  <img src={s.image} alt={s.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+                  <img src={s.image} alt={s.imageAlt || s.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
                 </div>
                 <div className="p-6 flex-1 flex flex-col">
                   <h3 className="text-white font-semibold text-xl">{s.title}</h3>
